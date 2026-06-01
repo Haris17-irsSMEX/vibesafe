@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
 
   // Store state in a short-lived cookie for verification in callback
   const redirectUrl = buildGitHubAuthorizationUrl(state)
-  console.log('>>> GITHUB REDIRECT URL:', redirectUrl)
 
   const response = NextResponse.redirect(redirectUrl)
   response.cookies.set('github_oauth_state', state, {

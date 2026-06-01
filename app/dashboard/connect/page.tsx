@@ -2,13 +2,14 @@
  * /dashboard/connect
  *
  * Repository authorization page.
- * Shows GitHub connection status.
- * Uses a separate GitHub OAuth flow — NOT Supabase Auth.
+ * Server component: loads connection + repo data server-side.
+ * Token is decrypted and used server-side only — never sent to client.
  */
 
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { getConnectedRepositories } from '@/services/github/getConnectedRepositories'
 import { ConnectPageClient } from './ConnectPageClient'
 
 export default async function ConnectPage({
@@ -18,25 +19,27 @@ export default async function ConnectPage({
 }) {
   // Server-side auth guard
   const supabase = createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
 
   if (error || !user) {
     redirect('/login')
   }
 
-  // Check if GitHub is already connected
-  const { data: connection } = await supabase
-    .from('connected_repos')
-    .select('github_login, connected_at, token_scope')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // Load connection status + repositories server-side
+  // Token decryption happens entirely in this call — never reaches client
+  const data = await getConnectedRepositories()
 
   return (
     <DashboardLayout>
       <ConnectPageClient
-        isConnected={!!connection}
-        githubLogin={connection?.github_login ?? null}
-        connectedAt={connection?.connected_at ?? null}
+        connected={data.connected}
+        githubLogin={data.githubLogin}
+        connectedAt={data.connectedAt}
+        repositories={data.repositories}
+        repoError={data.error}
         successParam={searchParams.success ?? null}
         errorParam={searchParams.error ?? null}
       />
