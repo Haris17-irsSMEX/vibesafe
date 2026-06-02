@@ -19,6 +19,7 @@ export type SecuritySection =
   | 'database'
   | 'auth'
   | 'payments'
+  | 'server_validation'
   | 'dependencies'
   | 'rate_limit'
   | 'cors'
@@ -78,6 +79,20 @@ const PATH_RULES: Array<{ pattern: RegExp; section: SecuritySection }> = [
   { pattern: /Pipfile$/i, section: 'dependencies' },
   { pattern: /pyproject\.toml$/i, section: 'dependencies' },
 
+  // Server-side validation
+  { pattern: /validat/i, section: 'server_validation' },
+  { pattern: /sanitiz/i, section: 'server_validation' },
+  { pattern: /zod/i, section: 'server_validation' },
+  { pattern: /yup/i, section: 'server_validation' },
+  { pattern: /joi/i, section: 'server_validation' },
+  { pattern: /schema.*valid/i, section: 'server_validation' },
+  // API route handlers (Next.js / Express)
+  { pattern: /app\/api\//i, section: 'server_validation' },
+  { pattern: /pages\/api\//i, section: 'server_validation' },
+  { pattern: /routes?\.(ts|js)$/i, section: 'server_validation' },
+  { pattern: /handler\.(ts|js)$/i, section: 'server_validation' },
+  { pattern: /controller/i, section: 'server_validation' },
+
   // Rate limiting
   { pattern: /rate.?limit/i, section: 'rate_limit' },
   { pattern: /throttl/i, section: 'rate_limit' },
@@ -105,6 +120,9 @@ const CONTENT_RULES: Array<{ keywords: RegExp; section: SecuritySection }> = [
 
   // Payments
   { keywords: /(?:stripe\.|Stripe\(|paddle|PADDLE_|createCheckout|createSubscription)/i, section: 'payments' },
+
+  // Server-side validation (content fallback)
+  { keywords: /(?:z\.object|z\.string|z\.number|yup\.object|Joi\.object|validateBody|parseBody|safeParse|validateInput)/i, section: 'server_validation' },
 
   // Rate limiting
   { keywords: /(?:rateLimit|rateLimiter|Ratelimit|sliding.?window|token.?bucket)/i, section: 'rate_limit' },
