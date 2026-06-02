@@ -14,6 +14,7 @@ import {
   GitFork,
   Clock,
   Loader2,
+  Play,
 } from 'lucide-react'
 import type { SafeRepo } from '@/services/github/RepoFetcher'
 
@@ -85,6 +86,48 @@ interface ConnectPageClientProps {
 
 // ─── Repo Card ────────────────────────────────────────────────────────────────
 function RepoCard({ repo }: { repo: SafeRepo }) {
+  const router = useRouter()
+  const [isScanning, setIsScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+
+  async function handleStartScan() {
+    if (isScanning) return
+    setIsScanning(true)
+    setScanError(null)
+
+    try {
+      const res = await fetch('/api/scans/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repoId: repo.id,
+          repoName: repo.name,
+          repoFullName: repo.full_name,
+          repoUrl: repo.html_url,
+          defaultBranch: repo.default_branch,
+        }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok || !json.success) {
+        setScanError(
+          typeof json.error === 'string'
+            ? json.error
+            : 'Unable to create scan. Please try again.'
+        )
+        return
+      }
+
+      // Redirect to scan status page
+      router.push(`/scan/${json.scanId}`)
+    } catch {
+      setScanError('Network error. Please try again.')
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
   return (
     <div className="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       {/* Header */}
@@ -137,14 +180,31 @@ function RepoCard({ repo }: { repo: SafeRepo }) {
         </span>
       </div>
 
-      {/* Scan button (disabled — next phase) */}
+      {/* Scan error alert */}
+      {scanError && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-500" />
+          <p className="text-xs text-red-700">{scanError}</p>
+        </div>
+      )}
+
+      {/* Start Scan button */}
       <button
-        disabled
-        aria-disabled="true"
-        className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed"
+        onClick={handleStartScan}
+        disabled={isScanning}
+        className="mt-1 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:pointer-events-none disabled:opacity-60"
       >
-        <Shield className="h-4 w-4" />
-        Scan coming next phase
+        {isScanning ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Creating scan…
+          </>
+        ) : (
+          <>
+            <Play className="h-4 w-4" />
+            Start Scan
+          </>
+        )}
       </button>
     </div>
   )
