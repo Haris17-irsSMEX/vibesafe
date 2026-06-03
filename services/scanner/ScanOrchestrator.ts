@@ -14,6 +14,8 @@ import { buildSectionPrompt } from './prompts/buildSectionPrompt'
 import { runSectionScan } from './DeepSeekScanner'
 import { parseFindings, deduplicateFindings } from './FindingParser'
 import { calculateSecurityScore } from '@/services/scoring/SecurityScorer'
+import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notifications/ResendMailer'
+import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { ScanFinding } from '@/lib/types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -33,6 +35,19 @@ export async function runAIScan(
   scanId: string,
   userId: string
 ): Promise<OrchestratorResult> {
+  // Resolve user email once — needed for notifications
+  let userEmail: string | null = null
+  try {
+    const admin = createSupabaseAdmin(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data } = await admin.auth.admin.getUserById(userId)
+    userEmail = data?.user?.email ?? null
+  } catch (err) {
+    console.warn('[ScanOrchestrator] Could not resolve user email for notifications:', err instanceof Error ? err.message : err)
+  }
+
   try {
     // 1. Verify scan state
     const scan = await getScanById(scanId, userId)
@@ -116,6 +131,16 @@ export async function runAIScan(
     if (attemptedSectionsCount > 0 && insufficientBalanceCount === attemptedSectionsCount) {
       const msg = 'DeepSeek API balance is insufficient. Add credits and try again.'
       await failScan(scanId, msg)
+      // Send failure email (non-blocking)
+      if (userEmail) {
+        await sendScanFailedEmail({
+          userEmail,
+          repoFullName: scan.repo_full_name,
+          scanId,
+          safeReason: msg,
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/dashboard`,
+        })
+      }
       return { ok: false, error: msg }
     }
 
@@ -157,13 +182,52 @@ export async function runAIScan(
        console.warn(`[ScanOrchestrator] Skipped ${totalSkippedCount} malformed findings during parse.`)
     }
 
+    // 9. Send scan complete email (non-blocking — never fails the scan)
+    if (userEmail) {
+      await sendScanCompleteEmail({
+        userEmail,
+        repoFullName: scan.repo_full_name,
+        scanId,
+        securityScore: scoreResult.score,
+        totalFindings: scoreResult.totalFindings,
+        criticalCount: scoreResult.criticalCount,
+        highCount: scoreResult.highCount,
+        mediumCount: scoreResult.mediumCount,
+        lowCount: scoreResult.lowCount,
+        resultsUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/results/${scanId}`,
+      })
+    }
+
     return { ok: true }
   } catch (err) {
     const safeError = err instanceof Error ? err.message : 'Unknown error during scan execution.'
     console.error(`[ScanOrchestrator] Catastrophic failure for ${scanId}:`, safeError)
     
     // Attempt to fail the scan safely
-    await failScan(scanId, 'An unexpected error occurred during AI analysis. Please try again.')
+    const failMsg = 'An unexpected error occurred during AI analysis. Please try again.'
+    await failScan(scanId, failMsg)
+
+    // Send failure email (non-blocking — catches its own errors)
+    if (userEmail) {
+      // Fetch the scan record to get repo_full_name — use a fresh lookup since scan var may be out of scope
+      try {
+        const admin = createSupabaseAdmin(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+        const { data: scanData } = await admin.from('scans').select('repo_full_name').eq('id', scanId).maybeSingle()
+        await sendScanFailedEmail({
+          userEmail,
+          repoFullName: (scanData as { repo_full_name?: string } | null)?.repo_full_name ?? 'your repository',
+          scanId,
+          safeReason: failMsg,
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/dashboard`,
+        })
+      } catch {
+        // Silently ignore email-related errors — scan failure is already recorded
+      }
+    }
+
     return { ok: false, error: 'Catastrophic failure' }
   }
 }
