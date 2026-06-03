@@ -46,7 +46,7 @@ function createDeepSeekClient(): OpenAI {
 
 export type ScanSectionResult =
   | { ok: true; rawText: string }
-  | { ok: false; reason: 'api_error' | 'timeout' | 'invalid_key' | 'unknown'; message: string }
+  | { ok: false; reason: 'api_error' | 'timeout' | 'invalid_key' | 'insufficient_balance' | 'unknown'; message: string }
 
 // ─── Sleep helper ────────────────────────────────────────────────────────────
 
@@ -122,6 +122,20 @@ async function attemptScan(
       err instanceof OpenAI.AuthenticationError ||
       (err instanceof Error && err.message.includes('401'))
 
+    const isInsufficientBalance =
+      (err instanceof Error && err.message.includes('402')) ||
+      (err instanceof Error && err.message.toLowerCase().includes('insufficient balance')) ||
+      (err instanceof Error && err.message.toLowerCase().includes('payment required')) ||
+      (err instanceof Error && err.message.toLowerCase().includes('billing error'))
+
+    if (isInsufficientBalance) {
+      return {
+        ok: false,
+        reason: 'insufficient_balance',
+        message: '[DeepSeekScanner] DeepSeek API balance is insufficient. Add credits and try again.',
+      }
+    }
+
     if (isAuthError) {
       return {
         ok: false,
@@ -138,7 +152,7 @@ async function attemptScan(
       }
     }
 
-    // Retry once after delay (non-auth, non-timeout errors only)
+    // Retry once after delay (non-auth, non-timeout, non-billing errors only)
     if (attempt < 2) {
       console.warn(`[DeepSeekScanner] Attempt ${attempt} failed for '${sectionName}', retrying in ${RETRY_DELAY_MS}ms`)
       await sleep(RETRY_DELAY_MS)

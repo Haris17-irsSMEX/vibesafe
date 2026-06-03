@@ -33,6 +33,7 @@ import {
 import { deleteScanFilesForScan, createScanFiles } from '@/lib/db/scan-files'
 import { fetchRelevantRepositoryFiles } from '@/services/github/RepoFetcher'
 import { routeFiles } from '@/services/scanner/FileRouter'
+import { rateLimitFileFetch } from '@/lib/rate-limit'
 
 // UUID validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -58,6 +59,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: 'You must be signed in.' },
       { status: 401 }
+    )
+  }
+
+  // ── 1.5. Rate Limit ────────────────────────────────────────────────────────
+  const rateLimitResult = await rateLimitFileFetch(user.id)
+  if (!rateLimitResult.success) {
+    return NextResponse.json(
+      { success: false, error: 'Too many file fetch attempts. Try again later.' },
+      { status: 429 }
     )
   }
 

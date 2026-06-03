@@ -16,6 +16,7 @@ import {
   Download,
   FileText,
   RefreshCw,
+  Cpu,
 } from 'lucide-react'
 import type { ScanStatus } from '@/lib/db/scans'
 
@@ -154,6 +155,11 @@ export function ScanStatusClient({
   const [isResetting, setIsResetting] = useState(false)
   const [resetError, setResetError] = useState<string | null>(null)
 
+  // ── AI Scan state ──
+  const [isScanning, setIsScanning] = useState(false)
+  const [scanError, setScanError] = useState<string | null>(null)
+  const [scanSuccess, setScanSuccess] = useState<string | null>(null)
+
   // ── Handlers ────────────────────────────────────────────────────────────────
 
   async function handleFetchFiles() {
@@ -224,6 +230,40 @@ export function ScanStatusClient({
     }
   }
 
+  async function handleRunAIScan() {
+    if (isScanning) return
+    setIsScanning(true)
+    setScanError(null)
+    setScanSuccess(null)
+
+    try {
+      const res = await fetch('/api/scans/run-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanId }),
+      })
+
+      const json = await res.json().catch(() => ({}))
+
+      if (!res.ok || !json.success) {
+        setScanError(
+          typeof json.error === 'string'
+            ? json.error
+            : 'Failed to run AI scan. Please try again.'
+        )
+        router.refresh()
+        return
+      }
+
+      setScanSuccess('AI Scan completed successfully!')
+      router.refresh()
+    } catch {
+      setScanError('Network error. Please try again.')
+    } finally {
+      setIsScanning(false)
+    }
+  }
+
   // Derived state
   const canFetchFiles = status === 'pending' || status === 'failed'
   const canReset = status === 'scanning'
@@ -285,6 +325,26 @@ export function ScanStatusClient({
         >
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
           <p className="text-sm text-red-700">{resetError}</p>
+        </div>
+      )}
+
+      {scanError && (
+        <div
+          role="alert"
+          className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+          <p className="text-sm text-red-700">{scanError}</p>
+        </div>
+      )}
+
+      {scanSuccess && (
+        <div
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4"
+        >
+          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <p className="text-sm text-emerald-700">{scanSuccess}</p>
         </div>
       )}
 
@@ -371,6 +431,30 @@ export function ScanStatusClient({
                 )}
               </div>
             </div>
+            
+            {readyForAI && (
+              <div className="shrink-0">
+                <button
+                  id="run-ai-btn"
+                  onClick={handleRunAIScan}
+                  disabled={isScanning || isResetting}
+                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Scanning…
+                    </>
+                  ) : (
+                    <>
+                      <Cpu className="h-4 w-4" />
+                      Run AI Security Scan
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+            
             {/* Reset button — lets user re-fetch with latest files */}
             {canReset && (
               <div className="shrink-0">
