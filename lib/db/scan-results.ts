@@ -136,3 +136,28 @@ export async function getScanResultsForScan(
 
   return (data ?? []) as ScanResultRecord[]
 }
+
+/**
+ * Get a specific finding by ID, ensuring the user owns the record.
+ */
+export async function getScanResultById(
+  resultId: string,
+  userId: string
+): Promise<ScanResultRecord | null> {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('scan_results')
+    .select('*')
+    .eq('id', resultId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[getScanResultById] DB error:', error.message)
+    return null
+  }
+
+  return data as ScanResultRecord | null
+}
+

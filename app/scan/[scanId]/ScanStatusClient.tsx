@@ -485,14 +485,23 @@ export function ScanStatusClient({
 
       {/* ── Complete placeholder ── */}
       {isTerminal && (
-        <div className="mt-6 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-6">
-          <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-          <div>
-            <p className="text-sm font-medium text-emerald-900">Scan complete</p>
-            <p className="mt-1 text-sm text-emerald-700">
-              Security analysis has finished. Detailed findings will be shown here.
-            </p>
+        <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 p-6">
+          <div className="flex items-start gap-3">
+            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+            <div>
+              <p className="text-sm font-medium text-emerald-900">Scan complete</p>
+              <p className="mt-1 text-sm text-emerald-700">
+                Security analysis has finished.
+              </p>
+            </div>
           </div>
+          <Link
+            href={`/results/${scanId}`}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 shadow-sm"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View Results
+          </Link>
         </div>
       )}
 
