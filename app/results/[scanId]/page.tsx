@@ -2,7 +2,11 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getScanById } from '@/lib/db/scans'
-import { getScanResultsForScan } from '@/lib/db/scan-results'
+import {
+  getScanResultsForScan,
+  getScanResultsForScanFree,
+} from '@/lib/db/scan-results'
+import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
 import { FindingsList } from '@/components/results/FindingsList'
 import { ArrowLeft, ExternalLink, GitBranch, Calendar } from 'lucide-react'
 
@@ -33,11 +37,10 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     redirect('/login')
   }
 
-  // 2. Load scan & verify ownership
+  // 2. Load scan & verify ownership (server-side, never trusts client input)
   const scan = await getScanById(scanId, user.id)
-  
+
   if (!scan) {
-    // Return safe error if unauthorized or missing
     return (
       <div className="mx-auto max-w-3xl py-12 px-4 sm:px-6 lg:px-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
@@ -56,12 +59,22 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     )
   }
 
-  // 3. Load real scan_results
-  const findings = await getScanResultsForScan(scanId)
+  // 3. Load user profile & detect plan
+  //    Auto-provision a free profile row if not yet created (first login edge case)
+  let profile = await getUserProfile(user.id)
+  if (!profile) {
+    await upsertUserProfile(user.id, user.email ?? null)
+    profile = await getUserProfile(user.id)
+  }
+  const userPlan = profile?.plan ?? 'free'
+  const paid = isPaidPlan(userPlan)
 
-  // Wait, shouldn't we block access if the scan is not complete?
-  // It's okay to view results even if it's failed (might show 0 findings or partial).
-  // But usually we just let it render.
+  // 4. Fetch findings — GATED at the DB query level
+  //    Free users: only safe fields (no description/fix_code/fix_prompt etc.)
+  //    Paid users: full fields
+  const findings = paid
+    ? await getScanResultsForScan(scanId)
+    : await getScanResultsForScanFree(scanId)
 
   return (
     <div className="mx-auto max-w-4xl py-10 px-4 sm:px-6 lg:px-8">
@@ -99,6 +112,16 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
                   {formatDate(scan.completed_at)}
                 </span>
               )}
+              {/* Plan badge */}
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                  paid
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                }`}
+              >
+                {userPlan} plan
+              </span>
             </div>
           </div>
           {scan.security_score !== null && (
@@ -139,7 +162,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
       {/* Findings List */}
       <div>
         <h2 className="mb-4 text-lg font-bold text-slate-900">Findings Details</h2>
-        <FindingsList findings={findings} scanId={scanId} />
+        <FindingsList findings={findings} scanId={scanId} isPaid={paid} />
       </div>
     </div>
   )

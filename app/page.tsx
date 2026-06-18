@@ -71,7 +71,7 @@ export default function Home() {
               <Code2 className="w-6 h-6 text-purple-600" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">AI-Powered Fixes</h3>
-            <p className="text-slate-600 leading-relaxed">Don't just find bugs—fix them. Our AI generates production-ready patches for every vulnerability it finds.</p>
+            <p className="text-slate-600 leading-relaxed">Don&apos;t just find bugs—fix them. Our AI generates production-ready patches for every vulnerability it finds.</p>
           </div>
           
           <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
@@ -79,7 +79,7 @@ export default function Home() {
               <Lock className="w-6 h-6 text-emerald-600" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 mb-3">Zero Config</h3>
-            <p className="text-slate-600 leading-relaxed">Connect your GitHub account and you're done. No complex rulesets or massive YAML files to maintain.</p>
+            <p className="text-slate-600 leading-relaxed">Connect your GitHub account and you&apos;re done. No complex rulesets or massive YAML files to maintain.</p>
           </div>
         </div>
       </main>

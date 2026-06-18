@@ -7,7 +7,7 @@
 
 // ─── Plans ───────────────────────────────────────────────────────────────────
 
-export type UserPlan = 'free' | 'pro' | 'enterprise'
+export type UserPlan = 'free' | 'starter' | 'builder'
 
 // ─── Scan lifecycle ──────────────────────────────────────────────────────────
 

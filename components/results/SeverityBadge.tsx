@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { AlertTriangle, AlertCircle, Info, ShieldAlert } from 'lucide-react'
 
 export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
@@ -42,6 +43,6 @@ export function SeverityBadge({ severity, className = '' }: SeverityBadgeProps) 
   )
 }
 
-function AlertOctagon(props: any) {
+function AlertOctagon(props: React.SVGProps<SVGSVGElement>) {
   return <AlertCircle {...props} />
 }

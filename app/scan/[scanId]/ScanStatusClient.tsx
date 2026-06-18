@@ -125,7 +125,9 @@ interface ScanStatusClientProps {
 
 export function ScanStatusClient({
   scanId,
-  repoName,
+  // repoName is not used directly in this component (repoFullName is used)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  repoName: _repoName,
   repoFullName,
   repoUrl,
   defaultBranch,
@@ -137,7 +139,9 @@ export function ScanStatusClient({
   criticalCount,
   highCount,
   mediumCount,
-  lowCount,
+  // lowCount is displayed in scan terminal but not in this component
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  lowCount: _lowCount,
   totalFindings,
   fileCount,
   readyForAI,

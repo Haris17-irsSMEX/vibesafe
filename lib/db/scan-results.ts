@@ -3,6 +3,10 @@
  *
  * Server-side ONLY. Database helpers for the scan_results table.
  * All writes use the service role client to bypass RLS.
+ *
+ * SECURITY: Free users NEVER receive premium fields (description, why_it_matters,
+ * vulnerable_code, fix_code, fix_prompt). These are stripped server-side before
+ * the data is serialized and passed to any client component.
  */
 
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
@@ -10,6 +14,7 @@ import type { ScanFinding } from '@/lib/types'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+/** Full finding record — only used for paid users server-side. */
 export interface ScanResultRecord {
   id: string
   scan_id: string
@@ -28,6 +33,31 @@ export interface ScanResultRecord {
   effort_minutes: number | null
   status: 'open' | 'resolved' | 'ignored'
   created_at: string
+}
+
+/**
+ * Gated finding record for free users.
+ * Premium fields are ABSENT — they are never fetched or passed to client.
+ */
+export interface FreeScanResultRecord {
+  id: string
+  scan_id: string
+  check_name: string
+  severity: string
+  category: string
+  file_path: string
+  line_number: number | null
+  cwe_id: string | null
+  status: 'open' | 'resolved' | 'ignored'
+  created_at: string
+}
+
+/** Union type safe for passing to client components */
+export type GatedScanResultRecord = ScanResultRecord | FreeScanResultRecord
+
+/** Type guard: check if a result record has premium fields */
+export function isPaidResult(r: GatedScanResultRecord): r is ScanResultRecord {
+  return 'description' in r
 }
 
 // ─── Admin client ────────────────────────────────────────────────────────────
@@ -111,11 +141,12 @@ export async function createScanResults(
   return { ok: true, count: findings.length }
 }
 
-// ─── Get results ──────────────────────────────────────────────────────────────
+// ─── Get results (paid — full data) ──────────────────────────────────────────
 
 /**
- * Get all findings for a specific scan.
+ * Get all findings for a specific scan — FULL data for paid users.
  * Returns empty array if none found or on error.
+ * Only call this after verifying the user has a paid plan.
  */
 export async function getScanResultsForScan(
   scanId: string
@@ -126,8 +157,7 @@ export async function getScanResultsForScan(
     .from('scan_results')
     .select('*')
     .eq('scan_id', scanId)
-    .order('severity', { ascending: true }) // Not perfect sorting for text severity, but a default
-    // We'll likely sort this in the UI based on severity weight
+    .order('severity', { ascending: true })
 
   if (error) {
     console.error('[getScanResultsForScan] DB error:', error.message)
@@ -138,7 +168,9 @@ export async function getScanResultsForScan(
 }
 
 /**
- * Get a specific finding by ID, ensuring the user owns the record.
+ * Get a specific finding by ID — FULL data for paid users.
+ * Ensures the user owns the record.
+ * Only call this after verifying the user has a paid plan.
  */
 export async function getScanResultById(
   resultId: string,
@@ -159,5 +191,72 @@ export async function getScanResultById(
   }
 
   return data as ScanResultRecord | null
+}
+
+// ─── Get results (free — gated data) ─────────────────────────────────────────
+
+/** Free-tier column selection — excludes all premium fields at the DB query level */
+const FREE_COLUMNS = [
+  'id',
+  'scan_id',
+  'check_name',
+  'severity',
+  'category',
+  'file_path',
+  'line_number',
+  'cwe_id',
+  'status',
+  'created_at',
+].join(', ')
+
+/**
+ * Get all findings for a specific scan — GATED data for free users.
+ * Premium fields (description, why_it_matters, vulnerable_code, fix_code,
+ * fix_prompt) are NEVER selected from the database — they do not exist
+ * anywhere in the response, not even in intermediate server memory.
+ */
+export async function getScanResultsForScanFree(
+  scanId: string
+): Promise<FreeScanResultRecord[]> {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('scan_results')
+    .select(FREE_COLUMNS)
+    .eq('scan_id', scanId)
+    .order('severity', { ascending: true })
+
+  if (error) {
+    console.error('[getScanResultsForScanFree] DB error:', error.message)
+    return []
+  }
+
+  return ((data ?? []) as unknown) as FreeScanResultRecord[]
+}
+
+/**
+ * Get a specific finding by ID — GATED data for free users.
+ * Premium fields are NEVER selected from the database.
+ * Ensures the user owns the record.
+ */
+export async function getScanResultByIdFree(
+  resultId: string,
+  userId: string
+): Promise<FreeScanResultRecord | null> {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('scan_results')
+    .select(FREE_COLUMNS)
+    .eq('id', resultId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[getScanResultByIdFree] DB error:', error.message)
+    return null
+  }
+
+  return (data as unknown) as FreeScanResultRecord | null
 }
 

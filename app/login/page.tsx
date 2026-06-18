@@ -46,8 +46,9 @@ function LoginForm() {
         },
       });
       if (error) throw error;
-    } catch (err: any) {
-      setError(err.message || "An error occurred during sign in.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'An error occurred during sign in.'
+      setError(msg);
       setLoading(false);
     }
   };
