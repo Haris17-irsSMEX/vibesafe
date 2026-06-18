@@ -15,7 +15,7 @@ import { GitHubCard } from '@/components/billing/GitHubCard'
 import { Settings, CheckCircle } from 'lucide-react'
 
 interface SettingsPageProps {
-  searchParams: { upgraded?: string }
+  searchParams: { upgraded?: string; error?: string }
 }
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
@@ -61,7 +61,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           </div>
         </div>
 
-        {/* Upgrade success banner */}
+        {/* Alerts */}
         {justUpgraded && (
           <div
             role="status"
@@ -74,6 +74,23 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </p>
               <p className="text-sm text-emerald-700">
                 Your new plan benefits are now active. Enjoy full access to all findings.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {searchParams.error && (
+          <div
+            role="alert"
+            className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-4 shadow-sm"
+          >
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100">
+              <span className="text-sm font-bold text-red-600">!</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-900">Billing Error</p>
+              <p className="text-sm text-red-700">
+                {searchParams.error === 'checkout_failed' ? 'Failed to start checkout process.' : searchParams.error}
               </p>
             </div>
           </div>

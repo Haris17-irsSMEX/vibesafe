@@ -232,3 +232,54 @@ export async function isScanReadyForAI(
 
   return true
 }
+
+// ─── Get recent scans ──────────────────────────────────────────────────────────
+
+/**
+ * Get recent scans for a user.
+ */
+export async function getRecentScansForUser(
+  userId: string,
+  limit: number = 5
+): Promise<ScanRecord[]> {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('scans')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error('[getRecentScansForUser] DB error:', error.message)
+    return []
+  }
+
+  return (data ?? []) as ScanRecord[]
+}
+
+/**
+ * Get all completed scans for a user.
+ */
+export async function getCompletedScansForUser(
+  userId: string,
+  limit: number = 20
+): Promise<ScanRecord[]> {
+  const admin = getAdminClient()
+
+  const { data, error } = await admin
+    .from('scans')
+    .select('*')
+    .eq('user_id', userId)
+    .in('status', ['complete', 'completed'])
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error('[getCompletedScansForUser] DB error:', error.message)
+    return []
+  }
+
+  return (data ?? []) as ScanRecord[]
+}
