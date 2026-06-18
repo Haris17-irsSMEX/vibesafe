@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isScanReadyForAI } from '@/lib/db/scans'
 import { runAIScan } from '@/services/scanner/ScanOrchestrator'
 import { rateLimitAIScan } from '@/lib/rate-limit'
+import { getUserProfile } from '@/lib/db/users'
 
 export const maxDuration = 300 // Max Vercel timeout for Pro (if applicable)
 
@@ -25,10 +26,18 @@ export async function POST(request: Request) {
     }
 
     // 1.5. Rate Limit
-    const rateLimitResult = await rateLimitAIScan(user.id)
+    const profile = await getUserProfile(user.id)
+    const plan = profile?.plan ?? 'free'
+
+    const rateLimitResult = await rateLimitAIScan(user.id, plan)
     if (!rateLimitResult.success) {
+      const errorMsg =
+        plan === 'free'
+          ? 'Free scan limit reached. Upgrade to run more scans.'
+          : 'Scan limit reached. Try again later.'
+
       return NextResponse.json(
-        { success: false, error: 'Daily AI scan limit reached. Try again tomorrow.' },
+        { success: false, error: errorMsg },
         { status: 429 }
       )
     }

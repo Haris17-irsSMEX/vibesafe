@@ -305,10 +305,20 @@ export function ScanStatusClient({
       {fetchError && (
         <div
           role="alert"
-          className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4"
+          className="mb-6 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-          <p className="text-sm text-red-700">{fetchError}</p>
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <p className="text-sm text-red-700">{fetchError}</p>
+          </div>
+          {fetchError.includes('Upgrade') && (
+            <Link
+              href="/settings"
+              className="ml-8 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700 sm:ml-0 shrink-0"
+            >
+              Upgrade Plan
+            </Link>
+          )}
         </div>
       )}
 
@@ -335,10 +345,20 @@ export function ScanStatusClient({
       {scanError && (
         <div
           role="alert"
-          className="mb-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4"
+          className="mb-6 flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
-          <p className="text-sm text-red-700">{scanError}</p>
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+            <p className="text-sm text-red-700">{scanError}</p>
+          </div>
+          {scanError.includes('Upgrade') && (
+            <Link
+              href="/settings"
+              className="ml-8 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-700 sm:ml-0 shrink-0"
+            >
+              Upgrade Plan
+            </Link>
+          )}
         </div>
       )}
 

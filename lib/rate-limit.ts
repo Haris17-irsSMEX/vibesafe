@@ -2,12 +2,14 @@
  * lib/rate-limit.ts
  *
  * Provides rate limiting for expensive operations using Upstash Redis.
- * - Fails closed: if Redis fails to connect, the limits apply by default to protect the API.
- * - User-scoped: limits apply to the authenticated Supabase user ID.
+ * - Plan-based: limits depend on the user's active plan.
+ * - Fails closed: if Redis fails to connect in production, limits apply by default to protect the API.
+ * - User-scoped: limits apply to the authenticated Supabase user ID and plan.
  */
 
 import { Redis } from '@upstash/redis'
 import { Ratelimit } from '@upstash/ratelimit'
+import type { UserPlan } from '@/lib/db/users'
 
 // Use lazy initialization so this doesn't crash during build or if tokens are missing
 let redis: Redis | null = null
@@ -31,40 +33,70 @@ function getRedis(): Redis | null {
   return redis
 }
 
-// ─── Limiters ─────────────────────────────────────────────────────────────────
+// ─── Plan Configurations ──────────────────────────────────────────────────────
 
-// File fetch: 10 requests per hour per user
-let fileFetchLimiter: Ratelimit | null = null
+type WindowString = `${number} s` | `${number} m` | `${number} h` | `${number} d`
 
-// AI scan: 5 requests per day per user
-let aiScanLimiter: Ratelimit | null = null
-
-function getFileFetchLimiter(): Ratelimit | null {
-  if (fileFetchLimiter) return fileFetchLimiter
-  const r = getRedis()
-  if (!r) return null
-
-  fileFetchLimiter = new Ratelimit({
-    redis: r,
-    limiter: Ratelimit.slidingWindow(10, '1 h'),
-    analytics: true,
-    prefix: '@upstash/ratelimit/file-fetch',
-  })
-  return fileFetchLimiter
+interface LimitConfig {
+  count: number
+  window: WindowString
 }
 
-function getAiScanLimiter(): Ratelimit | null {
-  if (aiScanLimiter) return aiScanLimiter
+const FILE_FETCH_LIMITS: Record<UserPlan, LimitConfig> = {
+  free: { count: 5, window: '1 h' },
+  starter: { count: 20, window: '1 h' },
+  builder: { count: 50, window: '1 h' },
+}
+
+const AI_SCAN_LIMITS: Record<UserPlan, LimitConfig> = {
+  free: { count: 2, window: '1 d' },
+  starter: { count: 20, window: '1 d' },
+  builder: { count: 100, window: '1 d' },
+}
+
+// ─── Limiters ─────────────────────────────────────────────────────────────────
+
+const fileFetchLimiters: Partial<Record<UserPlan, Ratelimit>> = {}
+const aiScanLimiters: Partial<Record<UserPlan, Ratelimit>> = {}
+
+function getFileFetchLimiter(plan: UserPlan): Ratelimit | null {
+  if (fileFetchLimiters[plan]) return fileFetchLimiters[plan]!
   const r = getRedis()
   if (!r) return null
 
-  aiScanLimiter = new Ratelimit({
+  let config = FILE_FETCH_LIMITS[plan]
+  if (process.env.NODE_ENV !== 'production') {
+    // Higher limits for local testing
+    config = { count: 1000, window: '1 h' }
+  }
+
+  fileFetchLimiters[plan] = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(5, '1 d'),
+    limiter: Ratelimit.slidingWindow(config.count, config.window),
     analytics: true,
-    prefix: '@upstash/ratelimit/ai-scan',
+    prefix: 'file-fetch',
   })
-  return aiScanLimiter
+  return fileFetchLimiters[plan]!
+}
+
+function getAiScanLimiter(plan: UserPlan): Ratelimit | null {
+  if (aiScanLimiters[plan]) return aiScanLimiters[plan]!
+  const r = getRedis()
+  if (!r) return null
+
+  let config = AI_SCAN_LIMITS[plan]
+  if (process.env.NODE_ENV !== 'production') {
+    // Higher limits for local testing
+    config = { count: 1000, window: '1 d' }
+  }
+
+  aiScanLimiters[plan] = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(config.count, config.window),
+    analytics: true,
+    prefix: 'ai-scan',
+  })
+  return aiScanLimiters[plan]!
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -75,13 +107,14 @@ interface RateLimitResult {
 }
 
 /**
- * Limit fetching of repository files.
+ * Limit fetching of repository files based on plan.
  * @param userId the authenticated user's ID
+ * @param plan the user's active plan
  * @returns success: false if the user has exceeded the limit
  */
-export async function rateLimitFileFetch(userId: string): Promise<RateLimitResult> {
+export async function rateLimitFileFetch(userId: string, plan: UserPlan): Promise<RateLimitResult> {
   try {
-    const limiter = getFileFetchLimiter()
+    const limiter = getFileFetchLimiter(plan)
     // If no limiter (e.g. local dev without env vars), fail open locally
     if (!limiter) {
       if (process.env.NODE_ENV === 'production') {
@@ -92,23 +125,30 @@ export async function rateLimitFileFetch(userId: string): Promise<RateLimitResul
       return { success: true, remaining: 999 }
     }
 
-    const { success, remaining } = await limiter.limit(userId)
+    const key = `${plan}:${userId}`
+    const { success, remaining } = await limiter.limit(key)
     return { success, remaining }
   } catch (err) {
     console.error('[RateLimit] Error checking file fetch limit:', err)
-    // Fail closed on error to protect the API
-    return { success: false, remaining: 0 }
+    // Fail closed on error to protect the API in production, but fail open in dev if Redis fails
+    if (process.env.NODE_ENV === 'production') {
+      return { success: false, remaining: 0 }
+    } else {
+      console.warn('[RateLimit] Bypassing Redis failure in development mode.')
+      return { success: true, remaining: 999 }
+    }
   }
 }
 
 /**
- * Limit execution of DeepSeek AI scans.
+ * Limit execution of DeepSeek AI scans based on plan.
  * @param userId the authenticated user's ID
+ * @param plan the user's active plan
  * @returns success: false if the user has exceeded the limit
  */
-export async function rateLimitAIScan(userId: string): Promise<RateLimitResult> {
+export async function rateLimitAIScan(userId: string, plan: UserPlan): Promise<RateLimitResult> {
   try {
-    const limiter = getAiScanLimiter()
+    const limiter = getAiScanLimiter(plan)
     if (!limiter) {
       if (process.env.NODE_ENV === 'production') {
         // Fail closed to protect credits
@@ -118,11 +158,17 @@ export async function rateLimitAIScan(userId: string): Promise<RateLimitResult> 
       return { success: true, remaining: 999 }
     }
 
-    const { success, remaining } = await limiter.limit(userId)
+    const key = `${plan}:${userId}`
+    const { success, remaining } = await limiter.limit(key)
     return { success, remaining }
   } catch (err) {
     console.error('[RateLimit] Error checking AI scan limit:', err)
     // Fail closed on error to protect credits
-    return { success: false, remaining: 0 }
+    if (process.env.NODE_ENV === 'production') {
+      return { success: false, remaining: 0 }
+    } else {
+      console.warn('[RateLimit] Bypassing Redis failure in development mode.')
+      return { success: true, remaining: 999 }
+    }
   }
 }
