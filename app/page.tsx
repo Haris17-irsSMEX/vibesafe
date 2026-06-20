@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PublicLayout } from "@/components/layout/public-layout";
-import { ShieldCheck, GitFork, Bot, Search, Lock, Code2, Cpu, Zap, CheckCircle2, ChevronRight } from "lucide-react";
+import { ShieldCheck, Search, Lock, Cpu, CheckCircle2, ChevronRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -61,7 +61,7 @@ export default function Home() {
             <span className="text-slate-500">But security gaps hide in plain sight.</span>
           </h2>
           <p className="mx-auto mt-6 max-w-3xl text-lg text-slate-600 leading-relaxed">
-            When you build rapidly with AI, it's easy to overlook critical security boundaries. 
+            When you build rapidly with AI, it&apos;s easy to overlook critical security boundaries. 
             VibeSafe helps detect hidden risks in auth, database rules, secrets, dependencies, 
             rate limits, CORS, file uploads, and payment/webhook logic.
           </p>

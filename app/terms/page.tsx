@@ -12,7 +12,7 @@ export default function TermsPage() {
             <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
             
             <p>
-              By accessing and using VibeSafe ("Service"), operated by irsSMEX, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our Service.
+              By accessing and using VibeSafe (&quot;Service&quot;), operated by irsSMEX, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our Service.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">1. Use of Service</h2>
