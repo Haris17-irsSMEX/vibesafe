@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "VibeSafe | Security Scanner",
-  description: "AI security scanner for vibe-coded SaaS apps.",
+  title: "VibeSafe — AI Security Scanner for Vibe-Coded Apps",
+  description: "Connect your GitHub repo, scan for security risks, and get fix guidance before you ship.",
 };
 
 export default function RootLayout({
