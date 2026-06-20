@@ -248,7 +248,7 @@ export async function getRecentScansForUser(
     .from('scans')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .order('started_at', { ascending: false })
     .limit(limit)
 
   if (error) {
@@ -273,7 +273,7 @@ export async function getCompletedScansForUser(
     .select('*')
     .eq('user_id', userId)
     .in('status', ['complete', 'completed'])
-    .order('created_at', { ascending: false })
+    .order('started_at', { ascending: false })
     .limit(limit)
 
   if (error) {

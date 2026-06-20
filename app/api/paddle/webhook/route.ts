@@ -174,11 +174,10 @@ async function handleSubscriptionChange(
   }
 
   const customerId = data.customer_id as string | undefined
-  const subscriptionId = data.id as string | undefined
 
   if (action === 'canceled') {
     // Downgrade to free on cancellation
-    await updateUserPlan(userId, 'free', customerId, subscriptionId)
+    await updateUserPlan(userId, 'free', customerId)
     console.log(`[webhook] Downgraded user ${userId} to free (subscription canceled)`)
     return
   }
@@ -198,7 +197,7 @@ async function handleSubscriptionChange(
     return
   }
 
-  await updateUserPlan(userId, plan, customerId, subscriptionId)
+  await updateUserPlan(userId, plan, customerId)
   console.log(`[webhook] Upgraded user ${userId} to plan: ${plan}`)
 }
 
@@ -231,6 +230,6 @@ async function handleTransactionCompleted(data: Record<string, unknown> | undefi
   }
 
   // For transaction.completed, we may not have a subscription ID
-  await updateUserPlan(userId, plan, customerId, undefined)
+  await updateUserPlan(userId, plan, customerId)
   console.log(`[webhook] Set plan via transaction for user ${userId}: ${plan}`)
 }

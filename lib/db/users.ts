@@ -18,7 +18,6 @@ export interface UserProfile {
   email: string | null
   plan: UserPlan
   paddle_customer_id: string | null
-  paddle_subscription_id: string | null
   plan_updated_at: string | null
   created_at: string
 }
@@ -44,7 +43,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
   const { data, error } = await admin
     .from('users')
-    .select('id, email, plan, paddle_customer_id, paddle_subscription_id, plan_updated_at, created_at')
+    .select('id, email, plan, paddle_customer_id, plan_updated_at, created_at')
     .eq('id', userId)
     .maybeSingle()
 
@@ -92,8 +91,7 @@ export async function upsertUserProfile(
 export async function updateUserPlan(
   userId: string,
   plan: UserPlan,
-  paddleCustomerId?: string,
-  paddleSubscriptionId?: string
+  paddleCustomerId?: string
 ): Promise<{ ok: boolean; error?: string }> {
   const admin = getAdminClient()
 
@@ -102,7 +100,6 @@ export async function updateUserPlan(
     .update({
       plan,
       paddle_customer_id: paddleCustomerId ?? null,
-      paddle_subscription_id: paddleSubscriptionId ?? null,
       plan_updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
