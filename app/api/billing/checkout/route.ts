@@ -59,10 +59,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const environment = process.env.PADDLE_ENVIRONMENT ?? 'sandbox'
+    const isSandbox = environment === 'sandbox'
+    const paddleApiUrl = isSandbox 
+      ? 'https://sandbox-api.paddle.com/transactions' 
+      : 'https://api.paddle.com/transactions'
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
+    console.log(`[checkout] Initiating checkout for plan=${plan}, env=${environment}`)
+
     // 3. Create Paddle checkout session via API
-    const paddleRes = await fetch('https://api.paddle.com/transactions', {
+    const paddleRes = await fetch(paddleApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -84,10 +92,21 @@ export async function POST(req: NextRequest) {
     })
 
     if (!paddleRes.ok) {
-      const errBody = await paddleRes.text()
-      console.error('[checkout] Paddle API error:', paddleRes.status, errBody)
+      const errBody = await paddleRes.json().catch(() => ({}))
+      const code = errBody?.error?.code
+      
+      console.error('[checkout] Paddle API error:', paddleRes.status, code)
+
+      let userFriendlyError = 'Failed to create checkout session. Please try again.'
+
+      if (code === 'transaction_checkout_url_domain_is_not_approved') {
+        userFriendlyError = 'Checkout is disabled because this domain is pending Paddle approval.'
+      } else if (code === 'transaction_default_checkout_url_not_set') {
+        userFriendlyError = 'Checkout configuration error. Please contact support.'
+      }
+
       return NextResponse.json(
-        { error: 'Failed to create checkout session. Please try again.' },
+        { error: userFriendlyError },
         { status: 502 }
       )
     }
@@ -96,7 +115,7 @@ export async function POST(req: NextRequest) {
     const checkoutUrl = paddleData?.data?.checkout?.url
 
     if (!checkoutUrl) {
-      console.error('[checkout] No checkout URL returned by Paddle:', JSON.stringify(paddleData))
+      console.error('[checkout] No checkout URL returned by Paddle')
       return NextResponse.json(
         { error: 'Failed to create checkout session. Please try again.' },
         { status: 502 }
@@ -104,8 +123,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ checkoutUrl })
-  } catch (err) {
-    console.error('[checkout] Unexpected error:', err)
+  } catch {
+    console.error('[checkout] Unexpected error occurred')
     return NextResponse.json(
       { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }

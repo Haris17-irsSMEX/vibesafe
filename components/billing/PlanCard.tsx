@@ -11,6 +11,7 @@ import {
   Crown,
   ShieldCheck,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import type { UserPlan } from '@/lib/db/users'
 
 // ─── Plan feature definitions ────────────────────────────────────────────────
@@ -82,7 +83,6 @@ interface PlanCardProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanCardProps) {
-  const [upgradeLoading, setUpgradeLoading] = useState<string | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -91,31 +91,10 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
   const PlanIcon = planStyle.icon
   const isPaid = currentPlan !== 'free'
 
-  const handleUpgrade = async (plan: 'starter' | 'builder') => {
-    if (upgradeLoading) return
-    setUpgradeLoading(plan)
-    setError(null)
+  const router = useRouter()
 
-    try {
-      const res = await fetch('/api/billing/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok || !data.checkoutUrl) {
-        setError(data.error ?? 'Failed to start checkout. Please try again.')
-        setUpgradeLoading(null)
-        return
-      }
-
-      window.location.href = data.checkoutUrl
-    } catch {
-      setError('Network error. Please try again.')
-      setUpgradeLoading(null)
-    }
+  const handleUpgrade = (plan: 'starter' | 'builder') => {
+    router.push(`/checkout?plan=${plan}`)
   }
 
   const handleManageBilling = async () => {
@@ -226,31 +205,21 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
             <button
               id="plan-upgrade-starter-btn"
               onClick={() => handleUpgrade('starter')}
-              disabled={upgradeLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
-              {upgradeLoading === 'starter' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Zap className="h-4 w-4" />
-              )}
+              <Zap className="h-4 w-4" />
               Upgrade to Starter
-              {upgradeLoading !== 'starter' && <ArrowRight className="h-4 w-4" />}
+              <ArrowRight className="h-4 w-4" />
             </button>
 
             <button
               id="plan-upgrade-builder-btn"
               onClick={() => handleUpgrade('builder')}
-              disabled={upgradeLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-60"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
             >
-              {upgradeLoading === 'builder' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
+              <Sparkles className="h-4 w-4" />
               Upgrade to Builder
-              {upgradeLoading !== 'builder' && <ArrowRight className="h-4 w-4" />}
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -261,14 +230,10 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
             <button
               id="plan-upgrade-builder-from-starter-btn"
               onClick={() => handleUpgrade('builder')}
-              disabled={upgradeLoading !== null || portalLoading}
+              disabled={portalLoading}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-700 disabled:opacity-60"
             >
-              {upgradeLoading === 'builder' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Crown className="h-4 w-4" />
-              )}
+              <Crown className="h-4 w-4" />
               Upgrade to Builder
             </button>
 
@@ -276,7 +241,7 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
               <button
                 id="manage-billing-btn"
                 onClick={handleManageBilling}
-                disabled={portalLoading || upgradeLoading !== null}
+                disabled={portalLoading}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60"
               >
                 {portalLoading ? (
