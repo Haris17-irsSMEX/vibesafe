@@ -25,9 +25,22 @@ export async function GET(request: NextRequest) {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 
-  // Store state in a short-lived cookie for verification in callback
-  const redirectUrl = buildGitHubAuthorizationUrl(state)
+  // Build the GitHub authorization URL — catch configuration errors gracefully
+  let redirectUrl: string
+  try {
+    redirectUrl = buildGitHubAuthorizationUrl(state)
+  } catch (err) {
+    console.error(
+      '[github-oauth] Failed to build authorization URL:',
+      err instanceof Error ? err.message : 'Unknown error'
+    )
+    // Redirect back to connect page with a safe, user-visible error code
+    return NextResponse.redirect(
+      new URL('/dashboard/connect?error=github_not_configured', request.url)
+    )
+  }
 
+  // Store state in a short-lived cookie for verification in callback
   const response = NextResponse.redirect(redirectUrl)
   response.cookies.set('github_oauth_state', state, {
     httpOnly: true,

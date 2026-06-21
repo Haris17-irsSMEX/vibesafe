@@ -37,11 +37,27 @@ export interface GitHubOAuthError {
  */
 export function buildGitHubAuthorizationUrl(state: string): string {
   const clientId = process.env.GITHUB_CLIENT_ID
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+
   if (!clientId) {
     throw new Error('GITHUB_CLIENT_ID is not configured')
   }
 
-  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/github/callback`
+  if (!appUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL is not configured — cannot build GitHub redirect URI')
+  }
+
+  // Sanitize: strip trailing slash to avoid double-slash
+  const baseUrl = appUrl.replace(/\/$/, '')
+  const callbackUrl = `${baseUrl}/api/auth/github/callback`
+
+  // Safe server-side diagnostic — never logs the client secret
+  const callbackHost = (() => {
+    try { return new URL(callbackUrl).hostname } catch { return 'invalid-url' }
+  })()
+  console.log(
+    `[github-oauth] init: appUrl=${new URL(baseUrl).hostname}, callbackHost=${callbackHost}, path=/api/auth/github/callback, clientIdSet=${!!clientId}`
+  )
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -53,6 +69,7 @@ export function buildGitHubAuthorizationUrl(state: string): string {
 
   return `${GITHUB_OAUTH_URL}?${params.toString()}`
 }
+
 
 /**
  * Exchange the authorization code for an access token.
@@ -68,7 +85,11 @@ export async function exchangeCodeForToken(
     throw new Error('GitHub OAuth credentials are not configured')
   }
 
-  const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/github/callback`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) {
+    throw new Error('NEXT_PUBLIC_APP_URL is not configured — cannot build GitHub redirect URI')
+  }
+  const callbackUrl = `${appUrl.replace(/\/$/, '')}/api/auth/github/callback`
 
   const response = await fetch(GITHUB_TOKEN_URL, {
     method: 'POST',

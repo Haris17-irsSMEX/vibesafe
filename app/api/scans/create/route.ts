@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: 'Repository connection missing. Please reconnect GitHub.',
+        error: 'GitHub connection expired. Please reconnect GitHub from the Connect page.',
       },
       { status: 403 }
     )

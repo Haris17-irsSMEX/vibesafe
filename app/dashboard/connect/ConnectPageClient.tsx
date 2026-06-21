@@ -43,6 +43,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_callback: 'Invalid callback parameters. Please try again.',
   state_mismatch: 'Security validation failed. Please start the connection again.',
   token_exchange_failed: 'Failed to complete GitHub authorization. Please try again.',
+  github_not_configured: 'GitHub repository connection is not configured. Please contact support.',
 }
 
 const REPO_ERROR_MESSAGES: Record<string, string> = {
