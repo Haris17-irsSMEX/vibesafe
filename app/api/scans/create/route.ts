@@ -11,7 +11,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createScanForRepo } from '@/lib/db/scans'
 
 interface CreateScanBody {
@@ -76,10 +76,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 3. Verify GitHub connection exists for this user
-  const adminClient = createSupabaseAdmin(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const adminClient = createSupabaseAdminClient()
 
   const { data: connection, error: connError } = await adminClient
     .from('connected_repos')

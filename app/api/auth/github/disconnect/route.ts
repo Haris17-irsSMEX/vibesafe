@@ -9,7 +9,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function POST(_request: NextRequest) {
@@ -26,10 +26,7 @@ export async function POST(_request: NextRequest) {
 
   try {
     // 2. Delete using service role to bypass RLS — user_id comes from session
-    const adminClient = createSupabaseAdmin(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const adminClient = createSupabaseAdminClient()
 
     const { error: deleteError } = await adminClient
       .from('connected_repos')
