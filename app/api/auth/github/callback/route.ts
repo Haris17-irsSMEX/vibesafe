@@ -23,6 +23,14 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state')
   const githubError = searchParams.get('error')
 
+  // Safe diagnostic log — never logs code, token, or secret
+  const callbackHost = (() => {
+    try { return new URL(request.url).hostname } catch { return 'unknown' }
+  })()
+  console.log(
+    `[github-callback] received: host=${callbackHost}, codePresent=${!!code}, statePresent=${!!state}, githubError=${githubError ?? 'none'}, clientIdSet=${!!process.env.GITHUB_CLIENT_ID}`
+  )
+
   // Handle user-denied access
   if (githubError) {
     return NextResponse.redirect(
@@ -40,6 +48,7 @@ export async function GET(request: NextRequest) {
   // Validate CSRF state cookie
   const storedState = request.cookies.get('github_oauth_state')?.value
   if (!storedState || storedState !== state) {
+    console.warn('[github-callback] State mismatch — CSRF validation failed')
     return NextResponse.redirect(
       new URL('/dashboard/connect?error=state_mismatch', request.url)
     )
@@ -53,45 +62,71 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // Exchange code → access token (server-side only, secret never exposed)
+  let tokenData: Awaited<ReturnType<typeof exchangeCodeForToken>>
   try {
-    // Exchange code → access token (server-side only, secret never exposed)
-    const tokenData = await exchangeCodeForToken(code)
-
-    // Fetch GitHub profile to confirm token is valid and get github_user_id
-    const githubProfile = await getGitHubUserProfile(tokenData.access_token)
-
-    // Encrypt before storing — never store plaintext token
-    const encryptedToken = await encryptToken(tokenData.access_token)
-
-    // Store using service role to bypass RLS
-    const adminClient = createSupabaseAdmin(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-
-    // Upsert: one GitHub connection per user (update if reconnecting)
-    await adminClient.from('connected_repos').upsert(
-      {
-        user_id: user.id,
-        github_user_id: githubProfile.id,
-        github_login: githubProfile.login,
-        github_token: encryptedToken,
-        token_scope: tokenData.scope,
-        connected_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
-
-    // Clear the state cookie
-    const response = NextResponse.redirect(
-      new URL('/dashboard/connect?success=true', request.url)
-    )
-    response.cookies.delete('github_oauth_state')
-    return response
+    tokenData = await exchangeCodeForToken(code)
   } catch (err) {
-    console.error('[GitHub callback] Error:', err instanceof Error ? err.message : 'Unknown error')
+    console.error('[github-callback] Token exchange failed:', err instanceof Error ? err.message : 'Unknown error')
     return NextResponse.redirect(
       new URL('/dashboard/connect?error=token_exchange_failed', request.url)
     )
   }
+
+  // Fetch GitHub profile to confirm token is valid and get github_user_id
+  let githubProfile: Awaited<ReturnType<typeof getGitHubUserProfile>>
+  try {
+    githubProfile = await getGitHubUserProfile(tokenData.access_token)
+  } catch (err) {
+    console.error('[github-callback] GitHub profile fetch failed:', err instanceof Error ? err.message : 'Unknown error')
+    return NextResponse.redirect(
+      new URL('/dashboard/connect?error=token_exchange_failed', request.url)
+    )
+  }
+
+  // Encrypt before storing — never store plaintext token
+  let encryptedToken: string
+  try {
+    encryptedToken = await encryptToken(tokenData.access_token)
+  } catch (err) {
+    console.error('[github-callback] Token encryption failed:', err instanceof Error ? err.message : 'Unknown error')
+    return NextResponse.redirect(
+      new URL('/dashboard/connect?error=token_save_failed', request.url)
+    )
+  }
+
+  // Store using service role to bypass RLS
+  const adminClient = createSupabaseAdmin(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Upsert: one GitHub connection per user (replace if reconnecting)
+  const { error: upsertError } = await adminClient.from('connected_repos').upsert(
+    {
+      user_id: user.id,
+      github_user_id: githubProfile.id,
+      github_login: githubProfile.login,
+      github_token: encryptedToken,
+      token_scope: tokenData.scope,
+      connected_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  )
+
+  if (upsertError) {
+    console.error('[github-callback] DB upsert failed:', upsertError.message)
+    return NextResponse.redirect(
+      new URL('/dashboard/connect?error=token_save_failed', request.url)
+    )
+  }
+
+  console.log(`[github-callback] Success: github_login=${githubProfile.login}, user_id=[redacted]`)
+
+  // Clear the state cookie and redirect to success
+  const response = NextResponse.redirect(
+    new URL('/dashboard/connect?success=true', request.url)
+  )
+  response.cookies.delete('github_oauth_state')
+  return response
 }

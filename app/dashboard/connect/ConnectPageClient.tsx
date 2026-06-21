@@ -43,11 +43,12 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_callback: 'Invalid callback parameters. Please try again.',
   state_mismatch: 'Security validation failed. Please start the connection again.',
   token_exchange_failed: 'Failed to complete GitHub authorization. Please try again.',
+  token_save_failed: 'GitHub token was received but could not be saved. Please try again.',
   github_not_configured: 'GitHub repository connection is not configured. Please contact support.',
 }
 
 const REPO_ERROR_MESSAGES: Record<string, string> = {
-  invalid_token: 'Your GitHub token has expired or been revoked. Please reconnect GitHub.',
+  invalid_token: 'GitHub connection expired. Reconnect to refresh access.',
   rate_limited: 'GitHub rate limit reached. Please try again in a few minutes.',
   network_error: 'Unable to reach GitHub. Please check your connection and try again.',
   unknown: 'Unable to load repositories. Please try reconnecting GitHub.',
@@ -317,14 +318,42 @@ export function ConnectPageClient({
         </div>
       )}
 
-      {/* Repository fetch error */}
-      {repoErrorMessage && (
+      {/* Repository fetch error (rate limit, network, unknown) */}
+      {repoErrorMessage && repoError !== 'invalid_token' && (
         <div
           role="alert"
           className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4"
         >
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
           <p className="text-sm text-amber-700">{repoErrorMessage}</p>
+        </div>
+      )}
+
+      {/* Expired token — prominent reconnect CTA */}
+      {connected && repoError === 'invalid_token' && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">GitHub connection expired</p>
+              <p className="mt-1 text-sm text-amber-700">
+                Your GitHub token has expired or been revoked. Reconnect to restore repository access and resume scanning.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <a
+              href="/api/auth/github"
+              id="reconnect-github-expired-btn"
+              className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reconnect GitHub
+            </a>
+          </div>
         </div>
       )}
 
