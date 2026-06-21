@@ -107,7 +107,6 @@ export async function GET(request: NextRequest) {
       github_token: encryptedToken,
       token_scope: tokenData.scope,
       connected_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }
   )
