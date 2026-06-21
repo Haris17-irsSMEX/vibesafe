@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { AlertTriangle, AlertCircle, Info, ShieldAlert } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
 
@@ -13,20 +14,20 @@ interface SeverityBadgeProps {
 export function SeverityBadge({ severity, className = '' }: SeverityBadgeProps) {
   const config = {
     CRITICAL: {
-      color: 'bg-red-100 text-red-800 border-red-200',
-      icon: <ShieldAlert className="h-3 w-3 mr-1" />,
+      color: 'bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_10px_-2px_rgba(239,68,68,0.3)]',
+      icon: <ShieldAlert className="h-3 w-3 mr-1.5" />,
     },
     HIGH: {
-      color: 'bg-orange-100 text-orange-800 border-orange-200',
-      icon: <AlertOctagon className="h-3 w-3 mr-1" />, // Wait, AlertOctagon is not imported. Let's use AlertTriangle for high.
+      color: 'bg-orange-500/10 text-orange-500 border-orange-500/20 shadow-[0_0_10px_-2px_rgba(249,115,22,0.3)]',
+      icon: <AlertOctagon className="h-3 w-3 mr-1.5" />,
     },
     MEDIUM: {
-      color: 'bg-amber-100 text-amber-800 border-amber-200',
-      icon: <AlertTriangle className="h-3 w-3 mr-1" />,
+      color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20 shadow-[0_0_10px_-2px_rgba(234,179,8,0.2)]',
+      icon: <AlertTriangle className="h-3 w-3 mr-1.5" />,
     },
     LOW: {
-      color: 'bg-slate-100 text-slate-800 border-slate-200',
-      icon: <Info className="h-3 w-3 mr-1" />,
+      color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_10px_-2px_rgba(59,130,246,0.2)]',
+      icon: <Info className="h-3 w-3 mr-1.5" />,
     },
   }
 
@@ -35,7 +36,11 @@ export function SeverityBadge({ severity, className = '' }: SeverityBadgeProps) 
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${safeConfig.color} ${className}`}
+      className={cn(
+        "inline-flex items-center rounded-md border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider transition-colors",
+        safeConfig.color,
+        className
+      )}
     >
       {safeConfig.icon}
       {severity}

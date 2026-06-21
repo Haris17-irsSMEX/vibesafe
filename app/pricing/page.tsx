@@ -1,95 +1,160 @@
 import Link from "next/link";
 import { PublicLayout } from "@/components/layout/public-layout";
-import { CheckCircle2, X } from "lucide-react";
+import { GlowCard } from "@/components/ui/glow-card";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 export default function PricingPage() {
   return (
     <PublicLayout>
-      <section className="py-24 bg-slate-50 min-h-screen">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center mb-16">
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">
-              Simple pricing for secure shipping
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-slate-600">
-              Scan your codebase for free. Upgrade to unlock full explanations and AI-ready fix prompts.
-            </p>
-          </div>
+      <div className="py-24 bg-background">
+        <div className="mx-auto max-w-7xl px-6 text-center">
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">
+            Simple pricing for secure shipping
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+            Scan your codebase for free. Upgrade to unlock full explanations, unlimited scans, and AI-ready fix prompts.
+          </p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Free */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm flex flex-col">
-              <h3 className="text-2xl font-bold text-slate-900">Free</h3>
-              <p className="mt-2 text-sm text-slate-500 min-h-[40px]">Get started with basic security scanning.</p>
-              <div className="my-6">
-                <span className="text-4xl font-extrabold text-slate-900">$0</span>
-                <span className="text-slate-500"> / forever</span>
+        <div className="mx-auto mt-16 max-w-7xl px-6">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            
+            {/* Free Plan */}
+            <GlowCard className="p-8">
+              <h3 className="text-2xl font-bold text-foreground">Free</h3>
+              <p className="mt-4 text-sm text-muted-foreground min-h-[40px]">
+                For hobby projects and personal use.
+              </p>
+              <div className="my-8">
+                <span className="text-5xl font-extrabold text-foreground">$0</span>
+                <span className="text-base font-medium text-muted-foreground"> / month</span>
               </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>1 connected repository</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>50 scans per month</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Basic issue detection (names & paths)</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Community support</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground/50">
+                  <XCircle className="h-5 w-5 shrink-0 text-muted-foreground/50" />
+                  <span>No detailed explanations</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground/50">
+                  <XCircle className="h-5 w-5 shrink-0 text-muted-foreground/50" />
+                  <span>No AI-ready fix prompts</span>
+                </li>
+              </ul>
               <Link
                 href="/login"
-                className="w-full inline-flex h-12 items-center justify-center rounded-xl bg-slate-100 px-6 text-base font-semibold text-slate-900 transition-all hover:bg-slate-200 mb-8"
+                className="mt-auto block w-full rounded-xl border border-white/10 py-3 text-center text-sm font-semibold text-foreground hover:bg-white/5 transition-colors"
               >
-                Start Free
+                Get Started
               </Link>
-              <ul className="space-y-4 text-sm text-slate-600 flex-1">
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Security score</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Severity counts</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Finding names, categories & file paths</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Limited scans</li>
-                <li className="flex items-start gap-3 opacity-50"><X className="h-5 w-5 shrink-0 text-slate-400" /> Locked premium fixes</li>
-              </ul>
-            </div>
+            </GlowCard>
 
-            {/* Starter */}
-            <div className="rounded-2xl border-2 border-indigo-500 bg-white p-8 shadow-xl flex flex-col relative scale-105 z-10">
-              <div className="absolute top-0 right-8 -translate-y-1/2 rounded-full bg-indigo-500 px-3 py-1 text-xs font-bold text-white uppercase tracking-wide">Most Popular</div>
-              <h3 className="text-2xl font-bold text-slate-900">Starter</h3>
-              <p className="mt-2 text-sm text-slate-500 min-h-[40px]">Full analysis for solo developers and small projects.</p>
-              <div className="my-6">
-                <span className="text-4xl font-extrabold text-slate-900">$29</span>
-                <span className="text-slate-500"> / month</span>
+            {/* Starter Plan */}
+            <GlowCard className="p-8 border-primary/30 relative" glowColor="rgba(124,58,237,0.3)">
+              <div className="absolute top-0 right-8 -translate-y-1/2 bg-primary px-3 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider">Most popular</div>
+              <h3 className="text-2xl font-bold text-foreground">Starter</h3>
+              <p className="mt-4 text-sm text-muted-foreground min-h-[40px]">
+                For indie builders and small teams.
+              </p>
+              <div className="my-8">
+                <span className="text-5xl font-extrabold text-foreground">$9</span>
+                <span className="text-base font-medium text-muted-foreground"> / month</span>
               </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>10 connected repositories</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Unlimited scans</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Advanced issue detection</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span className="text-foreground font-medium">Full AI explanations</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span className="text-foreground font-medium">Copy-paste fix prompts</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Email support</span>
+                </li>
+              </ul>
               <Link
                 href="/checkout?plan=starter"
-                className="w-full inline-flex h-12 items-center justify-center rounded-xl bg-indigo-600 px-6 text-base font-semibold text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-200 mb-8"
+                className="mt-auto block w-full rounded-xl bg-primary py-3 text-center text-sm font-semibold text-primary-foreground hover:bg-primary-hover shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)] transition-all"
               >
-                Upgrade to Starter
+                Start Free Trial
               </Link>
-              <ul className="space-y-4 text-sm text-slate-600 flex-1">
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Everything in Free</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Full finding explanations</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Why it matters</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Suggested fixes & vulnerable code snippets</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Copy-paste fix prompts</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Higher scan limits</li>
-              </ul>
-            </div>
+            </GlowCard>
 
-            {/* Builder */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm flex flex-col">
-              <h3 className="text-2xl font-bold text-slate-900">Builder</h3>
-              <p className="mt-2 text-sm text-slate-500 min-h-[40px]">For teams shipping fast and securely at scale.</p>
-              <div className="my-6">
-                <span className="text-4xl font-extrabold text-slate-900">$99</span>
-                <span className="text-slate-500"> / month</span>
+            {/* Builder Plan */}
+            <GlowCard className="p-8">
+              <h3 className="text-2xl font-bold text-foreground">Builder</h3>
+              <p className="mt-4 text-sm text-muted-foreground min-h-[40px]">
+                For growing teams and production apps.
+              </p>
+              <div className="my-8">
+                <span className="text-5xl font-extrabold text-foreground">$29</span>
+                <span className="text-base font-medium text-muted-foreground"> / month</span>
               </div>
+              <ul className="space-y-4 mb-8">
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span className="text-foreground font-medium">Unlimited repositories</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Unlimited scans</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Everything in Starter</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Priority scanning speed</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Team collaboration</span>
+                </li>
+                <li className="flex gap-3 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                  <span>Priority support</span>
+                </li>
+              </ul>
               <Link
                 href="/checkout?plan=builder"
-                className="w-full inline-flex h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-6 text-base font-semibold text-slate-900 transition-all hover:bg-slate-50 mb-8"
+                className="mt-auto block w-full rounded-xl border border-white/10 py-3 text-center text-sm font-semibold text-foreground hover:bg-white/5 transition-colors"
               >
-                Upgrade to Builder
+                Start Free Trial
               </Link>
-              <ul className="space-y-4 text-sm text-slate-600 flex-1">
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Everything in Starter</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Highest scan limits</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> More serious project usage</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Priority scan capacity</li>
-                <li className="flex items-start gap-3"><CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" /> Team-ready workflow</li>
-              </ul>
-            </div>
+            </GlowCard>
+
           </div>
         </div>
-      </section>
+      </div>
     </PublicLayout>
   );
 }

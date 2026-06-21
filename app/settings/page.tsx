@@ -12,7 +12,7 @@ import { PlanCard } from '@/components/billing/PlanCard'
 import { UsageCard } from '@/components/billing/UsageCard'
 import { AccountCard } from '@/components/billing/AccountCard'
 import { GitHubCard } from '@/components/billing/GitHubCard'
-import { Settings, CheckCircle } from 'lucide-react'
+import { Settings, CheckCircle, AlertTriangle } from 'lucide-react'
 
 interface SettingsPageProps {
   searchParams: { upgraded?: string; error?: string }
@@ -49,15 +49,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl animate-fade-in">
         {/* Page header */}
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900">
-            <Settings className="h-5 w-5 text-white" />
+        <div className="mb-8 flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 border border-white/10 shadow-inner">
+            <Settings className="h-6 w-6 text-zinc-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
-            <p className="text-sm text-slate-500">Manage your account, plan, and billing.</p>
+            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Manage your account, plan, and billing integrations.</p>
           </div>
         </div>
 
@@ -65,15 +65,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {justUpgraded && (
           <div
             role="status"
-            className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 shadow-sm"
+            className="mb-8 flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 shadow-sm"
           >
-            <CheckCircle className="h-5 w-5 shrink-0 text-emerald-500" />
+            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
             <div>
-              <p className="text-sm font-semibold text-emerald-900">
+              <p className="text-sm font-semibold text-emerald-400">
                 Plan upgraded successfully!
               </p>
-              <p className="text-sm text-emerald-700">
-                Your new plan benefits are now active. Enjoy full access to all findings.
+              <p className="mt-1 text-sm text-emerald-400/80">
+                Your new plan benefits are now active. Enjoy full access to all findings and AI features.
               </p>
             </div>
           </div>
@@ -82,79 +82,85 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {searchParams.error && (
           <div
             role="alert"
-            className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-4 shadow-sm"
+            className="mb-8 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 shadow-sm"
           >
-            <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100">
-              <span className="text-sm font-bold text-red-600">!</span>
-            </div>
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
             <div>
-              <p className="text-sm font-semibold text-red-900">Billing Error</p>
-              <p className="text-sm text-red-700">
+              <p className="text-sm font-semibold text-red-400">Billing Error</p>
+              <p className="mt-1 text-sm text-red-400/80">
                 {searchParams.error === 'checkout_failed' ? 'Failed to start checkout process.' : searchParams.error}
               </p>
             </div>
           </div>
         )}
 
-        <div className="space-y-6">
-          {/* ── Plan & Billing ── */}
-          <section aria-labelledby="plan-section-heading">
-            <h2
-              id="plan-section-heading"
-              className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400"
-            >
-              Plan &amp; Billing
-            </h2>
-            <PlanCard
-              currentPlan={plan}
-              paddleCustomerId={profile?.paddle_customer_id ?? null}
-              planUpdatedAt={profile?.plan_updated_at ?? null}
-            />
-          </section>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            {/* ── Plan & Billing ── */}
+            <section aria-labelledby="plan-section-heading">
+              <h2
+                id="plan-section-heading"
+                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
+              >
+                Plan &amp; Billing
+                <div className="h-px flex-1 bg-white/5" />
+              </h2>
+              <PlanCard
+                currentPlan={plan}
+                paddleCustomerId={profile?.paddle_customer_id ?? null}
+                planUpdatedAt={profile?.plan_updated_at ?? null}
+              />
+            </section>
+          </div>
 
-          {/* ── Scan Usage ── */}
-          <section aria-labelledby="usage-section-heading">
-            <h2
-              id="usage-section-heading"
-              className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400"
-            >
-              Usage
-            </h2>
-            <UsageCard
-              totalScans={totalScans}
-              completedScans={completedScans}
-              plan={plan}
-            />
-          </section>
+          <div className="space-y-8">
+            {/* ── Scan Usage ── */}
+            <section aria-labelledby="usage-section-heading">
+              <h2
+                id="usage-section-heading"
+                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
+              >
+                Usage
+                <div className="h-px flex-1 bg-white/5" />
+              </h2>
+              <UsageCard
+                totalScans={totalScans}
+                completedScans={completedScans}
+                plan={plan}
+              />
+            </section>
 
-          {/* ── Account ── */}
-          <section aria-labelledby="account-section-heading">
-            <h2
-              id="account-section-heading"
-              className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400"
-            >
-              Account
-            </h2>
-            <AccountCard
-              email={user.email ?? profile?.email ?? null}
-              createdAt={profile?.created_at ?? new Date().toISOString()}
-            />
-          </section>
+            {/* ── Account ── */}
+            <section aria-labelledby="account-section-heading">
+              <h2
+                id="account-section-heading"
+                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
+              >
+                Account
+                <div className="h-px flex-1 bg-white/5" />
+              </h2>
+              <AccountCard
+                email={user.email ?? profile?.email ?? null}
+                createdAt={profile?.created_at ?? new Date().toISOString()}
+              />
+            </section>
 
-          {/* ── GitHub ── */}
-          <section aria-labelledby="github-section-heading">
-            <h2
-              id="github-section-heading"
-              className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400"
-            >
-              Integrations
-            </h2>
-            <GitHubCard
-              connected={githubConnection !== null}
-              githubLogin={githubConnection?.login ?? null}
-              connectedAt={githubConnection?.connectedAt ?? null}
-            />
-          </section>
+            {/* ── GitHub ── */}
+            <section aria-labelledby="github-section-heading">
+              <h2
+                id="github-section-heading"
+                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
+              >
+                Integrations
+                <div className="h-px flex-1 bg-white/5" />
+              </h2>
+              <GitHubCard
+                connected={githubConnection !== null}
+                githubLogin={githubConnection?.login ?? null}
+                connectedAt={githubConnection?.connectedAt ?? null}
+              />
+            </section>
+          </div>
         </div>
       </div>
     </DashboardLayout>

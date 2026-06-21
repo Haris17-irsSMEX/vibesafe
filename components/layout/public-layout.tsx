@@ -1,86 +1,116 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12 0C5.37 0 0 5.373 0 12c0 5.303 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.468-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.298 24 12c0-6.627-5.373-12-12-12z" />
+    </svg>
+  )
+}
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden selection:bg-primary/30">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200/50 bg-white/80 backdrop-blur-md">
+      <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-background/60 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-90">
-            <ShieldCheck className="h-7 w-7 text-indigo-600" />
-            <span className="text-xl font-bold tracking-tight text-slate-900">VibeSafe</span>
+          <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80 group">
+            <div className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 group-hover:bg-primary/30 transition-colors">
+              <ShieldCheck className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-foreground">VibeSafe</span>
           </Link>
           
           <nav className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-              Home
+            <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Product
             </Link>
-            <Link href="/pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            <Link href="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Pricing
             </Link>
-            <Link href="/contact" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
+            <Link href="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
               Contact
             </Link>
           </nav>
 
           <div className="flex items-center gap-4">
-            <Link href="/login" className="hidden sm:block text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-              Login
+            <Link href="/login" className="hidden sm:block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              Sign in
             </Link>
-            <Link href="/login" className="inline-flex h-9 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-medium text-white transition-colors hover:bg-slate-800 shadow-sm">
-              Get Started
+            <Link 
+              href="/login" 
+              className={cn(
+                "inline-flex h-9 items-center justify-center rounded-full px-5 text-sm font-medium text-primary-foreground transition-all",
+                "bg-primary hover:bg-primary-hover shadow-[0_0_20px_-3px_rgba(124,58,237,0.4)] hover:shadow-[0_0_25px_-3px_rgba(124,58,237,0.6)]"
+              )}
+            >
+              Start scanning &rarr;
             </Link>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main className="flex-1 pt-16">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-12">
+      <footer className="border-t border-white/10 bg-background/80 py-16">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-4 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-4 lg:grid-cols-5">
             <div className="col-span-1 lg:col-span-2">
-              <Link href="/" className="flex items-center gap-2">
-                <ShieldCheck className="h-6 w-6 text-indigo-600" />
-                <span className="text-lg font-bold tracking-tight text-slate-900">VibeSafe</span>
+              <Link href="/" className="flex items-center gap-2 group">
+                <div className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 group-hover:bg-primary/30 transition-colors">
+                  <ShieldCheck className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <span className="text-xl font-bold tracking-tight text-foreground">VibeSafe</span>
               </Link>
-              <p className="mt-4 max-w-xs text-sm text-slate-500 leading-relaxed">
-                AI security scanner for vibe-coded SaaS apps. Scan for common risks and get security guidance before you ship.
+              <p className="mt-6 max-w-xs text-sm text-muted-foreground leading-relaxed">
+                AI-powered security scanning for vibe developers. We catch what&apos;s easy to miss so you can ship with confidence.
               </p>
+              <div className="mt-6 flex items-center gap-4 text-muted-foreground">
+                <a href="#" className="hover:text-foreground transition-colors"><GithubIcon className="h-5 w-5" /></a>
+              </div>
             </div>
             
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Product</h3>
-              <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                <li><Link href="/" className="hover:text-indigo-600 transition-colors">Home</Link></li>
-                <li><Link href="/pricing" className="hover:text-indigo-600 transition-colors">Pricing</Link></li>
+              <h3 className="text-sm font-semibold text-foreground">Product</h3>
+              <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
+                <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
+                <li><Link href="/login" className="hover:text-primary transition-colors">Dashboard</Link></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Company</h3>
-              <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                <li><Link href="/contact" className="hover:text-indigo-600 transition-colors">Contact</Link></li>
+              <h3 className="text-sm font-semibold text-foreground">Company</h3>
+              <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <li><Link href="/contact" className="hover:text-primary transition-colors">Contact</Link></li>
+                <li><a href="mailto:irssmex@gmail.com" className="hover:text-primary transition-colors">irssmex@gmail.com</a></li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Legal</h3>
-              <ul className="mt-4 space-y-3 text-sm text-slate-600">
-                <li><Link href="/privacy" className="hover:text-indigo-600 transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-indigo-600 transition-colors">Terms of Service</Link></li>
-                <li><Link href="/refund" className="hover:text-indigo-600 transition-colors">Refund Policy</Link></li>
+              <h3 className="text-sm font-semibold text-foreground">Legal</h3>
+              <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+                <li><Link href="/refund" className="hover:text-primary transition-colors">Refund Policy</Link></li>
               </ul>
             </div>
           </div>
-          <div className="mt-12 border-t border-slate-100 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-slate-500">
-              &copy; {new Date().getFullYear()} irsSMEX. All rights reserved.
+          <div className="mt-16 border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              &copy; {new Date().getFullYear()} VibeSafe, Inc. All rights reserved.
             </p>
           </div>
         </div>

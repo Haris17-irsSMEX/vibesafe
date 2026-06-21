@@ -35,40 +35,35 @@ async function ConnectDataFetcher({
   )
 }
 
+import { RepoListSkeleton, Skeleton } from '@/components/ui/skeletons'
+
 function ConnectSkeleton() {
   return (
-    <div className="max-w-4xl animate-pulse">
+    <div className="max-w-5xl animate-pulse">
       <div className="mb-8">
-        <div className="h-8 w-48 rounded bg-slate-200"></div>
-        <div className="mt-2 h-4 w-96 rounded bg-slate-200"></div>
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="mt-2 h-4 w-96" />
       </div>
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-xl border border-white/5 bg-card p-6 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-slate-200"></div>
+          <Skeleton className="h-16 w-16 rounded-full" />
           <div className="space-y-2">
-            <div className="h-5 w-32 rounded bg-slate-200"></div>
-            <div className="h-4 w-48 rounded bg-slate-200"></div>
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-64" />
           </div>
         </div>
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-12 rounded-lg bg-slate-100"></div>
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
           ))}
-        </div>
-        <div className="mt-6 flex gap-3 border-t border-slate-100 pt-5">
-          <div className="h-9 w-32 rounded-lg bg-slate-200"></div>
-          <div className="h-9 w-32 rounded-lg bg-slate-200"></div>
         </div>
       </div>
       <div className="mt-8">
-        <div className="mb-4">
-          <div className="h-6 w-40 rounded bg-slate-200"></div>
+        <div className="mb-6 flex justify-between">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-9 w-64" />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"></div>
-          ))}
-        </div>
+        <RepoListSkeleton />
       </div>
     </div>
   )

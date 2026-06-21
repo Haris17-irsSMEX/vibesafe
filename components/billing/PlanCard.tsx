@@ -13,6 +13,8 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { UserPlan } from '@/lib/db/users'
+import { GlowCard } from '@/components/ui/glow-card'
+import { cn } from '@/lib/utils'
 
 // ─── Plan feature definitions ────────────────────────────────────────────────
 
@@ -51,24 +53,27 @@ const PLAN_FEATURES: Record<UserPlan, { title: string; description: string; feat
   },
 }
 
-const PLAN_STYLES: Record<UserPlan, { badge: string; icon: React.ElementType; gradient: string; border: string }> = {
+const PLAN_STYLES: Record<UserPlan, { badge: string; icon: React.ElementType; glowColor: string; bgColor: string; borderColor: string }> = {
   free: {
-    badge: 'bg-slate-100 text-slate-700 border border-slate-200',
+    badge: 'bg-white/5 text-zinc-400 border border-white/10',
     icon: ShieldCheck,
-    gradient: 'from-slate-50 to-white',
-    border: 'border-slate-200',
+    glowColor: 'rgba(255, 255, 255, 0.05)',
+    bgColor: 'bg-card/50',
+    borderColor: 'border-white/10',
   },
   starter: {
-    badge: 'bg-indigo-100 text-indigo-700 border border-indigo-200',
+    badge: 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_10px_-2px_rgba(124,58,237,0.3)]',
     icon: Zap,
-    gradient: 'from-indigo-50/50 to-white',
-    border: 'border-indigo-200',
+    glowColor: 'rgba(124, 58, 237, 0.15)',
+    bgColor: 'bg-primary/5',
+    borderColor: 'border-primary/20',
   },
   builder: {
-    badge: 'bg-violet-100 text-violet-700 border border-violet-200',
+    badge: 'bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-[0_0_10px_-2px_rgba(139,92,246,0.3)]',
     icon: Crown,
-    gradient: 'from-violet-50/50 to-white',
-    border: 'border-violet-200',
+    glowColor: 'rgba(139, 92, 246, 0.15)',
+    bgColor: 'bg-violet-500/5',
+    borderColor: 'border-violet-500/20',
   },
 }
 
@@ -125,59 +130,62 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
   }
 
   return (
-    <div
-      className={`rounded-2xl border bg-gradient-to-br ${planStyle.gradient} ${planStyle.border} overflow-hidden shadow-sm`}
-    >
+    <GlowCard glowColor={planStyle.glowColor} className={cn("p-0 overflow-hidden", planStyle.bgColor, planStyle.borderColor)}>
       {/* Header */}
-      <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+      <div className="px-6 py-5 border-b border-white/5 bg-black/20">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div
-              className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-sm ${
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-xl border shadow-inner",
                 currentPlan === 'free'
-                  ? 'bg-slate-200'
+                  ? 'bg-white/5 border-white/10'
                   : currentPlan === 'starter'
-                  ? 'bg-indigo-600'
-                  : 'bg-violet-600'
-              }`}
+                  ? 'bg-primary/20 border-primary/30'
+                  : 'bg-violet-500/20 border-violet-500/30'
+              )}
             >
-              <PlanIcon className="h-5 w-5 text-white" />
+              <PlanIcon className={cn("h-6 w-6", currentPlan === 'free' ? 'text-zinc-400' : currentPlan === 'starter' ? 'text-primary' : 'text-violet-400')} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Current Plan</h2>
-              <p className="text-sm text-slate-500">{planInfo.description}</p>
+              <h2 className="text-lg font-bold text-foreground">Current Plan</h2>
+              <p className="text-sm text-muted-foreground">{planInfo.description}</p>
             </div>
           </div>
           <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold uppercase tracking-wide ${planStyle.badge}`}
+            className={cn(
+              "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
+              planStyle.badge
+            )}
           >
             {planInfo.title}
           </span>
         </div>
 
         {planUpdatedAt && isPaid && (
-          <p className="mt-3 text-xs text-slate-400">
+          <p className="mt-4 text-[11px] font-medium text-zinc-500 uppercase tracking-widest">
             Plan active since {new Date(planUpdatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         )}
       </div>
 
       {/* Features */}
-      <div className="px-6 py-5">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+      <div className="px-6 py-6 bg-card/30">
+        <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-4">
           Included in {planInfo.title}
         </h3>
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {planInfo.features.map((feature) => (
-            <li key={feature} className="flex items-start gap-2 text-sm text-slate-700">
+            <li key={feature} className="flex items-start gap-3 text-sm text-zinc-300">
               <CheckCircle2
-                className={`mt-0.5 h-4 w-4 shrink-0 ${
+                className={cn(
+                  "mt-0.5 h-4 w-4 shrink-0",
                   currentPlan === 'free'
-                    ? 'text-slate-400'
+                    ? 'text-zinc-500'
                     : currentPlan === 'starter'
-                    ? 'text-indigo-500'
+                    ? 'text-primary'
                     : 'text-violet-500'
-                }`}
+                )}
               />
               {feature}
             </li>
@@ -187,10 +195,10 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
 
       {/* Error */}
       {error && (
-        <div className="px-6 pb-2">
+        <div className="px-6 pb-2 bg-card/30">
           <p
             role="alert"
-            className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
           >
             {error}
           </p>
@@ -198,28 +206,32 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
       )}
 
       {/* Actions */}
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-6 bg-card/30">
         {/* Free: show upgrade buttons */}
         {currentPlan === 'free' && (
           <div className="flex flex-col gap-3 sm:flex-row mt-2">
             <button
               id="plan-upgrade-starter-btn"
               onClick={() => handleUpgrade('starter')}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="flex flex-1 items-center justify-between w-full rounded-xl border border-primary/50 bg-primary/10 px-5 py-3.5 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary hover:text-white group"
             >
-              <Zap className="h-4 w-4" />
-              Upgrade to Starter
-              <ArrowRight className="h-4 w-4" />
+              <div className="flex items-center gap-2.5">
+                <Zap className="h-4 w-4" />
+                Upgrade to Starter
+              </div>
+              <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
             </button>
 
             <button
               id="plan-upgrade-builder-btn"
               onClick={() => handleUpgrade('builder')}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
+              className="flex flex-1 items-center justify-between w-full rounded-xl border border-transparent bg-violet-600 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_-5px_rgba(139,92,246,0.5)] transition-all hover:bg-violet-700 group"
             >
-              <Sparkles className="h-4 w-4" />
-              Upgrade to Builder
-              <ArrowRight className="h-4 w-4" />
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="h-4 w-4" />
+                Upgrade to Builder
+              </div>
+              <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
             </button>
           </div>
         )}
@@ -231,10 +243,13 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
               id="plan-upgrade-builder-from-starter-btn"
               onClick={() => handleUpgrade('builder')}
               disabled={portalLoading}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-violet-700 disabled:opacity-60"
+              className="flex flex-1 items-center justify-between w-full rounded-xl border border-transparent bg-violet-600 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_-5px_rgba(139,92,246,0.5)] transition-all hover:bg-violet-700 disabled:opacity-50 group"
             >
-              <Crown className="h-4 w-4" />
-              Upgrade to Builder
+              <div className="flex items-center gap-2.5">
+                <Crown className="h-4 w-4" />
+                Upgrade to Builder
+              </div>
+              <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
             </button>
 
             {paddleCustomerId && (
@@ -242,7 +257,7 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
                 id="manage-billing-btn"
                 onClick={handleManageBilling}
                 disabled={portalLoading}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-white/10 disabled:opacity-50"
               >
                 {portalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -262,7 +277,7 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
               id="manage-billing-btn-builder"
               onClick={handleManageBilling}
               disabled={portalLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-white/10 disabled:opacity-50"
             >
               {portalLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -274,6 +289,6 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
           </div>
         )}
       </div>
-    </div>
+    </GlowCard>
   )
 }

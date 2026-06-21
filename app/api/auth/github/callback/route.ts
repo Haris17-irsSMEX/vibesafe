@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       errorMessage: upsertError?.message
     })
     return NextResponse.redirect(
-      new URL('/dashboard/connect?error=token_save_failed', request.url)
+      new URL(`/dashboard/connect?error=token_save_failed&details=${encodeURIComponent(upsertError?.message || 'unknown')}`, request.url)
     )
   }
 

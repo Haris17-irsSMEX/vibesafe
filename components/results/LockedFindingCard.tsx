@@ -3,6 +3,7 @@
 import { Lock, FileCode, Hash } from 'lucide-react'
 import { SeverityBadge, type SeverityLevel } from './SeverityBadge'
 import type { FreeScanResultRecord } from '@/lib/db/scan-results'
+import { GlowCard } from '@/components/ui/glow-card'
 
 interface LockedFindingCardProps {
   finding: FreeScanResultRecord
@@ -16,20 +17,20 @@ interface LockedFindingCardProps {
  */
 export function LockedFindingCard({ finding }: LockedFindingCardProps) {
   return (
-    <div
-      className="group block rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+    <GlowCard
+      className="group block p-5 bg-card/50"
       aria-label={`Finding: ${finding.check_name} — premium details locked`}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex-1 space-y-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
+        <div className="flex-1 space-y-4">
           {/* Badges row */}
           <div className="flex flex-wrap items-center gap-3">
             <SeverityBadge severity={finding.severity as SeverityLevel} />
-            <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+            <span className="inline-flex items-center rounded-md bg-white/5 border border-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               {finding.category}
             </span>
             {finding.cwe_id && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
                 <Hash className="h-3 w-3" />
                 {finding.cwe_id}
               </span>
@@ -38,38 +39,40 @@ export function LockedFindingCard({ finding }: LockedFindingCardProps) {
 
           {/* Check name */}
           <div>
-            <h4 className="text-base font-semibold text-slate-900">
+            <h4 className="text-base font-semibold text-foreground">
               {finding.check_name}
             </h4>
 
             {/* Blurred premium description placeholder */}
-            <div className="relative mt-2 overflow-hidden rounded-lg">
+            <div className="relative mt-3 overflow-hidden rounded-lg border border-white/5 bg-black/50">
               <p
-                className="select-none text-sm leading-relaxed text-slate-600 blur-[5px]"
+                className="select-none text-sm leading-relaxed text-zinc-500 blur-[6px] p-4"
                 aria-hidden="true"
               >
                 This issue has a detailed security explanation and recommended fix
                 available for paid plan users. Upgrade to see the full analysis
-                including why it matters and what to do next.
+                including why it matters and what to do next to secure your application.
               </p>
               {/* Lock overlay */}
-              <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-white/60 backdrop-blur-[1px]">
-                <Lock className="h-3.5 w-3.5 text-slate-500" />
-                <span className="text-xs font-medium text-slate-600">
-                  Upgrade to unlock full description
-                </span>
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/40 backdrop-blur-[2px]">
+                <div className="flex items-center gap-2 bg-zinc-900/90 border border-white/10 px-4 py-2 rounded-full shadow-xl">
+                  <Lock className="h-4 w-4 text-zinc-400" />
+                  <span className="text-xs font-bold text-zinc-300 uppercase tracking-wide">
+                    Upgrade to unlock full details
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* File path */}
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <FileCode className="h-4 w-4 shrink-0 text-slate-400" />
-            <span className="truncate font-mono text-xs text-slate-600">
+          <div className="flex items-center gap-2 text-sm">
+            <FileCode className="h-4 w-4 shrink-0 text-zinc-500" />
+            <span className="truncate font-mono text-xs text-zinc-400">
               {finding.file_path}
             </span>
             {finding.line_number && (
-              <span className="font-mono text-xs text-slate-400">
+              <span className="font-mono text-xs text-zinc-500">
                 :{finding.line_number}
               </span>
             )}
@@ -78,11 +81,11 @@ export function LockedFindingCard({ finding }: LockedFindingCardProps) {
 
         {/* Lock icon */}
         <div className="flex items-center shrink-0 sm:self-center">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-zinc-500">
             <Lock className="h-4 w-4" />
           </div>
         </div>
       </div>
-    </div>
+    </GlowCard>
   )
 }
