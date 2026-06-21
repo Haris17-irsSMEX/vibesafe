@@ -47,7 +47,7 @@ export default function TermsPage() {
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">7. Contact</h2>
             <p>
-              If you have any questions regarding these Terms of Service, please contact us at: <a href="mailto:support@irssmex.com" className="text-indigo-600 hover:underline">support@irssmex.com</a>.
+              If you have any questions regarding these Terms of Service, please contact us at: <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>.
             </p>
           </div>
         </div>

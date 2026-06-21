@@ -23,10 +23,10 @@ export default function ContactPage() {
             <p className="text-sm text-slate-500 mb-6">Operated by irsSMEX</p>
             
             <a
-              href="mailto:support@irssmex.com"
+              href="mailto:irssmex@gmail.com"
               className="inline-flex h-12 items-center justify-center rounded-xl bg-indigo-600 px-8 text-base font-semibold text-white transition-all hover:bg-indigo-700 shadow-md shadow-indigo-200"
             >
-              support@irssmex.com
+              irssmex@gmail.com
             </a>
           </div>
         </div>

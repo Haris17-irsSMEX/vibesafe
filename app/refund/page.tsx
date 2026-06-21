@@ -27,7 +27,7 @@ export default function RefundPage() {
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">3. Refund Requests</h2>
             <p>
-              If you believe you have been billed in error, or if you are entirely unsatisfied with the service, you may request a refund by emailing us at <a href="mailto:support@irssmex.com" className="text-indigo-600 hover:underline">support@irssmex.com</a>. 
+              If you believe you have been billed in error, or if you are entirely unsatisfied with the service, you may request a refund by emailing us at <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>. 
             </p>
             <p>
               Refunds are reviewed on a case-by-case basis. While we aim to be fair and accommodating, we do not guarantee refunds, particularly in cases of heavy service usage, programmatic abuse, or terms of service violations.
@@ -38,7 +38,7 @@ export default function RefundPage() {
               When requesting a refund, please include your account email and a brief explanation of why you are requesting the refund. This helps us improve VibeSafe for everyone.
             </p>
             <p>
-              Contact: <a href="mailto:support@irssmex.com" className="text-indigo-600 hover:underline">support@irssmex.com</a>
+              Contact: <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>
             </p>
           </div>
         </div>
