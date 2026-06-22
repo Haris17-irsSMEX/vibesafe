@@ -5,6 +5,7 @@ import { getScanById } from '@/lib/db/scans'
 import { getScanResultById, getScanResultByIdFree } from '@/lib/db/scan-results'
 import type { ScanResultRecord, FreeScanResultRecord } from '@/lib/db/scan-results'
 import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
+import { isAdminEmail } from '@/lib/auth/admin'
 import { SeverityBadge, type SeverityLevel } from '@/components/results/SeverityBadge'
 import { CopyButton } from '@/components/results/CopyButton'
 import { UpgradeCTA } from '@/components/results/UpgradeCTA'
@@ -18,6 +19,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Lock,
+  ShieldAlert,
 } from 'lucide-react'
 
 interface FindingDetailPageProps {
@@ -64,11 +66,17 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
   const userPlan = profile?.plan ?? 'free'
   const paid = isPaidPlan(userPlan)
 
-  // 4. Fetch finding — GATED at DB level based on plan.
+  // Admin override — server-side only, never trusts client input
+  const isAdmin = isAdminEmail(user.email)
+
+  // canViewFull: admin gets full access regardless of plan
+  const canViewFull = isAdmin || paid
+
+  // 4. Fetch finding — GATED at DB level based on plan OR admin status.
   let paidFinding: ScanResultRecord | null = null
   let freeFinding: FreeScanResultRecord | null = null
 
-  if (paid) {
+  if (canViewFull) {
     paidFinding = await getScanResultById(findId, user.id)
     if (!paidFinding || paidFinding.scan_id !== scanId) {
       return (
@@ -103,10 +111,10 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
   }
 
   // 5. Build a safe base object with fields common to both free & paid
-  const baseFinding = paid ? paidFinding! : freeFinding!
+  const baseFinding = canViewFull ? paidFinding! : freeFinding!
 
   return (
-    <DashboardLayout>
+    <DashboardLayout isAdmin={isAdmin}>
       <div className="mx-auto max-w-4xl animate-fade-in">
         {/* Back link */}
         <Link
@@ -130,11 +138,18 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
                 {baseFinding.cwe_id}
               </span>
             )}
-            {/* effort_minutes only on paid records */}
-            {paid && paidFinding?.effort_minutes && (
+            {/* effort_minutes only on paid/admin records */}
+            {canViewFull && paidFinding?.effort_minutes && (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-white/5 border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 <Clock className="h-3.5 w-3.5" />
                 ~{paidFinding.effort_minutes} min to fix
+              </span>
+            )}
+            {/* Admin badge */}
+            {isAdmin && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border bg-violet-500/10 text-violet-400 border-violet-500/30">
+                <ShieldAlert className="h-3 w-3" />
+                Founder mode
               </span>
             )}
           </div>
@@ -153,8 +168,8 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
           </div>
         </div>
 
-        {/* ── FREE USER: locked panels + upgrade CTA ────────────────────── */}
-        {!paid && (
+        {/* ── FREE USER (non-admin): locked panels + upgrade CTA ──────────────── */}
+        {!canViewFull && (
           <div className="space-y-6">
             <UpgradeCTA context="detail" className="mb-8" />
 
@@ -280,8 +295,8 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
           </div>
         )}
 
-        {/* ── PAID USER: full finding detail ────────────────────────────── */}
-        {paid && paidFinding && (
+        {/* ── PAID/ADMIN USER: full finding detail ────────────────── */}
+        {canViewFull && paidFinding && (
           <div className="space-y-8">
             {/* Description */}
             <section>

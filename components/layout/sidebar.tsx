@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Link2, ShieldCheck, Settings, LogOut, ShieldAlert,   } from "lucide-react";
+import { LayoutDashboard, Link2, ShieldCheck, Settings, LogOut, ShieldAlert, Shield } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export function Sidebar({ className = "" }: { className?: string }) {
+export function Sidebar({
+  className = "",
+  isAdmin = false,
+}: {
+  className?: string;
+  isAdmin?: boolean;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
@@ -60,6 +66,27 @@ export function Sidebar({ className = "" }: { className?: string }) {
             );
           })}
         </nav>
+
+        {/* Admin nav — only visible to admin users */}
+        {isAdmin && (
+          <div className="mb-4">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-violet-500/70 px-2">Admin</div>
+            <nav className="flex flex-col gap-1">
+              <Link
+                href="/admin"
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  pathname === '/admin'
+                    ? "bg-violet-500/10 text-violet-400 border border-violet-500/20"
+                    : "text-violet-400/70 hover:bg-violet-500/10 hover:text-violet-400 border border-transparent"
+                )}
+              >
+                <Shield className={cn("h-4 w-4", pathname === '/admin' ? "text-violet-400" : "text-violet-500/60")} />
+                Admin Panel
+              </Link>
+            </nav>
+          </div>
+        )}
       </div>
 
       <div className="p-4 border-t border-white/5">

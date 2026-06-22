@@ -7,8 +7,9 @@ import {
   getScanResultsForScanFree,
 } from '@/lib/db/scan-results'
 import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
+import { isAdminEmail } from '@/lib/auth/admin'
 import { FindingsList } from '@/components/results/FindingsList'
-import { ArrowLeft, ExternalLink, GitBranch, Calendar } from 'lucide-react'
+import { ArrowLeft, ExternalLink, GitBranch, Calendar, ShieldAlert } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { GlassPanel } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
@@ -74,15 +75,21 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
   const userPlan = profile?.plan ?? 'free'
   const paid = isPaidPlan(userPlan)
 
+  // Admin override — server-side only, never trusts client input
+  const isAdmin = isAdminEmail(user.email)
+
+  // canViewFull: admin gets full access regardless of plan (paid or free)
+  const canViewFull = isAdmin || paid
+
   // 4. Fetch findings — GATED at the DB query level
   //    Free users: only safe fields (no description/fix_code/fix_prompt etc.)
-  //    Paid users: full fields
-  const findings = paid
+  //    Paid/Admin users: full fields
+  const findings = canViewFull
     ? await getScanResultsForScan(scanId)
     : await getScanResultsForScanFree(scanId)
 
   return (
-    <DashboardLayout>
+    <DashboardLayout isAdmin={isAdmin}>
       <div className="mx-auto max-w-5xl animate-fade-in">
         {/* Back link */}
         <Link
@@ -129,6 +136,13 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
                 >
                   {userPlan} plan
                 </span>
+                {/* Admin badge — only visible when logged in as admin */}
+                {isAdmin && (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border bg-violet-500/10 text-violet-400 border-violet-500/30 shadow-[0_0_10px_-2px_rgba(139,92,246,0.4)]">
+                    <ShieldAlert className="h-3 w-3" />
+                    Founder mode
+                  </span>
+                )}
               </div>
             </div>
             {scan.security_score !== null && (
@@ -177,7 +191,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-xl font-bold text-foreground">Findings Details</h2>
           </div>
-          <FindingsList findings={findings} scanId={scanId} isPaid={paid} />
+          <FindingsList findings={findings} scanId={scanId} isPaid={canViewFull} />
         </div>
       </div>
     </DashboardLayout>

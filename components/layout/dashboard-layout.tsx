@@ -6,13 +6,19 @@ import { Menu, X, Search, Bell, Plus } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export function DashboardLayout({
+  children,
+  isAdmin = false,
+}: {
+  children: React.ReactNode;
+  isAdmin?: boolean;
+}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop Sidebar */}
-      <Sidebar className="fixed inset-y-0 left-0 z-50 hidden w-64 lg:flex" />
+      <Sidebar className="fixed inset-y-0 left-0 z-50 hidden w-64 lg:flex" isAdmin={isAdmin} />
 
       {/* Mobile Sidebar overlay */}
       {isMobileMenuOpen && (
@@ -26,7 +32,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <X className="h-6 w-6" />
               <span className="sr-only">Close sidebar</span>
             </button>
-            <Sidebar className="w-full flex-1" />
+            <Sidebar className="w-full flex-1" isAdmin={isAdmin} />
           </div>
         </div>
       )}
