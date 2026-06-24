@@ -136,15 +136,21 @@ export async function createScanResults(
     const obj = {
       scan_id: scanId,
       user_id: userId,
-      check_name: safeString(f.check_name),
+      check_name: safeString(f.check_name) || 'Security finding',
       severity: mapSeverity(f.severity),
       category: mapCategory(f.category),
       file_path: safeString(f.file_path),
       line_number: safeNumber(f.line_number),
-      cwe_id: f.cwe_id ? safeString(f.cwe_id) : null,
+      cwe_id: f.cwe_id ? safeString(f.cwe_id) : ((f as ScanFinding & { cwe?: unknown }).cwe ? safeString((f as ScanFinding & { cwe?: unknown }).cwe) : null),
+      cwe: (f as ScanFinding & { cwe?: unknown }).cwe ? safeString((f as ScanFinding & { cwe?: unknown }).cwe) : (f.cwe_id ? safeString(f.cwe_id) : null),
       owasp: f.owasp ? safeString(f.owasp) : null,
-      description: safeString(f.description),
-      recommendation: safeString(f.recommendation),
+      description: safeString(f.description) || 'Security issue detected.',
+      recommendation: safeString(f.recommendation) || 'Review and fix this issue using secure coding practices.',
+      why_it_matters: (f as ScanFinding & { why_it_matters?: unknown }).why_it_matters ? safeString((f as ScanFinding & { why_it_matters?: unknown }).why_it_matters) : (
+        ['critical', 'high'].includes(mapSeverity(f.severity))
+          ? 'This issue can create serious security risk and should be fixed before production use.'
+          : 'This issue may expose the application to security risk if left unresolved.'
+      ),
       evidence_snippet: f.evidence_snippet ? safeString(f.evidence_snippet).substring(0, 500) : null,
       confidence: f.confidence ? safeString(f.confidence).toLowerCase() : 'medium',
       fix_prompt: f.fix_prompt ? safeString(f.fix_prompt) : null,
@@ -164,15 +170,14 @@ export async function createScanResults(
     .insert(rows)
 
   if (error) {
-    console.error('[createScanResults] Full insert failed:', {
+    console.error('[insert_scan_results] failed', {
       scanId,
       findingsCount: findings.length,
-      firstFindingKeys: Object.keys(findings[0] || {}),
-      mappedRowKeys: Object.keys(rows[0] || {}),
-      errorCode: error.code,
-      errorMessage: error.message,
-      errorDetails: error.details,
-      errorHint: error.hint
+      rowKeys: Object.keys(rows[0] || {}),
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint
     })
 
     // Fallback: retry with minimal columns
@@ -184,6 +189,7 @@ export async function createScanResults(
       check_name: r.check_name,
       category: r.category,
       description: r.description,
+      why_it_matters: r.why_it_matters,
       file_path: r.file_path,
       recommendation: r.recommendation,
       status: r.status,
@@ -194,9 +200,11 @@ export async function createScanResults(
       .insert(minimalRows)
 
     if (minimalError) {
-      console.error('[createScanResults] Minimal insert also failed:', {
-        errorCode: minimalError.code,
-        errorMessage: minimalError.message
+      console.error('[insert_scan_results] minimal failed:', {
+        scanId,
+        findingsCount: findings.length,
+        code: minimalError.code,
+        message: minimalError.message
       })
       return { ok: false, error: 'AI findings could not be saved. Please retry.' }
     }
