@@ -64,6 +64,9 @@ export interface ScanFinding {
   /** CWE identifier, e.g. "CWE-798" (optional) */
   cwe_id?: string
 
+  /** OWASP category (optional) */
+  owasp?: string
+
   /** One-sentence description of the issue */
   description: string
 

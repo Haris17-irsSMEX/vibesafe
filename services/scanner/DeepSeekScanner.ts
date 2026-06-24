@@ -96,6 +96,7 @@ async function attemptScan(
       model: MODEL,
       temperature: TEMPERATURE,
       max_tokens: MAX_TOKENS,
+      response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: sectionPrompt },

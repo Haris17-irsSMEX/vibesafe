@@ -132,7 +132,7 @@ export async function runAIScan(
       
       if (parseResult.parseError) {
         console.warn(`[ScanOrchestrator] Parse error for section '${section}': ${parseResult.parseErrorMessage}`)
-        const failMsg = 'Failed to parse AI response. The response was not valid JSON.'
+        const failMsg = 'AI response could not be parsed into findings.'
         await failScan(scanId, failMsg)
         return { ok: false, error: failMsg }
       }

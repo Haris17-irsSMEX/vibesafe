@@ -44,14 +44,33 @@ function isSeverity(val: unknown): val is Severity {
  * Strip those fences before attempting JSON.parse().
  */
 function stripMarkdownFences(raw: string): string {
-  const fenceMatch = raw.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/)
+  // If there's a code block anywhere, extract its contents.
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
   if (fenceMatch) {
     return fenceMatch[1].trim()
   }
   return raw.trim()
 }
 
-// ─── Validate a single finding ────────────────────────────────────────────────
+// ─── Extraction Fallbacks ─────────────────────────────────────────────────────
+
+function extractObject(raw: string): string | null {
+  const first = raw.indexOf('{')
+  const last = raw.lastIndexOf('}')
+  if (first !== -1 && last !== -1 && last > first) {
+    return raw.slice(first, last + 1)
+  }
+  return null
+}
+
+function extractArray(raw: string): string | null {
+  const first = raw.indexOf('[')
+  const last = raw.lastIndexOf(']')
+  if (first !== -1 && last !== -1 && last > first) {
+    return raw.slice(first, last + 1)
+  }
+  return null
+}
 
 // ─── Validate a single finding ────────────────────────────────────────────────
 
@@ -65,7 +84,7 @@ function validateFinding(raw: unknown): ScanFinding | null {
   // Required fields
   const check_name = optionalString(raw.check_name)
   let severityRaw = optionalString(raw.severity)?.toUpperCase()
-  let category = optionalString(raw.category) || 'general'
+  const category = optionalString(raw.category) || 'general'
   const file_path = optionalString(raw.file_path)
   const description = optionalString(raw.description)
   const recommendation = optionalString(raw.recommendation)
@@ -74,15 +93,18 @@ function validateFinding(raw: unknown): ScanFinding | null {
     return null
   }
 
+  // Fallback severity to MEDIUM if unknown
   if (!isSeverity(severityRaw)) {
-    return null
+    severityRaw = 'MEDIUM'
   }
   const severity = severityRaw as Severity
 
   // Optional fields
   const line_number = optionalNumber(raw.line_number)
   const cwe_id = optionalString(raw.cwe_id) || optionalString(raw.cwe)
+  const owasp = optionalString(raw.owasp) || optionalString(raw.owasp_category)
   const evidence_snippet = optionalString(raw.evidence_snippet)
+  const fix_prompt = optionalString(raw.fix_prompt)
   
   let confidenceRaw = optionalString(raw.confidence)?.toLowerCase()
   if (confidenceRaw !== 'high' && confidenceRaw !== 'medium' && confidenceRaw !== 'low') {
@@ -90,18 +112,35 @@ function validateFinding(raw: unknown): ScanFinding | null {
   }
   const confidence = confidenceRaw as 'high' | 'medium' | 'low'
 
-  return {
+  const finding: ScanFinding = {
     check_name,
     severity,
     category,
     file_path,
     description,
     recommendation,
-    ...(line_number !== undefined && { line_number }),
-    ...(cwe_id !== undefined && { cwe_id }),
-    ...(evidence_snippet !== undefined && { evidence_snippet }),
     confidence,
   }
+
+  if (line_number !== undefined) finding.line_number = line_number
+  if (cwe_id !== undefined) finding.cwe_id = cwe_id
+  if (owasp !== undefined) finding.owasp = owasp
+  if (evidence_snippet !== undefined) finding.evidence_snippet = evidence_snippet
+  if (fix_prompt !== undefined) finding.fix_prompt = fix_prompt
+
+  return finding
+}
+
+// ─── Safe Logging Helper ──────────────────────────────────────────────────────
+
+function getSafeLogSnippet(raw: string): string {
+  let snippet = raw.slice(0, 300)
+  // Redact potential secrets
+  snippet = snippet.replace(/sk_[a-zA-Z0-9]+/g, 'sk_...REDACTED')
+  snippet = snippet.replace(/ghp_[a-zA-Z0-9]+/g, 'ghp_...REDACTED')
+  snippet = snippet.replace(/ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[JWT REDACTED]')
+  snippet = snippet.replace(/(?:api_key|password|secret)["']?\s*:\s*["'][^"']+["']/gi, '"REDACTED"')
+  return snippet
 }
 
 // ─── Main parser ──────────────────────────────────────────────────────────────
@@ -116,7 +155,7 @@ export function parseFindings(rawText: string): ParseResult {
   const cleaned = stripMarkdownFences(rawText)
 
   // 2. Handle empty response as empty findings (no error)
-  if (cleaned === '' || cleaned === '[]') {
+  if (cleaned === '' || cleaned === '[]' || cleaned === '{"findings":[]}') {
     return {
       findings: [],
       skippedCount: 0,
@@ -124,38 +163,67 @@ export function parseFindings(rawText: string): ParseResult {
     }
   }
 
-  // 3. Attempt JSON parse
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(cleaned)
-  } catch (err) {
+  // 3. Attempt JSON parse with fallbacks
+  let parsed: unknown = null
+
+  const tryParse = (str: string) => {
+    try {
+      return JSON.parse(str)
+    } catch (e) {
+      return null
+    }
+  }
+
+  parsed = tryParse(cleaned)
+
+  // Fallback 1: Extract JSON Object
+  if (!parsed) {
+    const objStr = extractObject(cleaned)
+    if (objStr) parsed = tryParse(objStr)
+  }
+
+  // Fallback 2: Extract JSON Array
+  if (!parsed) {
+    const arrStr = extractArray(cleaned)
+    if (arrStr) {
+      const arrParsed = tryParse(arrStr)
+      if (Array.isArray(arrParsed)) {
+        parsed = { findings: arrParsed }
+      }
+    }
+  }
+
+  if (!parsed) {
+    const snippet = getSafeLogSnippet(rawText)
+    const hasFence = rawText.includes('\`\`\`')
+    const hasBraces = rawText.includes('{') || rawText.includes('[')
+    console.warn(`[FindingParser] Response parsing failed. Length: ${rawText.length}, hasFence: ${hasFence}, hasBraces: ${hasBraces}. Snippet: ${snippet}`)
+    
     return {
       findings: [],
       skippedCount: 0,
       parseError: true,
-      parseErrorMessage: `JSON parse failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+      parseErrorMessage: 'Failed to parse AI response. The response was not valid JSON.',
     }
   }
 
-  // 4. Must be an array, or an object with a "findings" array
+  // 4. Extract findings array
   let findingsArray: unknown = parsed
   if (isRecord(parsed) && Array.isArray(parsed.findings)) {
     findingsArray = parsed.findings
+  } else if (isRecord(parsed) && optionalString(parsed.check_name)) {
+    // If object itself looks like a single finding, wrap it as one finding
+    findingsArray = [parsed]
   }
 
   if (!Array.isArray(findingsArray)) {
-    // Determine a safe snippet to log
-    let snippet = cleaned.slice(0, 300)
-    // Basic heuristic to avoid logging secrets in the response
-    if (snippet.match(/(?:sk-|ghp_|ey[A-Za-z0-9-_=]+\.)/)) {
-       snippet = 'response redacted'
-    }
-    console.warn(`[FindingParser] Response was not a JSON array. Length: ${cleaned.length}, Snippet: ${snippet}`)
+    const snippet = getSafeLogSnippet(rawText)
+    console.warn(`[FindingParser] Response was not a JSON array. Length: ${rawText.length}, Snippet: ${snippet}`)
     return {
       findings: [],
       skippedCount: 0,
       parseError: true,
-      parseErrorMessage: `Response was not a JSON array.`,
+      parseErrorMessage: 'Response was not a JSON array.',
     }
   }
 
