@@ -69,20 +69,31 @@ export async function runSectionScan(
   sectionName: string,
   sectionPrompt: string
 ): Promise<ScanSectionResult> {
-  return attemptScan(sectionName, sectionPrompt, 1)
+  return attemptScan(sectionName, SYSTEM_PROMPT, sectionPrompt, 1, TIMEOUT_MS)
+}
+
+export async function runSinglePassCall(
+  systemPrompt: string,
+  userPrompt: string,
+  timeoutMs: number = 35_000
+): Promise<ScanSectionResult> {
+  return attemptScan('single_pass', systemPrompt, userPrompt, 1, timeoutMs)
 }
 
 // ─── Internal — attempt with retry ──────────────────────────────────────────
 
 async function attemptScan(
   sectionName: string,
-  sectionPrompt: string,
-  attempt: number
+  systemPrompt: string,
+  userPrompt: string,
+  attempt: number,
+  timeoutMs: number
 ): Promise<ScanSectionResult> {
   let client: OpenAI
 
   try {
     client = createDeepSeekClient()
+    client.timeout = timeoutMs
   } catch (err) {
     return {
       ok: false,
@@ -98,8 +109,8 @@ async function attemptScan(
       max_tokens: MAX_TOKENS,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: sectionPrompt },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
     })
 
@@ -157,7 +168,7 @@ async function attemptScan(
     if (attempt < 2) {
       console.warn(`[DeepSeekScanner] Attempt ${attempt} failed for '${sectionName}', retrying in ${RETRY_DELAY_MS}ms`)
       await sleep(RETRY_DELAY_MS)
-      return attemptScan(sectionName, sectionPrompt, attempt + 1)
+      return attemptScan(sectionName, systemPrompt, userPrompt, attempt + 1, timeoutMs)
     }
 
     console.error(

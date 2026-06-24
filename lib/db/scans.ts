@@ -61,6 +61,7 @@ export interface ScanRecord {
   low_count: number
   total_findings: number
   created_at: string
+  error_stage?: string | null
 }
 
 // ─── Admin client (service role — bypasses RLS) ─────────────────────────────
@@ -138,6 +139,7 @@ export async function updateScanStatus(
     medium_count?: number
     low_count?: number
     total_findings?: number
+    error_stage?: string | null
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const admin = getAdminClient()
@@ -163,10 +165,12 @@ export async function updateScanStatus(
  */
 export async function failScan(
   scanId: string,
-  safeMessage: string
+  safeMessage: string,
+  errorStage?: string
 ): Promise<void> {
   await updateScanStatus(scanId, 'failed', {
     error_message: safeMessage.slice(0, 500), // hard cap
+    error_stage: errorStage ?? null
   })
 }
 
@@ -189,7 +193,7 @@ export async function resetScanToPending(
     }
   }
 
-  return updateScanStatus(scanId, 'pending', { error_message: null })
+  return updateScanStatus(scanId, 'pending', { error_message: null, error_stage: null })
 }
 
 // ─── Transition guard (exported for route use) ──────────────────────────────
