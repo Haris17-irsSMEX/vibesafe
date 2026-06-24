@@ -1,4 +1,4 @@
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { ServerDashboardLayout } from "@/components/layout/server-dashboard-layout"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
@@ -16,7 +16,7 @@ export default async function ResultsPage() {
   const completedScans = await getCompletedScansForUser(user.id, 50)
 
   return (
-    <DashboardLayout>
+    <ServerDashboardLayout>
       <div className="mx-auto max-w-5xl">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-900">Scan Results</h1>
@@ -84,6 +84,6 @@ export default async function ResultsPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

@@ -10,7 +10,7 @@ import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
 import { isAdminEmail } from '@/lib/auth/admin'
 import { FindingsList } from '@/components/results/FindingsList'
 import { ArrowLeft, ExternalLink, GitBranch, Calendar, ShieldAlert } from 'lucide-react'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { GlassPanel } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
 
@@ -46,7 +46,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   if (!scan) {
     return (
-      <DashboardLayout>
+      <ServerDashboardLayout>
         <div className="mx-auto max-w-3xl py-12 px-4 sm:px-6 lg:px-8">
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 text-center">
             <h2 className="text-lg font-semibold text-red-400">Scan not found</h2>
@@ -61,7 +61,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             </Link>
           </div>
         </div>
-      </DashboardLayout>
+      </ServerDashboardLayout>
     )
   }
 
@@ -89,7 +89,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     : await getScanResultsForScanFree(scanId)
 
   return (
-    <DashboardLayout isAdmin={isAdmin}>
+    <ServerDashboardLayout>
       <div className="mx-auto max-w-5xl animate-fade-in">
         {/* Back link */}
         <Link
@@ -194,6 +194,6 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           <FindingsList findings={findings} scanId={scanId} isPaid={canViewFull} />
         </div>
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

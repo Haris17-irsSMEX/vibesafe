@@ -1,8 +1,8 @@
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 
 export default function DashboardLoading() {
   return (
-    <DashboardLayout>
+    <ServerDashboardLayout>
       <div className="mx-auto max-w-4xl animate-pulse">
         {/* Header Skeleton */}
         <div className="mb-8 flex items-center gap-4">
@@ -49,6 +49,6 @@ export default function DashboardLoading() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

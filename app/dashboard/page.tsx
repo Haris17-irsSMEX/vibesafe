@@ -1,10 +1,9 @@
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { ServerDashboardLayout } from "@/components/layout/server-dashboard-layout"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { getUserProfile, getGitHubLoginForUser, getUserScanCount } from "@/lib/db/users"
 import { getRecentScansForUser } from "@/lib/db/scans"
-import { isAdminEmail } from "@/lib/auth/admin"
 import { ShieldCheck, GitFork, Plus, Activity, ShieldAlert, FileCode2 } from "lucide-react"
 import { GlowCard } from "@/components/ui/glow-card"
 import { Sparkline, DonutChart } from "@/components/ui/chart"
@@ -43,7 +42,6 @@ export default async function DashboardPage() {
   const plan = profile?.plan ?? 'free'
   const isConnected = !!githubLogin
   const hasScans = recentScans.length > 0
-  const isAdmin = isAdminEmail(user.email)
   
   // Calculate aggregate metrics
   const totalFindings = recentScans.reduce((acc, scan) => acc + (scan.total_findings || 0), 0)
@@ -64,7 +62,7 @@ export default async function DashboardPage() {
     : [60, 75, 65, 80, 85, 92, avgScore]
 
   return (
-    <DashboardLayout isAdmin={isAdmin}>
+    <ServerDashboardLayout>
       <div className="flex flex-col gap-8 animate-fade-in">
         {/* Welcome Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -266,6 +264,6 @@ export default async function DashboardPage() {
           )}
         </GlowCard>
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

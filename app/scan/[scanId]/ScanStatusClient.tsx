@@ -145,6 +145,7 @@ interface ScanStatusClientProps {
   totalFindings: number
   fileCount: number
   readyForAI: boolean
+  isAdmin?: boolean
 }
 
 export function ScanStatusClient({
@@ -163,6 +164,7 @@ export function ScanStatusClient({
   lowCount,
   fileCount,
   readyForAI,
+  isAdmin,
 }: ScanStatusClientProps) {
   const router = useRouter()
   const config = STATUS_CONFIG[status]
@@ -314,6 +316,12 @@ export function ScanStatusClient({
             <GithubIcon className="h-3.5 w-3.5" />
             {repoFullName}
           </a>
+          {isAdmin && (
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/20 border border-primary/30 px-2 py-0.5 text-[10px] font-bold text-primary uppercase tracking-wider">
+              <Shield className="h-3 w-3" />
+              Admin access
+            </span>
+          )}
         </p>
       </div>
 

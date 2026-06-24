@@ -6,8 +6,9 @@
  * Passes error_message and file count to client — never passes GitHub token.
  */
 
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { createClient } from '@/lib/supabase/server'
+import { isAdminEmail } from '@/lib/auth/admin'
 import { redirect, notFound } from 'next/navigation'
 import { getScanById, isScanReadyForAI } from '@/lib/db/scans'
 import { countScanFilesForScan } from '@/lib/db/scan-files'
@@ -48,8 +49,10 @@ export default async function ScanPage({
     isScanReadyForAI(params.scanId, user.id),
   ])
 
+  const isAdmin = isAdminEmail(user.email)
+
   return (
-    <DashboardLayout>
+    <ServerDashboardLayout>
       <ScanStatusClient
         scanId={scan.id}
         repoName={scan.repo_name}
@@ -68,7 +71,8 @@ export default async function ScanPage({
         totalFindings={scan.total_findings}
         fileCount={fileCount}
         readyForAI={readyForAI}
+        isAdmin={isAdmin}
       />
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

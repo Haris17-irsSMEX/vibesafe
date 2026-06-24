@@ -10,7 +10,7 @@ import { SeverityBadge, type SeverityLevel } from '@/components/results/Severity
 import { CopyButton } from '@/components/results/CopyButton'
 import { CopyFixPromptButton } from '@/components/results/copy-fix-prompt-button'
 import { UpgradeCTA } from '@/components/results/UpgradeCTA'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { GlowCard, GlassPanel } from '@/components/ui/glow-card'
 import { AlertTriangle, ArrowLeft, FileCode, Hash, Lock, ShieldAlert, ShieldCheck } from 'lucide-react'
 
@@ -36,7 +36,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
   const scan = await getScanById(scanId, user.id)
   if (!scan) {
     return (
-      <DashboardLayout>
+      <ServerDashboardLayout>
         <div className="mx-auto max-w-3xl py-12 px-4 sm:px-6 lg:px-8 text-center">
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-6 text-center">
             <h2 className="text-lg font-semibold text-red-400">Scan not found</h2>
@@ -45,7 +45,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
             </Link>
           </div>
         </div>
-      </DashboardLayout>
+      </ServerDashboardLayout>
     )
   }
 
@@ -72,7 +72,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
     paidFinding = await getScanResultById(findId, user.id)
     if (!paidFinding || paidFinding.scan_id !== scanId) {
       return (
-        <DashboardLayout>
+        <ServerDashboardLayout>
           <div className="mx-auto max-w-3xl py-12 px-4 sm:px-6 lg:px-8 text-center">
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-6 text-center">
               <h2 className="text-lg font-semibold text-amber-500">Finding not found</h2>
@@ -81,14 +81,14 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
               </Link>
             </div>
           </div>
-        </DashboardLayout>
+        </ServerDashboardLayout>
       )
     }
   } else {
     freeFinding = await getScanResultByIdFree(findId, user.id)
     if (!freeFinding || freeFinding.scan_id !== scanId) {
       return (
-        <DashboardLayout>
+        <ServerDashboardLayout>
           <div className="mx-auto max-w-3xl py-12 px-4 sm:px-6 lg:px-8 text-center">
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-6 text-center">
               <h2 className="text-lg font-semibold text-amber-500">Finding not found</h2>
@@ -97,7 +97,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
               </Link>
             </div>
           </div>
-        </DashboardLayout>
+        </ServerDashboardLayout>
       )
     }
   }
@@ -106,7 +106,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
   const baseFinding = canViewFull ? paidFinding! : freeFinding!
 
   return (
-    <DashboardLayout isAdmin={isAdmin}>
+    <ServerDashboardLayout>
       <div className="mx-auto max-w-4xl animate-fade-in">
         {/* Back link */}
         <Link
@@ -347,6 +347,6 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

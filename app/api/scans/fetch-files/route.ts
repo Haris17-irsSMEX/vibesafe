@@ -35,6 +35,7 @@ import { fetchRelevantRepositoryFiles } from '@/services/github/RepoFetcher'
 import { routeFiles } from '@/services/scanner/FileRouter'
 import { rateLimitFileFetch } from '@/lib/rate-limit'
 import { getUserProfile } from '@/lib/db/users'
+import { isAdminEmail } from '@/lib/auth/admin'
 
 // UUID validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -66,8 +67,9 @@ export async function POST(request: NextRequest) {
   // ── 1.5. Rate Limit ────────────────────────────────────────────────────────
   const profile = await getUserProfile(user.id)
   const plan = profile?.plan ?? 'free'
+  const isAdmin = isAdminEmail(user.email)
 
-  const rateLimitResult = await rateLimitFileFetch(user.id, plan)
+  const rateLimitResult = await rateLimitFileFetch(user.id, plan, isAdmin)
   if (!rateLimitResult.success) {
     const errorMsg =
       plan === 'free'

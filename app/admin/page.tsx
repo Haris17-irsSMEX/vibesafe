@@ -24,7 +24,7 @@ import {
   getFindingsMissingFixPromptCount,
 } from '@/lib/db/admin-stats'
 import { BackfillButton } from '@/components/admin/backfill-button'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import {
   Users,
   ScanLine,
@@ -148,7 +148,7 @@ export default async function AdminPage() {
   if (!isAdminEmail(user.email)) {
     // Return 404-style response — do not reveal admin route exists
     return (
-      <DashboardLayout>
+      <ServerDashboardLayout>
         <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-12 max-w-md">
             <ShieldAlert className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
@@ -164,7 +164,7 @@ export default async function AdminPage() {
             </Link>
           </div>
         </div>
-      </DashboardLayout>
+      </ServerDashboardLayout>
     )
   }
 
@@ -194,7 +194,7 @@ export default async function AdminPage() {
   }
 
   return (
-    <DashboardLayout isAdmin={true}>
+    <ServerDashboardLayout>
       <div className="mx-auto max-w-7xl animate-fade-in space-y-10">
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
@@ -517,6 +517,20 @@ export default async function AdminPage() {
                 Services
               </h3>
               <EnvStatus label="Admin Emails (ADMIN_EMAILS)" configured={envStatus.adminEmails} />
+              
+              <div className="flex items-center justify-between py-2.5 border-b border-white/5">
+                <span className="text-sm text-zinc-400">Admin Mode Active</span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Yes
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2.5 border-b border-white/5">
+                <span className="text-sm text-zinc-400">Active Admin Email</span>
+                <span className="text-xs font-mono text-zinc-300 truncate max-w-[150px]">
+                  {user.email}
+                </span>
+              </div>
               <EnvStatus label="Paddle Billing" configured={envStatus.paddle} />
               <EnvStatus label="GitHub OAuth" configured={envStatus.github} />
               <EnvStatus label="DeepSeek AI" configured={envStatus.deepseek} />
@@ -566,7 +580,7 @@ export default async function AdminPage() {
           </div>
         </section>
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }
 

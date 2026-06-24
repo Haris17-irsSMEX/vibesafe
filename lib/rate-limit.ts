@@ -112,7 +112,11 @@ interface RateLimitResult {
  * @param plan the user's active plan
  * @returns success: false if the user has exceeded the limit
  */
-export async function rateLimitFileFetch(userId: string, plan: UserPlan): Promise<RateLimitResult> {
+export async function rateLimitFileFetch(userId: string, plan: UserPlan, isAdmin: boolean = false): Promise<RateLimitResult> {
+  if (isAdmin) {
+    return { success: true, remaining: 999 }
+  }
+
   try {
     const limiter = getFileFetchLimiter(plan)
     // If no limiter (e.g. local dev without env vars), fail open locally
@@ -146,7 +150,11 @@ export async function rateLimitFileFetch(userId: string, plan: UserPlan): Promis
  * @param plan the user's active plan
  * @returns success: false if the user has exceeded the limit
  */
-export async function rateLimitAIScan(userId: string, plan: UserPlan): Promise<RateLimitResult> {
+export async function rateLimitAIScan(userId: string, plan: UserPlan, isAdmin: boolean = false): Promise<RateLimitResult> {
+  if (isAdmin) {
+    return { success: true, remaining: 999 }
+  }
+
   try {
     const limiter = getAiScanLimiter(plan)
     if (!limiter) {

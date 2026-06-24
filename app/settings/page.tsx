@@ -7,8 +7,7 @@ import {
   getUserCompletedScanCount,
   getGitHubLoginForUser,
 } from '@/lib/db/users'
-import { isAdminEmail } from '@/lib/auth/admin'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { PlanCard } from '@/components/billing/PlanCard'
 import { UsageCard } from '@/components/billing/UsageCard'
 import { AccountCard } from '@/components/billing/AccountCard'
@@ -47,10 +46,8 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
 
   const plan = profile?.plan ?? 'free'
   const justUpgraded = searchParams.upgraded === '1'
-  const isAdmin = isAdminEmail(user.email)
-
   return (
-    <DashboardLayout isAdmin={isAdmin}>
+    <ServerDashboardLayout>
       <div className="mx-auto max-w-4xl animate-fade-in">
         {/* Page header */}
         <div className="mb-8 flex items-center gap-4">
@@ -165,6 +162,6 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }

@@ -7,7 +7,7 @@
  */
 
 import { Suspense } from 'react'
-import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getConnectedRepositories } from '@/services/github/getConnectedRepositories'
@@ -82,13 +82,13 @@ export default async function ConnectPage({
   }
 
   return (
-    <DashboardLayout>
+    <ServerDashboardLayout>
       <Suspense fallback={<ConnectSkeleton />}>
         <ConnectDataFetcher
           successParam={searchParams.success ?? null}
           errorParam={searchParams.error ?? null}
         />
       </Suspense>
-    </DashboardLayout>
+    </ServerDashboardLayout>
   )
 }
