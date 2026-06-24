@@ -133,7 +133,7 @@ export async function createScanResults(
   }
 
   const rows = findings.map((f) => {
-    return {
+    const obj = {
       scan_id: scanId,
       user_id: userId,
       check_name: safeString(f.check_name),
@@ -149,9 +149,14 @@ export async function createScanResults(
       confidence: f.confidence ? safeString(f.confidence).toLowerCase() : 'medium',
       fix_prompt: f.fix_prompt ? safeString(f.fix_prompt) : null,
       fix_prompt_generated_at: f.fix_prompt ? new Date().toISOString() : null,
-      fix_prompt_model: f.fix_prompt ? 'deterministic-v1' : null,
+      fix_prompt_model: f.fix_prompt ? 'deterministic-template-v1' : null,
       status: 'open',
+      created_at: new Date().toISOString(),
     }
+    
+    // Remove undefined values explicitly
+    Object.keys(obj).forEach(key => obj[key as keyof typeof obj] === undefined && delete obj[key as keyof typeof obj])
+    return obj
   })
 
   const { error } = await admin

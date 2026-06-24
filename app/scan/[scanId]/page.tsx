@@ -72,6 +72,8 @@ export default async function ScanPage({
         fileCount={fileCount}
         readyForAI={readyForAI}
         isAdmin={isAdmin}
+        scanEngine={scan.scan_engine}
+        errorStage={scan.error_stage}
       />
     </ServerDashboardLayout>
   )

@@ -17,6 +17,7 @@ import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notificat
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { ScanFinding } from '@/lib/types'
 import { SINGLE_PASS_SYSTEM_PROMPT } from './prompts/SecurityAuditPrompt'
+import { runDeterministicFallbackScan } from './DeterministicFallbackScanner'
 
 interface OrchestratorResult {
   ok: boolean
@@ -123,38 +124,38 @@ export async function runAIScan(
 
     const userPrompt = `Files to analyze:\n` + selectedFiles.map(f => `--- FILE: ${f.file_path} ---\n${f.content}\n`).join('\n')
 
-    console.log(`[run-ai] deepseek call start`)
-    const apiResult = await runSinglePassCall(SINGLE_PASS_SYSTEM_PROMPT, userPrompt, 35000)
+    console.log(`[run-ai] deepseek attempt start`)
+    const apiResult = await runSinglePassCall(SINGLE_PASS_SYSTEM_PROMPT, userPrompt, 25000)
     
+    let uniqueFindings: ScanFinding[] = []
+    let scanEngine = 'deepseek'
+
     if (!apiResult.ok) {
-      if (apiResult.reason === 'timeout') {
-         await failScan(scanId, 'AI provider timed out. Please retry.', 'deepseek_call')
+      console.warn(`[run-ai] deepseek failed, fallback starting`)
+      scanEngine = 'fallback'
+      uniqueFindings = runDeterministicFallbackScan(allFiles)
+      console.log(`[run-ai] fallback findings generated`)
+    } else {
+      console.log(`[run-ai] deepseek response received`)
+      const parseResult = parseFindings(apiResult.rawText)
+      if (parseResult.parseError) {
+        console.warn(`[run-ai] deepseek failed (parse error), fallback starting`)
+        scanEngine = 'fallback'
+        uniqueFindings = runDeterministicFallbackScan(allFiles)
+        console.log(`[run-ai] fallback findings generated`)
       } else {
-         await failScan(scanId, 'AI provider failed. Please retry.', 'deepseek_call')
+        uniqueFindings = deduplicateFindings(parseResult.findings)
+        console.log(`[run-ai] findings parsed`)
       }
-      return { ok: false, error: 'AI provider failed' }
     }
-    console.log(`[run-ai] deepseek response received`)
-
-    const parseResult = parseFindings(apiResult.rawText)
-    
-    if (parseResult.parseError) {
-      await failScan(scanId, 'AI response could not be converted into scan results.', 'parse_response')
-      return { ok: false, error: 'Parse failed' }
-    }
-    
-    let allFindings = parseResult.findings
-    console.log(`[run-ai] findings parsed`)
-
-    let uniqueFindings = deduplicateFindings(allFindings)
 
     uniqueFindings = uniqueFindings.map(f => {
       try {
         return {
           ...f,
-          fix_prompt: generateFixPrompt(f),
-          fix_prompt_generated_at: new Date().toISOString(),
-          fix_prompt_model: 'deterministic-template-v1'
+          fix_prompt: f.fix_prompt || generateFixPrompt(f),
+          fix_prompt_generated_at: f.fix_prompt_generated_at || new Date().toISOString(),
+          fix_prompt_model: f.fix_prompt_model || 'deterministic-template-v1'
         }
       } catch (err) {
         return f
@@ -168,7 +169,7 @@ export async function runAIScan(
         return { ok: false, error: 'AI findings could not be saved. Please retry.' }
       }
     }
-    console.log(`[run-ai] findings inserted`)
+    console.log(`[run-ai] findings saved`)
 
     const scoreResult = calculateSecurityScore(uniqueFindings)
 
@@ -181,7 +182,8 @@ export async function runAIScan(
       low_count: scoreResult.lowCount,
       total_findings: scoreResult.totalFindings,
       error_message: null, 
-      error_stage: null
+      error_stage: null,
+      scan_engine: scanEngine
     })
 
     if (!updateRes.ok) {

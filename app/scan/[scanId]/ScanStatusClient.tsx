@@ -146,6 +146,8 @@ interface ScanStatusClientProps {
   fileCount: number
   readyForAI: boolean
   isAdmin?: boolean
+  scanEngine?: string | null
+  errorStage?: string | null
 }
 
 export function ScanStatusClient({
@@ -165,6 +167,8 @@ export function ScanStatusClient({
   fileCount,
   readyForAI,
   isAdmin,
+  scanEngine,
+  errorStage,
 }: ScanStatusClientProps) {
   const router = useRouter()
   const config = STATUS_CONFIG[status]
@@ -496,6 +500,11 @@ export function ScanStatusClient({
                   <div>
                     <h3 className="text-base font-semibold text-emerald-400">Scan complete</h3>
                     <p className="mt-1 text-sm text-zinc-400">Security analysis has finished successfully.</p>
+                    {isAdmin && scanEngine === 'fallback' && (
+                      <p className="mt-2 text-xs font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded inline-block">
+                        Admin Note: Fallback scanner used because AI provider failed.
+                      </p>
+                    )}
                   </div>
                 </div>
                 <Link
@@ -575,6 +584,31 @@ export function ScanStatusClient({
                   {scanId.slice(0, 8)}
                 </code>
               </div>
+              {isAdmin && (
+                <>
+                  <div className="border-t border-white/5 bg-primary/5 px-5 py-3">
+                    <h3 className="text-xs font-semibold text-primary uppercase tracking-wider">Admin Debug</h3>
+                  </div>
+                  <div className="flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition-colors">
+                    <span className="text-sm text-zinc-400">Scan Engine</span>
+                    <span className="text-xs text-white">{scanEngine || 'N/A'}</span>
+                  </div>
+                  {errorStage && (
+                    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition-colors">
+                      <span className="text-sm text-zinc-400">Error Stage</span>
+                      <span className="text-xs text-red-400">{errorStage}</span>
+                    </div>
+                  )}
+                  {errorMessage && (
+                    <div className="px-5 py-3.5 hover:bg-white/5 transition-colors border-t border-white/5">
+                      <span className="text-sm text-zinc-400 block mb-2">Error Message</span>
+                      <code className="block rounded bg-black/50 border border-white/10 px-2 py-1.5 font-mono text-[10px] text-red-400 whitespace-pre-wrap">
+                        {errorMessage}
+                      </code>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </GlowCard>
 

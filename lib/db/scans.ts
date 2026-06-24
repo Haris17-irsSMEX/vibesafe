@@ -62,6 +62,7 @@ export interface ScanRecord {
   total_findings: number
   created_at: string
   error_stage?: string | null
+  scan_engine?: string | null
 }
 
 // ─── Admin client (service role — bypasses RLS) ─────────────────────────────
@@ -140,6 +141,7 @@ export async function updateScanStatus(
     low_count?: number
     total_findings?: number
     error_stage?: string | null
+    scan_engine?: string | null
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const admin = getAdminClient()
