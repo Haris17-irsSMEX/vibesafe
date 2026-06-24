@@ -121,10 +121,11 @@ export async function createScanResults(
     file_path: f.file_path,
     line_number: f.line_number ?? null,
     cwe_id: f.cwe_id ?? null,
+    owasp: f.owasp ?? null,
     description: f.description,
-    why_it_matters: f.recommendation, // map recommendation to why_it_matters
-    vulnerable_code: f.evidence_snippet ?? null, // map evidence_snippet to vulnerable_code
-    fix_code: f.confidence ?? null, // map confidence to fix_code (reusing column)
+    recommendation: f.recommendation,
+    evidence_snippet: f.evidence_snippet ?? null,
+    confidence: f.confidence ?? null,
     fix_prompt: f.fix_prompt ?? null,
     fix_prompt_generated_at: f.fix_prompt_generated_at ?? null,
     fix_prompt_model: f.fix_prompt_model ?? null,
@@ -166,13 +167,7 @@ export async function getScanResultsForScan(
     return []
   }
 
-  // map db columns to new record types
-  return data.map((row) => ({
-    ...row,
-    recommendation: row.why_it_matters,
-    evidence_snippet: row.vulnerable_code,
-    confidence: row.fix_code as 'high' | 'medium' | 'low' | null,
-  })) as ScanResultRecord[]
+  return data as ScanResultRecord[]
 }
 
 /**
@@ -198,12 +193,7 @@ export async function getScanResultById(
     return null
   }
 
-  return {
-    ...data,
-    recommendation: data.why_it_matters,
-    evidence_snippet: data.vulnerable_code,
-    confidence: data.fix_code as 'high' | 'medium' | 'low' | null,
-  } as ScanResultRecord | null
+  return data as ScanResultRecord | null
 }
 
 // ─── Get results (free — gated data) ─────────────────────────────────────────
