@@ -1,3 +1,52 @@
+import { SectionDefinition } from './sectionPrompts'
+import type { RoutedFile } from '../FileRouter'
+
+export function buildSectionPrompt(
+  section: SectionDefinition,
+  files: RoutedFile[]
+): string {
+  const fileContents = files
+    .map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`)
+    .join('\n')
+
+  return `You are VibeSafe, an expert AI security auditor specializing in Next.js and vibe-coded applications.
+Your job is to analyze the provided files and identify security vulnerabilities specifically for the "${section.name}" section.
+
+Focus on these checks:
+${section.checks.map(c => `- ${c}`).join('\n')}
+
+STRICT OUTPUT RULES:
+- Output MUST be strict JSON matching the schema below.
+- Do NOT include any markdown formatting, code blocks (e.g., \`\`\`json), or conversational text before or after the JSON.
+- If no findings exist, return exactly {"findings":[]}.
+- Do NOT invent files, line numbers, or vulnerabilities.
+- REDACT ALL SECRETS in the evidence_snippet.
+
+Schema:
+{
+  "findings": [
+    {
+      "severity": "critical" | "high" | "medium" | "low",
+      "check_name": "short issue name",
+      "category": "secrets" | "database" | "auth" | "payments" | "dependencies" | "rate_limiting" | "cors" | "file_upload" | "input_validation" | "headers" | "config" | "general",
+      "description": "clear explanation",
+      "file_path": "actual file path",
+      "line_number": null,
+      "recommendation": "specific fix",
+      "cwe": "CWE-XXX or null",
+      "owasp": "OWASP category or null",
+      "confidence": "high" | "medium" | "low",
+      "evidence_snippet": "redacted evidence only",
+      "fix_prompt": "copy-paste fix prompt for Cursor/Codex"
+    }
+  ]
+}
+
+Files to analyze:
+${fileContents}
+`
+}
+
 export const SINGLE_PASS_SYSTEM_PROMPT = `You are VibeSafe, an expert AI security auditor specializing in Next.js and vibe-coded applications.
 Your job is to analyze the provided files and identify security vulnerabilities.
 

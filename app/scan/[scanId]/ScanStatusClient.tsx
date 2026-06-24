@@ -448,7 +448,7 @@ export function ScanStatusClient({
                     <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                       <strong className="text-indigo-400 font-semibold">{fileCount}</strong> security-relevant {fileCount === 1 ? 'file' : 'files'} fetched and categorized. AI-powered analysis is available in the next phase.
                       {status === 'failed' && (
-                        <span className="block mt-1 text-red-400 font-medium">Previous AI scan failed. Please retry.</span>
+                        <span className="block mt-1 text-red-400 font-medium">AI scan could not be completed. Please retry.</span>
                       )}
                     </p>
                     {readyForAI && (

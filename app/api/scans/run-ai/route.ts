@@ -19,8 +19,10 @@ export const maxDuration = 300 // Max Vercel timeout for Pro (if applicable)
 export async function POST(request: Request) {
   try {
     // 1. Auth check
+    console.log(`[POST /api/scans/run-ai] stage: request_received`)
     const supabase = createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log(`[POST /api/scans/run-ai] stage: authenticate_user`)
 
     if (authError || !user) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -45,6 +47,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Parse request
+    console.log(`[POST /api/scans/run-ai] stage: parse_request`)
     const body = await request.json().catch(() => ({}))
     const scanId = body.scanId
 
@@ -57,6 +60,7 @@ export async function POST(request: Request) {
 
     // 3. Pre-flight check (ownership & status)
     // Ensures status='scanning' and file_count > 0
+    console.log(`[POST /api/scans/run-ai] scanId: ${scanId} | stage: load_scan`)
     const isReady = await isScanReadyForAI(scanId, user.id)
     if (!isReady) {
       return NextResponse.json(
@@ -67,6 +71,7 @@ export async function POST(request: Request) {
 
     // 4. Execute AI Scan
     // This blocks until the orchestrator finishes all sections.
+    console.log(`[POST /api/scans/run-ai] scanId: ${scanId} | stage: execute_ai_scan`)
     const result = await runAIScan(scanId, user.id)
 
     if (!result.ok) {
@@ -77,6 +82,7 @@ export async function POST(request: Request) {
     }
 
     // 5. Success
+    console.log(`[POST /api/scans/run-ai] scanId: ${scanId} | stage: return_success | findings: ${result.findingsCount} | score: ${result.securityScore}`)
     return NextResponse.json({ 
       success: true,
       scanId,
