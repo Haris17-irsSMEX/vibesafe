@@ -26,13 +26,12 @@ export interface ScanResultRecord {
   line_number: number | null
   cwe_id: string | null
   description: string
-  why_it_matters: string
-  vulnerable_code: string | null
-  fix_code: string | null
+  recommendation: string
+  evidence_snippet: string | null
+  confidence: 'high' | 'medium' | 'low' | null
   fix_prompt: string | null
   fix_prompt_generated_at: string | null
   fix_prompt_model: string | null
-  effort_minutes: number | null
   status: 'open' | 'resolved' | 'ignored'
   created_at: string
 }
@@ -123,13 +122,12 @@ export async function createScanResults(
     line_number: f.line_number ?? null,
     cwe_id: f.cwe_id ?? null,
     description: f.description,
-    why_it_matters: f.why_it_matters,
-    vulnerable_code: f.vulnerable_code ?? null,
-    fix_code: f.fix_code ?? null,
+    why_it_matters: f.recommendation, // map recommendation to why_it_matters
+    vulnerable_code: f.evidence_snippet ?? null, // map evidence_snippet to vulnerable_code
+    fix_code: f.confidence ?? null, // map confidence to fix_code (reusing column)
     fix_prompt: f.fix_prompt ?? null,
     fix_prompt_generated_at: f.fix_prompt_generated_at ?? null,
     fix_prompt_model: f.fix_prompt_model ?? null,
-    effort_minutes: f.effort_minutes ?? null,
     status: 'open',
   }))
 
@@ -168,7 +166,13 @@ export async function getScanResultsForScan(
     return []
   }
 
-  return (data ?? []) as ScanResultRecord[]
+  // map db columns to new record types
+  return data.map((row) => ({
+    ...row,
+    recommendation: row.why_it_matters,
+    evidence_snippet: row.vulnerable_code,
+    confidence: row.fix_code as 'high' | 'medium' | 'low' | null,
+  })) as ScanResultRecord[]
 }
 
 /**
@@ -194,7 +198,12 @@ export async function getScanResultById(
     return null
   }
 
-  return data as ScanResultRecord | null
+  return {
+    ...data,
+    recommendation: data.why_it_matters,
+    evidence_snippet: data.vulnerable_code,
+    confidence: data.fix_code as 'high' | 'medium' | 'low' | null,
+  } as ScanResultRecord | null
 }
 
 // ─── Get results (free — gated data) ─────────────────────────────────────────

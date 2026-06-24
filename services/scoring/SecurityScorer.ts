@@ -19,10 +19,10 @@ import type { ScanFinding, SecurityScoreResult } from '@/lib/types'
 // ─── Severity weights ────────────────────────────────────────────────────────
 
 const SEVERITY_WEIGHTS = {
-  CRITICAL: -25,
-  HIGH:     -10,
-  MEDIUM:    -4,
-  LOW:       -1,
+  CRITICAL: 25,
+  HIGH:     15,
+  MEDIUM:   7,
+  LOW:      2,
 } as const
 
 // ─── Scorer ──────────────────────────────────────────────────────────────────
@@ -50,13 +50,23 @@ export function calculateSecurityScore(
     }
   }
 
-  const penalty =
+  let penalty =
     criticalCount * SEVERITY_WEIGHTS.CRITICAL +
     highCount     * SEVERITY_WEIGHTS.HIGH     +
     mediumCount   * SEVERITY_WEIGHTS.MEDIUM   +
     lowCount      * SEVERITY_WEIGHTS.LOW
 
-  const score = Math.max(0, Math.min(100, 100 + penalty))
+  let score = Math.max(0, 100 - penalty)
+
+  if (criticalCount > 0) {
+    score = Math.min(score, 55)
+  } else if (highCount >= 3) {
+    score = Math.min(score, 70)
+  } else if (mediumCount >= 5) {
+    score = Math.min(score, 85)
+  }
+
+  score = Math.max(0, Math.min(100, score))
 
   return {
     score,

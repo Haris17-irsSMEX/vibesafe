@@ -12,16 +12,7 @@ import { CopyFixPromptButton } from '@/components/results/copy-fix-prompt-button
 import { UpgradeCTA } from '@/components/results/UpgradeCTA'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { GlowCard, GlassPanel } from '@/components/ui/glow-card'
-import {
-  ArrowLeft,
-  Clock,
-  FileCode,
-  Hash,
-  AlertTriangle,
-  ShieldCheck,
-  Lock,
-  ShieldAlert,
-} from 'lucide-react'
+import { AlertTriangle, ArrowLeft, FileCode, Hash, Lock, ShieldAlert, ShieldCheck } from 'lucide-react'
 
 interface FindingDetailPageProps {
   params: {
@@ -137,13 +128,6 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
               <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
                 <Hash className="h-3.5 w-3.5" />
                 {baseFinding.cwe_id}
-              </span>
-            )}
-            {/* effort_minutes only on paid/admin records */}
-            {canViewFull && paidFinding?.effort_minutes && (
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-white/5 border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                <Clock className="h-3.5 w-3.5" />
-                ~{paidFinding.effort_minutes} min to fix
               </span>
             )}
             {/* Admin badge */}
@@ -309,47 +293,31 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
                 <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed text-sm">{paidFinding.description}</p>
 
                 <div className="mt-6 pt-6 border-t border-white/5">
-                  <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Why it matters</h3>
-                  <p className="whitespace-pre-wrap text-sm text-zinc-400 leading-relaxed">{paidFinding.why_it_matters}</p>
+                  <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Recommendation</h3>
+                  <p className="whitespace-pre-wrap text-sm text-zinc-400 leading-relaxed">{paidFinding.recommendation}</p>
                 </div>
               </GlassPanel>
             </section>
 
             {/* Code Diff / Snippets */}
-            {(paidFinding.vulnerable_code || paidFinding.fix_code) && (
+            {(paidFinding.evidence_snippet) && (
               <section>
                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
                   <FileCode className="h-5 w-5 text-primary" />
                   Code Context
                 </h2>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-                  {paidFinding.vulnerable_code && (
-                    <div className="rounded-xl border border-red-500/20 overflow-hidden shadow-sm flex flex-col bg-black/50">
-                      <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2.5 text-[10px] font-bold text-red-400 uppercase tracking-wider flex justify-between items-center">
-                        <span>Vulnerable Code</span>
-                        <CopyButton text={paidFinding.vulnerable_code} className="hover:bg-red-500/20 hover:text-red-300 border-red-500/30" />
-                      </div>
-                      <div className="p-4 overflow-x-auto flex-1">
-                        <pre className="text-[13px] text-red-300/80 font-mono leading-relaxed">
-                          <code>{paidFinding.vulnerable_code}</code>
-                        </pre>
-                      </div>
+                <div className="grid grid-cols-1 xl:grid-cols-1 gap-5">
+                  <div className="rounded-xl border border-red-500/20 overflow-hidden shadow-sm flex flex-col bg-black/50">
+                    <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2.5 text-[10px] font-bold text-red-400 uppercase tracking-wider flex justify-between items-center">
+                      <span>Evidence Snippet</span>
+                      <CopyButton text={paidFinding.evidence_snippet} className="hover:bg-red-500/20 hover:text-red-300 border-red-500/30" />
                     </div>
-                  )}
-
-                  {paidFinding.fix_code && (
-                    <div className="rounded-xl border border-emerald-500/20 overflow-hidden shadow-sm flex flex-col bg-black/50">
-                      <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex justify-between items-center">
-                        <span>Suggested Fix</span>
-                        <CopyButton text={paidFinding.fix_code} className="hover:bg-emerald-500/20 hover:text-emerald-300 border-emerald-500/30 text-emerald-500" />
-                      </div>
-                      <div className="p-4 overflow-x-auto flex-1">
-                        <pre className="text-[13px] text-emerald-300/80 font-mono leading-relaxed">
-                          <code>{paidFinding.fix_code}</code>
-                        </pre>
-                      </div>
+                    <div className="p-4 overflow-x-auto flex-1">
+                      <pre className="text-[13px] text-red-300/80 font-mono leading-relaxed">
+                        <code>{paidFinding.evidence_snippet}</code>
+                      </pre>
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
             )}

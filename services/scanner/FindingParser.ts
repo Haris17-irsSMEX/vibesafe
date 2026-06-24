@@ -53,6 +53,8 @@ function stripMarkdownFences(raw: string): string {
 
 // ─── Validate a single finding ────────────────────────────────────────────────
 
+// ─── Validate a single finding ────────────────────────────────────────────────
+
 /**
  * Validates a raw object against the ScanFinding schema.
  * Returns a typed ScanFinding if valid, or null if it fails validation.
@@ -62,26 +64,31 @@ function validateFinding(raw: unknown): ScanFinding | null {
 
   // Required fields
   const check_name = optionalString(raw.check_name)
-  const severity = raw.severity
-  const category = optionalString(raw.category)
+  let severityRaw = optionalString(raw.severity)?.toUpperCase()
+  let category = optionalString(raw.category) || 'general'
   const file_path = optionalString(raw.file_path)
   const description = optionalString(raw.description)
-  const why_it_matters = optionalString(raw.why_it_matters)
+  const recommendation = optionalString(raw.recommendation)
 
-  if (!check_name || !category || !file_path || !description || !why_it_matters) {
+  if (!check_name || !file_path || !description || !recommendation) {
     return null
   }
 
-  if (!isSeverity(severity)) {
+  if (!isSeverity(severityRaw)) {
     return null
   }
+  const severity = severityRaw as Severity
 
   // Optional fields
   const line_number = optionalNumber(raw.line_number)
-  const cwe_id = optionalString(raw.cwe_id)
-  const vulnerable_code = optionalString(raw.vulnerable_code)
-  const fix_code = optionalString(raw.fix_code)
-  const effort_minutes = optionalNumber(raw.effort_minutes)
+  const cwe_id = optionalString(raw.cwe_id) || optionalString(raw.cwe)
+  const evidence_snippet = optionalString(raw.evidence_snippet)
+  
+  let confidenceRaw = optionalString(raw.confidence)?.toLowerCase()
+  if (confidenceRaw !== 'high' && confidenceRaw !== 'medium' && confidenceRaw !== 'low') {
+    confidenceRaw = 'medium'
+  }
+  const confidence = confidenceRaw as 'high' | 'medium' | 'low'
 
   return {
     check_name,
@@ -89,12 +96,11 @@ function validateFinding(raw: unknown): ScanFinding | null {
     category,
     file_path,
     description,
-    why_it_matters,
+    recommendation,
     ...(line_number !== undefined && { line_number }),
     ...(cwe_id !== undefined && { cwe_id }),
-    ...(vulnerable_code !== undefined && { vulnerable_code }),
-    ...(fix_code !== undefined && { fix_code }),
-    ...(effort_minutes !== undefined && { effort_minutes }),
+    ...(evidence_snippet !== undefined && { evidence_snippet }),
+    confidence,
   }
 }
 
@@ -131,13 +137,25 @@ export function parseFindings(rawText: string): ParseResult {
     }
   }
 
-  // 4. Must be an array
-  if (!Array.isArray(parsed)) {
+  // 4. Must be an array, or an object with a "findings" array
+  let findingsArray: unknown = parsed
+  if (isRecord(parsed) && Array.isArray(parsed.findings)) {
+    findingsArray = parsed.findings
+  }
+
+  if (!Array.isArray(findingsArray)) {
+    // Determine a safe snippet to log
+    let snippet = cleaned.slice(0, 300)
+    // Basic heuristic to avoid logging secrets in the response
+    if (snippet.match(/(?:sk-|ghp_|ey[A-Za-z0-9-_=]+\.)/)) {
+       snippet = 'response redacted'
+    }
+    console.warn(`[FindingParser] Response was not a JSON array. Length: ${cleaned.length}, Snippet: ${snippet}`)
     return {
       findings: [],
       skippedCount: 0,
       parseError: true,
-      parseErrorMessage: `Response was not a JSON array (got ${typeof parsed})`,
+      parseErrorMessage: `Response was not a JSON array.`,
     }
   }
 
@@ -145,7 +163,7 @@ export function parseFindings(rawText: string): ParseResult {
   const findings: ScanFinding[] = []
   let skippedCount = 0
 
-  for (const item of parsed) {
+  for (const item of findingsArray) {
     const finding = validateFinding(item)
     if (finding !== null) {
       findings.push(finding)

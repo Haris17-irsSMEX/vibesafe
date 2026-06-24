@@ -371,6 +371,12 @@ export default async function AdminPage() {
                       Findings
                     </th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                      Severities
+                    </th>
+                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                      Error Message
+                    </th>
+                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
                       Created
                     </th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -399,8 +405,17 @@ export default async function AdminPage() {
                       <td className="px-5 py-3.5 text-zinc-300 font-bold text-sm">
                         {s.security_score ?? '—'}
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-400">
+                      <td className="px-5 py-3.5 text-zinc-400 font-medium text-sm">
                         {s.total_findings}
+                      </td>
+                      <td className="px-5 py-3.5 text-zinc-400 text-[10px] uppercase font-bold tracking-widest whitespace-nowrap">
+                        <span className="text-red-400">C:{s.critical_count}</span>{' '}
+                        <span className="text-orange-400">H:{s.high_count}</span>{' '}
+                        <span className="text-amber-400">M:{s.medium_count}</span>{' '}
+                        <span className="text-blue-400">L:{s.low_count}</span>
+                      </td>
+                      <td className="px-5 py-3.5 text-red-400 text-xs max-w-[200px] truncate">
+                        {s.error_message ?? '—'}
                       </td>
                       <td className="px-5 py-3.5 text-zinc-500 text-xs">
                         {formatDateTime(s.created_at)}

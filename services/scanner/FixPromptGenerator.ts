@@ -119,7 +119,7 @@ Specific advice for Security Headers:
 // ─── Main Generator ─────────────────────────────────────────────────────────
 
 export function generateFixPrompt(finding: ScanFinding): string {
-  const safeCode = finding.vulnerable_code ? redactSecrets(finding.vulnerable_code) : 'N/A'
+  const safeCode = finding.evidence_snippet ? redactSecrets(finding.evidence_snippet) : 'N/A'
   const specificAdvice = getCategorySpecificAdvice(finding)
 
   return `You are fixing a security vulnerability in this codebase.
@@ -140,9 +140,9 @@ Problem:
 ${finding.description}
 
 Security risk:
-${finding.why_it_matters}
+${finding.recommendation}
 
-${finding.vulnerable_code ? `\nVulnerable code snippet:\n\`\`\`\n${safeCode}\n\`\`\`\n` : ''}
+${finding.evidence_snippet ? `\nEvidence snippet:\n\`\`\`\n${safeCode}\n\`\`\`\n` : ''}
 Fix instructions:
 1. Analyze the context of the vulnerability in the affected file.
 2. Implement the safest possible code change to resolve the issue.

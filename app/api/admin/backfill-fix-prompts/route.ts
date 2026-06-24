@@ -65,12 +65,11 @@ export async function POST() {
         category: finding.category,
         file_path: finding.file_path,
         description: finding.description,
-        why_it_matters: finding.why_it_matters,
+        recommendation: finding.recommendation || finding.why_it_matters || '',
         line_number: finding.line_number ?? undefined,
         cwe_id: finding.cwe_id ?? undefined,
-        vulnerable_code: finding.vulnerable_code ?? undefined,
-        fix_code: finding.fix_code ?? undefined,
-        effort_minutes: finding.effort_minutes ?? undefined,
+        evidence_snippet: finding.evidence_snippet || finding.vulnerable_code || undefined,
+        confidence: finding.confidence || finding.fix_code || undefined,
       }
 
       const prompt = generateFixPrompt(scanFinding)

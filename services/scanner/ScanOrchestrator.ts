@@ -61,6 +61,10 @@ export async function runAIScan(
 
     // 2. Fetch and group files
     const allFiles = await getScanFilesByScanId(scanId)
+    
+    console.log(`[ScanOrchestrator] DEBUG START: scanId=${scanId}, repo_full_name=${scan.repo_full_name}`)
+    console.log(`[ScanOrchestrator] files fetched count=${allFiles.length}`)
+
     if (allFiles.length === 0) {
       await failScan(scanId, 'No repository files found to scan.')
       return { ok: false, error: 'No files to scan' }
@@ -85,63 +89,65 @@ export async function runAIScan(
     let allFindings: ScanFinding[] = []
     let totalSkippedCount = 0
     let attemptedSectionsCount = 0
-    let insufficientBalanceCount = 0
+    let filesSentToDeepSeekCount = 0
+    let totalCharsSent = 0
+    let deepSeekCalled = false
+    let deepSeekResponseReceived = false
+    
+    console.log(`[ScanOrchestrator] routed sections count=${sectionsToScan.length}`)
 
     for (const section of sectionsToScan) {
-      // Skip if no files for this section
-      if (!presentSections.has(section)) {
-        continue
-      }
+      if (!presentSections.has(section)) continue
 
       const prompt = buildSectionPrompt(section, allFiles)
-      
-      // If prompt builder returned null (e.g. files empty after truncation), skip
-      if (!prompt) {
-        continue
-      }
+      if (!prompt) continue
+
+      const filesInSection = allFiles.filter(f => f.section === section).length
+      filesSentToDeepSeekCount += filesInSection
+      totalCharsSent += prompt.length
+      attemptedSectionsCount++
+      deepSeekCalled = true
 
       console.log(`[ScanOrchestrator] Scanning section: ${section}`)
-
-      attemptedSectionsCount++
 
       // Call DeepSeek
       const apiResult = await runSectionScan(section, prompt)
 
       if (!apiResult.ok) {
-        if (apiResult.reason === 'insufficient_balance') {
-          insufficientBalanceCount++
-        }
-        // Log internally, but continue to next section
         console.warn(`[ScanOrchestrator] Section '${section}' failed: ${apiResult.message}`)
-        continue
+        const failMsg = apiResult.reason === 'insufficient_balance'
+          ? 'DeepSeek API balance is insufficient. Add credits and try again.'
+          : `DeepSeek API failed: ${apiResult.message}`
+        
+        await failScan(scanId, failMsg)
+        return { ok: false, error: failMsg }
       }
 
+      deepSeekResponseReceived = true
+      console.log(`[ScanOrchestrator] raw response length=${apiResult.rawText.length}`)
+
       // Parse findings safely
+      console.log(`[ScanOrchestrator] parser input length=${apiResult.rawText.length}`)
       const parseResult = parseFindings(apiResult.rawText)
       
       if (parseResult.parseError) {
         console.warn(`[ScanOrchestrator] Parse error for section '${section}': ${parseResult.parseErrorMessage}`)
-      } else {
-        allFindings.push(...parseResult.findings)
+        const failMsg = 'Failed to parse AI response. The response was not valid JSON.'
+        await failScan(scanId, failMsg)
+        return { ok: false, error: failMsg }
       }
       
+      allFindings.push(...parseResult.findings)
       totalSkippedCount += parseResult.skippedCount
     }
 
-    // 4b. Check if ALL sections failed due to billing error
-    if (attemptedSectionsCount > 0 && insufficientBalanceCount === attemptedSectionsCount) {
-      const msg = 'DeepSeek API balance is insufficient. Add credits and try again.'
+    console.log(`[ScanOrchestrator] DeepSeek called=${deepSeekCalled}, DeepSeek response received=${deepSeekResponseReceived}`)
+    console.log(`[ScanOrchestrator] files sent to DeepSeek count=${filesSentToDeepSeekCount}, total chars sent=${totalCharsSent}`)
+    
+    // If we attempted sections but received no responses (e.g. all empty prompts)
+    if (attemptedSectionsCount > 0 && !deepSeekResponseReceived) {
+      const msg = 'Failed to receive a valid response from the AI.'
       await failScan(scanId, msg)
-      // Send failure email (non-blocking)
-      if (userEmail) {
-        await sendScanFailedEmail({
-          userEmail,
-          repoFullName: scan.repo_full_name,
-          scanId,
-          safeReason: msg,
-          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/dashboard`,
-        })
-      }
       return { ok: false, error: msg }
     }
 
@@ -174,6 +180,13 @@ export async function runAIScan(
 
     // 7. Calculate final score
     const scoreResult = calculateSecurityScore(uniqueFindings)
+
+    console.log(`[ScanOrchestrator] parsed findings count=${allFindings.length}`)
+    console.log(`[ScanOrchestrator] valid findings count=${uniqueFindings.length}`)
+    console.log(`[ScanOrchestrator] discarded findings count=${totalSkippedCount}`)
+    console.log(`[ScanOrchestrator] saved findings count=${uniqueFindings.length}`)
+    console.log(`[ScanOrchestrator] severity counts: CRITICAL=${scoreResult.criticalCount}, HIGH=${scoreResult.highCount}, MEDIUM=${scoreResult.mediumCount}, LOW=${scoreResult.lowCount}`)
+    console.log(`[ScanOrchestrator] final score=${scoreResult.score}`)
 
     // 8. Update scan record to complete
     const updateRes = await updateScanStatus(scanId, 'complete', {

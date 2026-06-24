@@ -67,17 +67,14 @@ export interface ScanFinding {
   /** One-sentence description of the issue */
   description: string
 
-  /** Why this matters from a security perspective */
-  why_it_matters: string
+  /** How to fix this vulnerability */
+  recommendation: string
 
   /** Excerpt of the problematic code (optional) */
-  vulnerable_code?: string
+  evidence_snippet?: string
 
-  /** Suggested fixed version of the code (optional) */
-  fix_code?: string
-
-  /** Estimated fix effort in minutes (optional) */
-  effort_minutes?: number
+  /** AI confidence level (optional) */
+  confidence?: 'high' | 'medium' | 'low'
 
   /** AI generated fix prompt (optional) */
   fix_prompt?: string
