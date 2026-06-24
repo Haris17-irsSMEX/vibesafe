@@ -21,7 +21,9 @@ import {
   getAdminRecentUsers,
   getAdminRecentScans,
   getAdminRecentFindings,
+  getFindingsMissingFixPromptCount,
 } from '@/lib/db/admin-stats'
+import { BackfillButton } from '@/components/admin/backfill-button'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import {
   Users,
@@ -167,11 +169,12 @@ export default async function AdminPage() {
   }
 
   // 3. Fetch admin data (all in parallel)
-  const [stats, recentUsers, recentScans, recentFindings] = await Promise.all([
+  const [stats, recentUsers, recentScans, recentFindings, missingFixPrompts] = await Promise.all([
     getAdminOverviewStats(),
     getAdminRecentUsers(20),
     getAdminRecentScans(20),
     getAdminRecentFindings(20),
+    getFindingsMissingFixPromptCount(),
   ])
 
   // 4. Env config status (never exposes values — only configured/not configured)
@@ -542,6 +545,8 @@ export default async function AdminPage() {
                   </span>
                 </div>
               </div>
+              
+              <BackfillButton count={missingFixPrompts} />
             </div>
           </div>
         </section>

@@ -78,6 +78,15 @@ export interface ScanFinding {
 
   /** Estimated fix effort in minutes (optional) */
   effort_minutes?: number
+
+  /** AI generated fix prompt (optional) */
+  fix_prompt?: string
+
+  /** Timestamp when fix prompt was generated (optional) */
+  fix_prompt_generated_at?: string
+
+  /** AI model used to generate fix prompt (optional) */
+  fix_prompt_model?: string
 }
 
 // ─── Parser metadata ─────────────────────────────────────────────────────────

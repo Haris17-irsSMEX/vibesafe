@@ -13,6 +13,7 @@ import { PRIMARY_SCAN_SECTIONS, ALL_SECTIONS } from './prompts/sectionPrompts'
 import { buildSectionPrompt } from './prompts/buildSectionPrompt'
 import { runSectionScan } from './DeepSeekScanner'
 import { parseFindings, deduplicateFindings } from './FindingParser'
+import { generateFixPrompt } from './FixPromptGenerator'
 import { calculateSecurityScore } from '@/services/scoring/SecurityScorer'
 import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notifications/ResendMailer'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
@@ -145,7 +146,22 @@ export async function runAIScan(
     }
 
     // 5. Post-process findings
-    const uniqueFindings = deduplicateFindings(allFindings)
+    let uniqueFindings = deduplicateFindings(allFindings)
+
+    // Generate fix prompts
+    uniqueFindings = uniqueFindings.map(f => {
+      try {
+        return {
+          ...f,
+          fix_prompt: generateFixPrompt(f),
+          fix_prompt_generated_at: new Date().toISOString(),
+          fix_prompt_model: 'deterministic-template-v1'
+        }
+      } catch (err) {
+        console.error('[ScanOrchestrator] Fix prompt generation failed:', err)
+        return f
+      }
+    })
 
     // 6. Persist findings
     if (uniqueFindings.length > 0) {

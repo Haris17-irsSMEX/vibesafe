@@ -239,3 +239,20 @@ export async function adminUpdateUserPlan(
 
   return { ok: true }
 }
+
+// ─── Backfill stats ──────────────────────────────────────────────────────────
+
+export async function getFindingsMissingFixPromptCount(): Promise<number> {
+  const admin = getAdminClient()
+  const { count, error } = await admin
+    .from('scan_results')
+    .select('*', { count: 'exact', head: true })
+    .is('fix_prompt', null)
+
+  if (error) {
+    console.error('[getFindingsMissingFixPromptCount] DB error:', error.message)
+    return 0
+  }
+
+  return count ?? 0
+}

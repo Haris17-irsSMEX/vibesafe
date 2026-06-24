@@ -30,6 +30,8 @@ export interface ScanResultRecord {
   vulnerable_code: string | null
   fix_code: string | null
   fix_prompt: string | null
+  fix_prompt_generated_at: string | null
+  fix_prompt_model: string | null
   effort_minutes: number | null
   status: 'open' | 'resolved' | 'ignored'
   created_at: string
@@ -124,7 +126,9 @@ export async function createScanResults(
     why_it_matters: f.why_it_matters,
     vulnerable_code: f.vulnerable_code ?? null,
     fix_code: f.fix_code ?? null,
-    fix_prompt: null, // Left null for now, can be populated in future phases
+    fix_prompt: f.fix_prompt ?? null,
+    fix_prompt_generated_at: f.fix_prompt_generated_at ?? null,
+    fix_prompt_model: f.fix_prompt_model ?? null,
     effort_minutes: f.effort_minutes ?? null,
     status: 'open',
   }))

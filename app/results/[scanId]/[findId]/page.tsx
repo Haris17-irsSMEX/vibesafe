@@ -8,6 +8,7 @@ import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
 import { isAdminEmail } from '@/lib/auth/admin'
 import { SeverityBadge, type SeverityLevel } from '@/components/results/SeverityBadge'
 import { CopyButton } from '@/components/results/CopyButton'
+import { CopyFixPromptButton } from '@/components/results/copy-fix-prompt-button'
 import { UpgradeCTA } from '@/components/results/UpgradeCTA'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { GlowCard, GlassPanel } from '@/components/ui/glow-card'
@@ -356,18 +357,21 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
             {/* Fix Prompt */}
             {paidFinding.fix_prompt && (
               <section>
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                  AI Fix Prompt
-                </h2>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                  <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    AI Fix Prompt
+                  </h2>
+                  <p className="text-sm text-zinc-400 hidden sm:block">Paste this into your AI coding agent to fix the issue safely.</p>
+                </div>
                 <GlowCard className="p-0 overflow-hidden border-primary/20 bg-primary/5">
-                  <div className="px-6 py-5 flex flex-col sm:flex-row justify-between items-start gap-4">
-                    <p className="text-sm text-primary/80 font-mono whitespace-pre-wrap leading-relaxed">
-                      {paidFinding.fix_prompt}
-                    </p>
-                    <div className="shrink-0 mt-2 sm:mt-0">
-                      <CopyButton text={paidFinding.fix_prompt} className="border-primary/30 hover:bg-primary hover:text-white text-primary" />
+                  <div className="px-6 py-5 flex flex-col justify-between items-start gap-4">
+                    <div className="w-full flex justify-end">
+                      <CopyFixPromptButton promptText={paidFinding.fix_prompt} />
                     </div>
+                    <pre className="text-[13px] text-primary/80 font-mono whitespace-pre-wrap leading-relaxed w-full">
+                      <code>{paidFinding.fix_prompt}</code>
+                    </pre>
                   </div>
                 </GlowCard>
               </section>

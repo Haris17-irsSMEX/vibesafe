@@ -79,8 +79,13 @@ export function LockedFindingCard({ finding }: LockedFindingCardProps) {
           </div>
         </div>
 
-        {/* Lock icon */}
-        <div className="flex items-center shrink-0 sm:self-center">
+        {/* Lock icon and prompt badge */}
+        <div className="flex items-center shrink-0 sm:self-center gap-3">
+          <div className="hidden sm:flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-500/10 border border-zinc-500/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+              Fix prompt locked
+            </span>
+          </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-zinc-500">
             <Lock className="h-4 w-4" />
           </div>

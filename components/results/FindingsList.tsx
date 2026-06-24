@@ -8,6 +8,7 @@ import { SeverityBadge, type SeverityLevel } from './SeverityBadge'
 import { LockedFindingCard } from './LockedFindingCard'
 import { UpgradeCTA } from './UpgradeCTA'
 import { GlowCard } from '@/components/ui/glow-card'
+import { CopyFixPromptButton } from './copy-fix-prompt-button'
 
 interface FindingsListProps {
   findings: GatedScanResultRecord[]
@@ -72,7 +73,22 @@ function PaidFindingCard({
             </div>
           </div>
 
-          <div className="flex items-center shrink-0 sm:self-center">
+          <div className="flex items-center shrink-0 sm:self-center gap-3">
+            {finding.fix_prompt && (
+              <div className="hidden sm:flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Fix prompt ready
+                </span>
+                <div 
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                  }}
+                >
+                  <CopyFixPromptButton promptText={finding.fix_prompt} />
+                </div>
+              </div>
+            )}
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-zinc-500 transition-all group-hover:bg-primary group-hover:border-primary group-hover:text-white group-hover:shadow-[0_0_15px_rgba(124,58,237,0.5)]">
               <ChevronRight className="h-5 w-5" />
             </div>
