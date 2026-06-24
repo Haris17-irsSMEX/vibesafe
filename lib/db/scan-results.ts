@@ -112,33 +112,91 @@ export async function createScanResults(
 
   const admin = getAdminClient()
 
-  const rows = findings.map((f) => ({
-    scan_id: scanId,
-    user_id: userId,
-    check_name: f.check_name,
-    severity: f.severity,
-    category: f.category,
-    file_path: f.file_path,
-    line_number: f.line_number ?? null,
-    cwe_id: f.cwe_id ?? null,
-    owasp: f.owasp ?? null,
-    description: f.description,
-    recommendation: f.recommendation,
-    evidence_snippet: f.evidence_snippet ?? null,
-    confidence: f.confidence ?? null,
-    fix_prompt: f.fix_prompt ?? null,
-    fix_prompt_generated_at: f.fix_prompt_generated_at ?? null,
-    fix_prompt_model: f.fix_prompt_model ?? null,
-    status: 'open',
-  }))
+  const safeNumber = (val: unknown) => {
+    const num = Number(val)
+    return !isNaN(num) && Number.isInteger(num) ? num : null
+  }
+
+  const safeString = (val: unknown) => {
+    return typeof val === 'string' ? val : String(val || '')
+  }
+
+  const validSeverities = ['critical', 'high', 'medium', 'low']
+  const mapSeverity = (sev: unknown) => {
+    const s = safeString(sev).toLowerCase()
+    return validSeverities.includes(s) ? s : 'medium'
+  }
+
+  const mapCategory = (cat: unknown) => {
+    const c = safeString(cat).toLowerCase()
+    return c ? c : 'general'
+  }
+
+  const rows = findings.map((f) => {
+    return {
+      scan_id: scanId,
+      user_id: userId,
+      check_name: safeString(f.check_name),
+      severity: mapSeverity(f.severity),
+      category: mapCategory(f.category),
+      file_path: safeString(f.file_path),
+      line_number: safeNumber(f.line_number),
+      cwe_id: f.cwe_id ? safeString(f.cwe_id) : null,
+      owasp: f.owasp ? safeString(f.owasp) : null,
+      description: safeString(f.description),
+      recommendation: safeString(f.recommendation),
+      evidence_snippet: f.evidence_snippet ? safeString(f.evidence_snippet).substring(0, 500) : null,
+      confidence: f.confidence ? safeString(f.confidence).toLowerCase() : 'medium',
+      fix_prompt: f.fix_prompt ? safeString(f.fix_prompt) : null,
+      fix_prompt_generated_at: f.fix_prompt ? new Date().toISOString() : null,
+      fix_prompt_model: f.fix_prompt ? 'deterministic-v1' : null,
+      status: 'open',
+    }
+  })
 
   const { error } = await admin
     .from('scan_results')
     .insert(rows)
 
   if (error) {
-    console.error('[createScanResults] DB insert error:', error.message)
-    return { ok: false, error: 'Failed to store scan findings.' }
+    console.error('[createScanResults] Full insert failed:', {
+      scanId,
+      findingsCount: findings.length,
+      firstFindingKeys: Object.keys(findings[0] || {}),
+      mappedRowKeys: Object.keys(rows[0] || {}),
+      errorCode: error.code,
+      errorMessage: error.message,
+      errorDetails: error.details,
+      errorHint: error.hint
+    })
+
+    // Fallback: retry with minimal columns
+    console.warn(`[createScanResults] Retrying with minimal insert strategy...`)
+    const minimalRows = rows.map((r) => ({
+      scan_id: r.scan_id,
+      user_id: r.user_id,
+      severity: r.severity,
+      check_name: r.check_name,
+      category: r.category,
+      description: r.description,
+      file_path: r.file_path,
+      recommendation: r.recommendation,
+      status: r.status,
+    }))
+
+    const { error: minimalError } = await admin
+      .from('scan_results')
+      .insert(minimalRows)
+
+    if (minimalError) {
+      console.error('[createScanResults] Minimal insert also failed:', {
+        errorCode: minimalError.code,
+        errorMessage: minimalError.message
+      })
+      return { ok: false, error: 'AI findings could not be saved. Please retry.' }
+    }
+    
+    console.warn(`[createScanResults] Full scan_results insert failed, minimal insert succeeded.`)
   }
 
   return { ok: true, count: findings.length }

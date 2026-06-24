@@ -28,6 +28,8 @@ const MAX_CONCURRENT_SECTIONS = 1 // Process sequentially to respect rate limits
 interface OrchestratorResult {
   ok: boolean
   error?: string
+  findingsCount?: number
+  securityScore?: number
 }
 
 // ─── Orchestrator ────────────────────────────────────────────────────────────
@@ -117,7 +119,7 @@ export async function runAIScan(
         console.warn(`[ScanOrchestrator] Section '${section}' failed: ${apiResult.message}`)
         const failMsg = apiResult.reason === 'insufficient_balance'
           ? 'DeepSeek API balance is insufficient. Add credits and try again.'
-          : `DeepSeek API failed: ${apiResult.message}`
+          : 'AI scan provider failed. Please retry.'
         
         await failScan(scanId, failMsg)
         return { ok: false, error: failMsg }
@@ -132,7 +134,7 @@ export async function runAIScan(
       
       if (parseResult.parseError) {
         console.warn(`[ScanOrchestrator] Parse error for section '${section}': ${parseResult.parseErrorMessage}`)
-        const failMsg = 'AI response could not be parsed into findings.'
+        const failMsg = 'AI response could not be converted into scan results. Please retry.'
         await failScan(scanId, failMsg)
         return { ok: false, error: failMsg }
       }
@@ -146,7 +148,7 @@ export async function runAIScan(
     
     // If we attempted sections but received no responses (e.g. all empty prompts)
     if (attemptedSectionsCount > 0 && !deepSeekResponseReceived) {
-      const msg = 'Failed to receive a valid response from the AI.'
+      const msg = 'AI response could not be converted into scan results. Please retry.'
       await failScan(scanId, msg)
       return { ok: false, error: msg }
     }
@@ -173,8 +175,8 @@ export async function runAIScan(
     if (uniqueFindings.length > 0) {
       const persistRes = await createScanResults(scanId, userId, uniqueFindings)
       if (!persistRes.ok) {
-        await failScan(scanId, 'Failed to save scan findings to database.')
-        return { ok: false, error: 'Persist failed' }
+        await failScan(scanId, 'AI scan could not be completed. Please retry.')
+        return { ok: false, error: 'AI scan could not be completed. Please retry.' }
       }
     }
 
@@ -227,7 +229,11 @@ export async function runAIScan(
       })
     }
 
-    return { ok: true }
+    return { 
+      ok: true, 
+      findingsCount: uniqueFindings.length,
+      securityScore: scoreResult.score
+    }
   } catch (err) {
     const safeError = err instanceof Error ? err.message : 'Unknown error during scan execution.'
     console.error(`[ScanOrchestrator] Catastrophic failure for ${scanId}:`, safeError)

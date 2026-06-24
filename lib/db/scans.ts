@@ -216,7 +216,7 @@ export async function isScanReadyForAI(
 ): Promise<boolean> {
   const scan = await getScanById(scanId, userId)
 
-  if (!scan || scan.status !== 'scanning') {
+  if (!scan || !(scan.status === 'scanning' || scan.status === 'failed')) {
     return false
   }
 

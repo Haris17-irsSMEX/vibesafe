@@ -287,9 +287,10 @@ export function ScanStatusClient({
   }
 
   // Derived state
-  const canFetchFiles = status === 'pending' || status === 'failed'
-  const canReset = status === 'scanning'
+  const canFetchFiles = status === 'pending' || (status === 'failed' && !readyForAI)
+  const canReset = status === 'scanning' || (status === 'failed' && readyForAI)
   const isTerminal = status === 'complete' || status === 'completed'
+  const isAiPhase = status === 'scanning' || (status === 'failed' && readyForAI)
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -431,7 +432,7 @@ export function ScanStatusClient({
           )}
 
           {/* ── Scanning state (files ready) ── */}
-          {status === 'scanning' && (
+          {isAiPhase && (
             <GlassPanel className="p-6">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
                 <div className="flex items-start gap-4">
@@ -442,6 +443,9 @@ export function ScanStatusClient({
                     <h3 className="text-base font-semibold text-foreground">Files collected — awaiting AI analysis</h3>
                     <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                       <strong className="text-indigo-400 font-semibold">{fileCount}</strong> security-relevant {fileCount === 1 ? 'file' : 'files'} fetched and categorized. AI-powered analysis is available in the next phase.
+                      {status === 'failed' && (
+                        <span className="block mt-1 text-red-400 font-medium">Previous AI scan failed. Please retry.</span>
+                      )}
                     </p>
                     {readyForAI && (
                       <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400 uppercase tracking-wider">
@@ -461,7 +465,7 @@ export function ScanStatusClient({
                       className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-50 shadow-[0_0_15px_-3px_rgba(124,58,237,0.4)]"
                     >
                       {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cpu className="h-4 w-4" />}
-                      {isScanning ? 'Scanning…' : 'Run AI Scan'}
+                      {isScanning ? 'Scanning…' : status === 'failed' ? 'Retry AI Scan' : 'Run AI Scan'}
                     </button>
                   )}
                   {canReset && (
@@ -506,7 +510,7 @@ export function ScanStatusClient({
           )}
 
           {/* ── Failed state ── */}
-          {status === 'failed' && (
+          {status === 'failed' && !readyForAI && (
             <GlassPanel className="p-6 border-red-500/20 bg-red-500/5">
               <div className="flex items-start gap-4">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/20 border border-red-500/30">

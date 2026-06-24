@@ -71,13 +71,18 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       return NextResponse.json(
-        { success: false, error: result.error || 'Failed to complete AI scan.' },
+        { success: false, error: 'AI scan could not be completed. Please retry.' },
         { status: 500 }
       )
     }
 
     // 5. Success
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true,
+      scanId,
+      findingsCount: result.findingsCount,
+      securityScore: result.securityScore
+    })
 
   } catch (err) {
     console.error('[POST /api/scans/run-ai] Unhandled error:', err)
