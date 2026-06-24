@@ -24,7 +24,9 @@ import {
   getFindingsMissingFixPromptCount,
 } from '@/lib/db/admin-stats'
 import { BackfillButton } from '@/components/admin/backfill-button'
+import { BackfillScoresButton } from '@/components/admin/backfill-scores-button'
 import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
+import { scoreToLabel, scoreToColor } from '@/services/scoring/SecurityScorer'
 import {
   Users,
   ScanLine,
@@ -403,7 +405,12 @@ export default async function AdminPage() {
                         <StatusBadge status={s.status} />
                       </td>
                       <td className="px-5 py-3.5 text-zinc-300 font-bold text-sm">
-                        {s.security_score ?? '—'}
+                        {s.security_score !== null ? (
+                          <div className="flex flex-col">
+                            <span className={scoreToColor(s.security_score)}>{s.security_score}</span>
+                            <span className="text-[10px] text-zinc-500 font-normal">{scoreToLabel(s.security_score)}</span>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td className="px-5 py-3.5 text-zinc-400 font-medium text-sm">
                         {s.total_findings}
@@ -576,6 +583,7 @@ export default async function AdminPage() {
               </div>
               
               <BackfillButton count={missingFixPrompts} />
+              <BackfillScoresButton />
             </div>
           </div>
         </section>

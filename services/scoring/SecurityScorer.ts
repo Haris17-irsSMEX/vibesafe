@@ -16,22 +16,11 @@
 
 import type { ScanFinding, SecurityScoreResult } from '@/lib/types'
 
-// ─── Severity weights ────────────────────────────────────────────────────────
-
-const SEVERITY_WEIGHTS = {
-  CRITICAL: 25,
-  HIGH:     15,
-  MEDIUM:   7,
-  LOW:      2,
-} as const
-
 // ─── Scorer ──────────────────────────────────────────────────────────────────
 
 /**
  * Calculate a deterministic security score from a list of findings.
- *
- * Score starts at 100 and is reduced by severity weights.
- * Clamped to [0, 100].
+ * Uses a calibrated risk-tier formula.
  */
 export function calculateSecurityScore(
   findings: ScanFinding[]
@@ -50,23 +39,28 @@ export function calculateSecurityScore(
     }
   }
 
-  let penalty =
-    criticalCount * SEVERITY_WEIGHTS.CRITICAL +
-    highCount     * SEVERITY_WEIGHTS.HIGH     +
-    mediumCount   * SEVERITY_WEIGHTS.MEDIUM   +
-    lowCount      * SEVERITY_WEIGHTS.LOW
-
-  let score = Math.max(0, 100 - penalty)
+  let score = 100
 
   if (criticalCount > 0) {
-    score = Math.min(score, 55)
-  } else if (highCount >= 3) {
-    score = Math.min(score, 70)
-  } else if (mediumCount >= 5) {
-    score = Math.min(score, 85)
+    const extraCritical = criticalCount - 1
+    const penalty = extraCritical * 10 + highCount * 5 + mediumCount * 2 + lowCount * 0.5
+    score = 55 - penalty
+    score = Math.max(0, Math.min(55, score))
+  } else if (highCount > 0) {
+    const penalty = highCount * 7 + mediumCount * 2 + lowCount * 0.5
+    score = 78 - penalty
+    score = Math.max(30, Math.min(78, score))
+  } else if (mediumCount > 0) {
+    const penalty = mediumCount * 4 + lowCount * 1
+    score = 90 - penalty
+    score = Math.max(60, Math.min(90, score))
+  } else if (lowCount > 0) {
+    const penalty = lowCount * 2
+    score = 100 - penalty
+    score = Math.max(85, Math.min(100, score))
   }
 
-  score = Math.max(0, Math.min(100, score))
+  score = Math.round(score)
 
   return {
     score,
@@ -83,18 +77,18 @@ export function calculateSecurityScore(
 /**
  * Returns a human-readable grade for a numeric score.
  *
- * 90–100: Excellent
- *  75–89: Good
- *  50–74: Needs Improvement
- *  25–49: At Risk
- *   0–24: Critical
+ * 90–100: Strong
+ *  70–89: Good
+ *  50–69: Needs attention
+ *  30–49: Risky
+ *   0–29: High risk
  */
 export function scoreToLabel(score: number): string {
-  if (score >= 90) return 'Excellent'
-  if (score >= 75) return 'Good'
-  if (score >= 50) return 'Needs Improvement'
-  if (score >= 25) return 'At Risk'
-  return 'Critical'
+  if (score >= 90) return 'Strong'
+  if (score >= 70) return 'Good'
+  if (score >= 50) return 'Needs attention'
+  if (score >= 30) return 'Risky'
+  return 'High risk'
 }
 
 /**
@@ -102,8 +96,8 @@ export function scoreToLabel(score: number): string {
  */
 export function scoreToColor(score: number): string {
   if (score >= 90) return 'text-emerald-600'
-  if (score >= 75) return 'text-green-600'
+  if (score >= 70) return 'text-green-600'
   if (score >= 50) return 'text-amber-600'
-  if (score >= 25) return 'text-orange-600'
+  if (score >= 30) return 'text-orange-600'
   return 'text-red-600'
 }

@@ -8,6 +8,7 @@ import { ShieldCheck, GitFork, Plus, Activity, ShieldAlert, FileCode2 } from "lu
 import { GlowCard } from "@/components/ui/glow-card"
 import { Sparkline, DonutChart } from "@/components/ui/chart"
 import { cn } from "@/lib/utils"
+import { scoreToLabel, scoreToColor } from "@/services/scoring/SecurityScorer"
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -227,12 +228,11 @@ export default async function DashboardPage() {
                       <div className="hidden sm:flex flex-col items-end">
                         <span className={cn(
                           "text-sm font-bold",
-                          scan.security_score >= 90 ? "text-emerald-400" :
-                          scan.security_score >= 70 ? "text-yellow-400" : "text-red-400"
+                          scoreToColor(scan.security_score)
                         )}>
                           {scan.security_score} / 100
                         </span>
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Score</span>
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{scoreToLabel(scan.security_score)}</span>
                       </div>
                     )}
                     <div className="h-8 px-3 flex items-center justify-center rounded-md bg-white/5 text-sm font-medium text-foreground group-hover:bg-primary group-hover:text-white transition-all">

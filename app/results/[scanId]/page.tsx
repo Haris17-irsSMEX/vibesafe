@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/scan-results'
 import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
 import { isAdminEmail } from '@/lib/auth/admin'
+import { scoreToLabel, scoreToColor } from '@/services/scoring/SecurityScorer'
 import { FindingsList } from '@/components/results/FindingsList'
 import { ArrowLeft, ExternalLink, GitBranch, Calendar, ShieldAlert } from 'lucide-react'
 import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
@@ -28,6 +29,14 @@ function formatDate(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function getScoreWarningText(scan: { security_score: number | null, critical_count: number, high_count: number, medium_count: number, low_count: number }): string | null {
+  if (scan.security_score === 100) return "No vulnerabilities were detected in this scan."
+  if (scan.critical_count > 0) return "Critical security issues require immediate attention."
+  if (scan.high_count > 0) return "High severity findings need review before production launch."
+  if (scan.medium_count > 0 || scan.low_count > 0) return "Non-critical issues were found. Review recommended improvements."
+  return null
 }
 
 export default async function ResultsPage({ params }: ResultsPageProps) {
@@ -146,16 +155,20 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
               </div>
             </div>
             {scan.security_score !== null && (
-              <div className="mt-6 sm:mt-0 flex shrink-0 items-center justify-center rounded-2xl bg-black/50 border border-white/10 px-6 py-4 shadow-inner">
+              <div className="mt-6 sm:mt-0 flex shrink-0 items-center justify-center rounded-2xl bg-black/50 border border-white/10 px-6 py-4 shadow-inner max-w-[280px]">
                 <div className="text-center flex flex-col items-center">
                   <div className={cn(
                     "text-3xl font-black tracking-tighter mb-1",
-                    scan.security_score >= 90 ? "text-emerald-400" :
-                    scan.security_score >= 70 ? "text-yellow-400" : "text-red-400"
+                    scoreToColor(scan.security_score)
                   )}>
                     {scan.security_score}
                   </div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Score</div>
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
+                    {scoreToLabel(scan.security_score)}
+                  </div>
+                  <div className="text-xs text-zinc-400 leading-tight">
+                    {getScoreWarningText(scan)}
+                  </div>
                 </div>
               </div>
             )}
