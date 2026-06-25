@@ -19,11 +19,13 @@ export type SecuritySection =
   | 'database'
   | 'auth'
   | 'payments'
-  | 'server_validation'
+  | 'input_validation'
   | 'dependencies'
-  | 'rate_limit'
+  | 'rate_limiting'
   | 'cors'
   | 'file_upload'
+  | 'headers'
+  | 'config'
   | 'general'
 
 export interface RoutedFile {
@@ -39,6 +41,14 @@ const PATH_RULES: Array<{ pattern: RegExp; section: SecuritySection }> = [
   { pattern: /\.env($|\.)/, section: 'secrets' },
   { pattern: /secret/i, section: 'secrets' },
   { pattern: /credentials/i, section: 'secrets' },
+
+  // Config
+  { pattern: /next\.config/i, section: 'config' },
+  { pattern: /tsconfig/i, section: 'config' },
+  { pattern: /jest\.config/i, section: 'config' },
+  { pattern: /vite\.config/i, section: 'config' },
+  { pattern: /webpack/i, section: 'config' },
+  { pattern: /\.eslintrc/i, section: 'config' },
 
   // Database
   { pattern: /prisma\/schema/i, section: 'database' },
@@ -79,23 +89,23 @@ const PATH_RULES: Array<{ pattern: RegExp; section: SecuritySection }> = [
   { pattern: /Pipfile$/i, section: 'dependencies' },
   { pattern: /pyproject\.toml$/i, section: 'dependencies' },
 
-  // Server-side validation
-  { pattern: /validat/i, section: 'server_validation' },
-  { pattern: /sanitiz/i, section: 'server_validation' },
-  { pattern: /zod/i, section: 'server_validation' },
-  { pattern: /yup/i, section: 'server_validation' },
-  { pattern: /joi/i, section: 'server_validation' },
-  { pattern: /schema.*valid/i, section: 'server_validation' },
+  // Input validation
+  { pattern: /validat/i, section: 'input_validation' },
+  { pattern: /sanitiz/i, section: 'input_validation' },
+  { pattern: /zod/i, section: 'input_validation' },
+  { pattern: /yup/i, section: 'input_validation' },
+  { pattern: /joi/i, section: 'input_validation' },
+  { pattern: /schema.*valid/i, section: 'input_validation' },
   // API route handlers (Next.js / Express)
-  { pattern: /app\/api\//i, section: 'server_validation' },
-  { pattern: /pages\/api\//i, section: 'server_validation' },
-  { pattern: /routes?\.(ts|js)$/i, section: 'server_validation' },
-  { pattern: /handler\.(ts|js)$/i, section: 'server_validation' },
-  { pattern: /controller/i, section: 'server_validation' },
+  { pattern: /app\/api\//i, section: 'input_validation' },
+  { pattern: /pages\/api\//i, section: 'input_validation' },
+  { pattern: /routes?\.(ts|js)$/i, section: 'input_validation' },
+  { pattern: /handler\.(ts|js)$/i, section: 'input_validation' },
+  { pattern: /controller/i, section: 'input_validation' },
 
   // Rate limiting
-  { pattern: /rate.?limit/i, section: 'rate_limit' },
-  { pattern: /throttl/i, section: 'rate_limit' },
+  { pattern: /rate.?limit/i, section: 'rate_limiting' },
+  { pattern: /throttl/i, section: 'rate_limiting' },
 
   // CORS
   { pattern: /cors/i, section: 'cors' },
@@ -104,6 +114,11 @@ const PATH_RULES: Array<{ pattern: RegExp; section: SecuritySection }> = [
   { pattern: /upload/i, section: 'file_upload' },
   { pattern: /multer/i, section: 'file_upload' },
   { pattern: /storage/i, section: 'file_upload' },
+
+  // Headers
+  { pattern: /headers/i, section: 'headers' },
+  { pattern: /helmet/i, section: 'headers' },
+  { pattern: /csp/i, section: 'headers' },
 ]
 
 // ─── Content-based rules (fallback) ──────────────────────────────────────────
@@ -121,17 +136,23 @@ const CONTENT_RULES: Array<{ keywords: RegExp; section: SecuritySection }> = [
   // Payments
   { keywords: /(?:stripe\.|Stripe\(|paddle|PADDLE_|createCheckout|createSubscription)/i, section: 'payments' },
 
-  // Server-side validation (content fallback)
-  { keywords: /(?:z\.object|z\.string|z\.number|yup\.object|Joi\.object|validateBody|parseBody|safeParse|validateInput)/i, section: 'server_validation' },
+  // Input validation (content fallback)
+  { keywords: /(?:z\.object|z\.string|z\.number|yup\.object|Joi\.object|validateBody|parseBody|safeParse|validateInput)/i, section: 'input_validation' },
 
   // Rate limiting
-  { keywords: /(?:rateLimit|rateLimiter|Ratelimit|sliding.?window|token.?bucket)/i, section: 'rate_limit' },
+  { keywords: /(?:rateLimit|rateLimiter|Ratelimit|sliding.?window|token.?bucket)/i, section: 'rate_limiting' },
 
   // CORS
   { keywords: /(?:Access-Control-Allow|cors\(|CORS\(|allowedOrigins)/i, section: 'cors' },
 
   // File upload
   { keywords: /(?:multer|formidable|busboy|multipart|upload\.single|upload\.array)/i, section: 'file_upload' },
+
+  // Headers
+  { keywords: /(?:X-Frame-Options|Content-Security-Policy|helmet\()/i, section: 'headers' },
+  
+  // Config
+  { keywords: /(?:module\.exports\s*=\s*\{|export\s+default\s+defineConfig)/i, section: 'config' },
 ]
 
 // ─── Router ──────────────────────────────────────────────────────────────────

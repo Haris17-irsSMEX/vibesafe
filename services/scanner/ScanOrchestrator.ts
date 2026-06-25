@@ -16,7 +16,7 @@ import { calculateSecurityScore } from '@/services/scoring/SecurityScorer'
 import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notifications/ResendMailer'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { ScanFinding } from '@/lib/types'
-import { buildSectionPrompt } from './prompts/SecurityAuditPrompt'
+import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION } from './prompts/SecurityAuditPrompt'
 import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
 
 interface OrchestratorResult {
@@ -109,6 +109,9 @@ export async function runAIScan(
 
     stage = 'parse_response'
     const parseResult = parseFindings(apiResult.rawText)
+    
+    console.log(`[ScanOrchestrator] Audit complete. Prompt: ${SECURITY_AUDIT_PROMPT_VERSION}, Section: general, Files: ${limitedFiles.length}, Response length: ${apiResult.rawText.length}, Findings parsed: ${parseResult.findings.length}`)
+
     if (parseResult.parseError && parseResult.findings.length === 0) {
       throw new Error('Failed to parse AI response')
     }
