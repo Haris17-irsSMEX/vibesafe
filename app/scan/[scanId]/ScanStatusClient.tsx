@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -187,6 +187,16 @@ export function ScanStatusClient({
   const [isScanning, setIsScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanSuccess, setScanSuccess] = useState<string | null>(null)
+  const [isStuck, setIsStuck] = useState(false)
+
+  useEffect(() => {
+    if (status === 'scanning' || isScanning) {
+      const timer = setTimeout(() => setIsStuck(true), 120000) // 2 minutes
+      return () => clearTimeout(timer)
+    } else {
+      setIsStuck(false)
+    }
+  }, [status, isScanning])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -450,6 +460,9 @@ export function ScanStatusClient({
                       {status === 'failed' && (
                         <span className="block mt-1 text-red-400 font-medium">AI scan could not be completed. Please retry.</span>
                       )}
+                      {(status === 'scanning' || isScanning) && isStuck && (
+                        <span className="block mt-1 text-amber-400 font-medium">Scan appears stuck. Please retry AI Scan.</span>
+                      )}
                     </p>
                     {readyForAI && (
                       <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400 uppercase tracking-wider">
@@ -469,7 +482,7 @@ export function ScanStatusClient({
                       className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-50 shadow-[0_0_15px_-3px_rgba(124,58,237,0.4)]"
                     >
                       {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cpu className="h-4 w-4" />}
-                      {isScanning ? 'Scanning…' : status === 'failed' ? 'Retry AI Scan' : 'Run AI Scan'}
+                      {isScanning ? 'Scanning…' : status === 'failed' || isStuck ? 'Retry AI Scan' : 'Run AI Scan'}
                     </button>
                   )}
                   {canReset && (

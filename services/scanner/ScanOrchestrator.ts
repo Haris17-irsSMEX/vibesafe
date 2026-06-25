@@ -2,13 +2,12 @@
  * services/scanner/ScanOrchestrator.ts
  *
  * Server-side ONLY. Orchestrates the DeepSeek security scan execution.
- * Wires together file grouping, prompt building, API execution,
- * finding parsing, scoring, and database persistence.
+ * Single API call implementation for stability.
  */
 
 import { getScanById, updateScanStatus, failScan } from '@/lib/db/scans'
 import { getScanFilesByScanId, type ScanFileRecord } from '@/lib/db/scan-files'
-import { deleteScanResultsForScan, createScanResults } from '@/lib/db/scan-results'
+import { deleteScanResultsForScan } from '@/lib/db/scan-results'
 import { runSectionScan } from './DeepSeekScanner'
 import { parseFindings, deduplicateFindings } from './FindingParser'
 import { generateFixPrompt } from './FixPromptGenerator'
@@ -17,8 +16,7 @@ import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notificat
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { ScanFinding } from '@/lib/types'
 import { buildSectionPrompt } from './prompts/SecurityAuditPrompt'
-import { SECTION_DEFINITIONS, PRIMARY_SCAN_SECTIONS } from './prompts/sectionPrompts'
-import { routeFiles } from './FileRouter'
+import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
 
 interface OrchestratorResult {
   ok: boolean
@@ -27,168 +25,142 @@ interface OrchestratorResult {
   securityScore?: number
 }
 
+// Helper to rank files for the single API call
+function getFilePriority(path: string): number {
+  const p = path.toLowerCase()
+  if (p.includes('package.json')) return 100
+  if (p.includes('middleware')) return 90
+  if (p.includes('app/api') || p.includes('pages/api')) return 80
+  if (p.includes('auth')) return 70
+  if (p.includes('webhook') || p.includes('payment') || p.includes('stripe') || p.includes('paddle')) return 60
+  if (p.includes('database') || p.includes('supabase') || p.includes('db')) return 50
+  if (p.includes('next.config') || p.includes('vite.config') || p.includes('.env')) return 40
+  return 0
+}
+
 export async function runAIScan(
   scanId: string,
   userId: string
 ): Promise<OrchestratorResult> {
   let userEmail: string | null = null
+  let stage = 'start_orchestrator'
+
   try {
     const admin = createSupabaseAdmin(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    const { data } = await admin.auth.admin.getUserById(userId)
-    userEmail = data?.user?.email ?? null
-  } catch (err) {
-    console.warn('[ScanOrchestrator] Could not resolve user email for notifications:', err instanceof Error ? err.message : err)
-  }
+    
+    // Try to get email for notifications
+    try {
+      const { data } = await admin.auth.admin.getUserById(userId)
+      userEmail = data?.user?.email ?? null
+    } catch (e) {
+      console.warn('Failed to get user email')
+    }
 
-  try {
     const scan = await getScanById(scanId, userId)
-    if (!scan) {
-      return { ok: false, error: 'Scan not found or unauthorized' }
-    }
-    if (scan.status !== 'scanning') {
-      return { ok: false, error: `Scan is not ready for AI (status: ${scan.status})` }
-    }
+    if (!scan) return { ok: false, error: 'Scan not found' }
 
+    stage = 'load_scan_files'
     const allFiles = await getScanFilesByScanId(scanId)
-    console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: load_scan_files | files count: ${allFiles.length}`)
 
     if (allFiles.length === 0) {
-      await failScan(scanId, 'No repository files found to scan.', 'file_load')
-      return { ok: false, error: 'No files to scan' }
+      throw new Error('No files to scan')
     }
 
-    console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: delete_old_results`)
+    stage = 'delete_old_results'
     const deleteRes = await deleteScanResultsForScan(scanId)
     if (!deleteRes.ok) {
-      await failScan(scanId, 'Failed to prepare database for new scan results.', 'db_prep')
-      return { ok: false, error: 'DB prep failed' }
+      throw new Error('Failed to prepare database')
     }
 
-    // Route files into sections
-    const routedFiles = routeFiles(allFiles.map(f => ({ path: f.file_path, content: f.content })))
-    const filesBySection: Record<string, typeof routedFiles> = {}
+    stage = 'prepare_files'
+    let sortedFiles = [...allFiles].sort((a, b) => getFilePriority(b.file_path) - getFilePriority(a.file_path))
     
-    for (const f of routedFiles) {
-      if (!filesBySection[f.section]) filesBySection[f.section] = []
-      filesBySection[f.section].push(f)
-    }
+    // Max 20 files
+    sortedFiles = sortedFiles.slice(0, 20)
 
-    // Filter to only sections that have files, prioritizing primary sections
-    const activeSections = PRIMARY_SCAN_SECTIONS.filter(sec => filesBySection[sec] && filesBySection[sec].length > 0)
-    
-    // Add payments and general if they have files
-    if (filesBySection['payments']?.length > 0) activeSections.push('payments')
-    if (filesBySection['general']?.length > 0) activeSections.push('general')
-
-    let allFindings: ScanFinding[] = []
-    let allFailed = true
-    let successfulEmptySections = 0
-
-    // Run scans using Promise.allSettled
-    const scanPromises = activeSections.map(async (sectionId) => {
-      try {
-        const files = filesBySection[sectionId]
-        const def = SECTION_DEFINITIONS[sectionId]
-        
-        let totalChars = 0
-        const limitedFiles = []
-        for (const f of files) {
-          let content = f.content.slice(0, 4000)
-          if (totalChars + content.length > 80000) {
-            content = content.slice(0, 80000 - totalChars)
-          }
-          limitedFiles.push({ path: f.path, content, section: f.section })
-          totalChars += content.length
-          if (totalChars >= 80000) break
-        }
-
-        console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: build_sections | section: ${sectionId}`)
-        const sectionPrompt = buildSectionPrompt(def, limitedFiles)
-        
-        console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: deepseek_section_start | section: ${sectionId}`)
-        const apiResult = await runSectionScan(sectionId, sectionPrompt)
-        console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: deepseek_section_response | section: ${sectionId} | response length: ${apiResult.ok ? apiResult.rawText.length : 0}`)
-
-        if (!apiResult.ok) {
-          return { sectionId, findings: [], ok: false, length: 0 }
-        }
-
-        console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: parse_section_response | section: ${sectionId}`)
-        const parseResult = parseFindings(apiResult.rawText)
-        console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: parse_section_response_done | section: ${sectionId} | parsed findings count: ${parseResult.findings.length}`)
-        if (parseResult.parseError) {
-          return { sectionId, findings: [], ok: false, length: apiResult.rawText.length }
-        }
-
-        return { 
-          sectionId, 
-          findings: parseResult.findings, 
-          ok: true, 
-          length: apiResult.rawText.length 
-        }
-      } catch (err) {
-        return { sectionId, findings: [], ok: false, length: 0 }
+    let totalChars = 0
+    const limitedFiles = []
+    for (const f of sortedFiles) {
+      // Max 3000 chars per file
+      let content = f.content.slice(0, 3000)
+      if (totalChars + content.length > 60000) {
+        // Max 60000 total chars
+        content = content.slice(0, 60000 - totalChars)
       }
-    })
-
-    const results = await Promise.allSettled(scanPromises)
-    
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        const r = result.value
-        if (r.ok) {
-          allFailed = false
-          if (r.findings.length === 0) {
-            successfulEmptySections++
-          } else {
-            allFindings.push(...r.findings)
-          }
-        }
-      }
+      limitedFiles.push({ path: f.file_path, content, section: 'general' as const })
+      totalChars += content.length
+      if (totalChars >= 60000) break
     }
 
-    console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: aggregate_findings | valid findings count: ${allFindings.length}`)
+    stage = 'build_prompt'
+    const def = SECTION_DEFINITIONS['general']
+    const sectionPrompt = buildSectionPrompt(def, limitedFiles)
 
-    if (allFailed && activeSections.length > 0) {
-      await failScan(scanId, 'AI scan could not produce valid results. Please retry.', 'aggregate_findings')
-      return { ok: false, error: 'AI scan could not produce valid results. Please retry.' }
+    stage = 'call_deepseek'
+    const apiResult = await runSectionScan('general', sectionPrompt)
+
+    if (!apiResult.ok) {
+      throw new Error(apiResult.message || 'DeepSeek API failed')
     }
 
-    // Deduplicate and limit to 40
-    let uniqueFindings = deduplicateFindings(allFindings)
-    uniqueFindings = uniqueFindings.slice(0, 40)
-    
-    console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: generate_fix_prompts`)
+    stage = 'parse_response'
+    const parseResult = parseFindings(apiResult.rawText)
+    if (parseResult.parseError && parseResult.findings.length === 0) {
+      throw new Error('Failed to parse AI response')
+    }
 
-    uniqueFindings = uniqueFindings.map(f => {
-      try {
-        return {
-          ...f,
-          fix_prompt: f.fix_prompt || generateFixPrompt(f),
-          fix_prompt_generated_at: f.fix_prompt_generated_at || new Date().toISOString(),
-          fix_prompt_model: f.fix_prompt_model || 'deterministic-template-v1'
-        }
-      } catch (err) {
-        return f
-      }
-    })
+    let uniqueFindings = deduplicateFindings(parseResult.findings).slice(0, 40)
 
+    stage = 'insert_scan_results'
     if (uniqueFindings.length > 0) {
-      console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: insert_scan_results`)
-      const persistRes = await createScanResults(scanId, userId, uniqueFindings)
-      if (!persistRes.ok) {
-        await failScan(scanId, 'AI findings could not be saved. Please retry.', 'insert_scan_results')
-        return { ok: false, error: 'AI findings could not be saved. Please retry.' }
+      uniqueFindings = uniqueFindings.map(f => ({
+        ...f,
+        fix_prompt: f.fix_prompt || generateFixPrompt(f),
+        fix_prompt_generated_at: f.fix_prompt_generated_at || new Date().toISOString(),
+        fix_prompt_model: f.fix_prompt_model || 'deterministic-template-v1'
+      }))
+
+      // PART 5 - Minimal insert shape
+      const minimalRows = uniqueFindings.map((r) => {
+        const severity = ['critical', 'high', 'medium', 'low'].includes((r.severity || '').toLowerCase()) ? (r.severity || '').toLowerCase() : 'medium'
+        const why_it_matters = (r as any).why_it_matters || (
+          ['critical', 'high'].includes(severity)
+            ? 'This issue can create serious security risk and should be fixed before production use.'
+            : 'This issue may expose the application to security risk if left unresolved.'
+        )
+
+        return {
+          scan_id: scanId,
+          user_id: userId,
+          severity: severity,
+          check_name: r.check_name || 'Security finding',
+          category: r.category || 'general',
+          description: r.description || 'Security issue detected.',
+          why_it_matters,
+          file_path: r.file_path || '',
+          recommendation: r.recommendation || 'Review and fix this issue using secure coding practices.',
+          status: 'open',
+          created_at: new Date().toISOString()
+        }
+      })
+
+      const { error: insertErr } = await admin.from('scan_results').insert(minimalRows)
+      if (insertErr) {
+        console.error('[insert_scan_results] failed:', insertErr)
+        throw new Error('AI findings could not be saved.')
       }
     }
 
-    const scoreResult = calculateSecurityScore(uniqueFindings)
-    
-    console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: update_scan_summary`)
+    stage = 'update_scan_summary'
+    const scoreResult = uniqueFindings.length > 0 
+      ? calculateSecurityScore(uniqueFindings) 
+      : { score: 100, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, totalFindings: 0 }
 
+    // PART 6 - Mark complete correctly
+    stage = 'mark_complete'
     const updateRes = await updateScanStatus(scanId, 'complete', {
       completed_at: new Date().toISOString(),
       security_score: scoreResult.score,
@@ -203,10 +175,8 @@ export async function runAIScan(
     })
 
     if (!updateRes.ok) {
-      return { ok: false, error: 'Failed to update scan status' }
+      throw new Error('Failed to update scan status')
     }
-
-    console.log(`[ScanOrchestrator] scanId: ${scanId} | stage: mark_complete`)
 
     if (userEmail) {
       await sendScanCompleteEmail({
@@ -220,7 +190,7 @@ export async function runAIScan(
         mediumCount: scoreResult.mediumCount,
         lowCount: scoreResult.lowCount,
         resultsUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/results/${scanId}`,
-      })
+      }).catch(() => {})
     }
 
     return { 
@@ -229,26 +199,24 @@ export async function runAIScan(
       securityScore: scoreResult.score
     }
   } catch (err) {
-    const failMsg = 'An unexpected error occurred during AI analysis. Please retry.'
-    await failScan(scanId, failMsg, 'unknown')
-
+    const safeError = err instanceof Error ? err.message : 'Unknown error during scan execution.'
+    console.error(`[ScanOrchestrator] failure for ${scanId} at stage ${stage}:`, safeError)
+    
+    // Send email on failure
     if (userEmail) {
       try {
-        const admin = createSupabaseAdmin(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
+        const admin = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
         const { data: scanData } = await admin.from('scans').select('repo_full_name').eq('id', scanId).maybeSingle()
         await sendScanFailedEmail({
           userEmail,
           repoFullName: (scanData as { repo_full_name?: string } | null)?.repo_full_name ?? 'your repository',
           scanId,
-          safeReason: failMsg,
+          safeReason: 'AI scan encountered an error',
           dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/dashboard`,
-        })
+        }).catch(() => {})
       } catch {}
     }
-
-    return { ok: false, error: 'Catastrophic failure' }
+    
+    throw err // Let route.ts catch it
   }
 }
