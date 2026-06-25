@@ -11,6 +11,7 @@ import { deleteScanResultsForScan } from '@/lib/db/scan-results'
 import { runSectionScan } from './DeepSeekScanner'
 import { parseFindings, deduplicateFindings } from './FindingParser'
 import { generateFixPrompt } from './FixPromptGenerator'
+import { extractCodeEvidence } from './CodeEvidenceExtractor'
 import { calculateSecurityScore } from '@/services/scoring/SecurityScorer'
 import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notifications/ResendMailer'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
@@ -82,7 +83,7 @@ export async function runAIScan(
     sortedFiles = sortedFiles.slice(0, 20)
 
     let totalChars = 0
-    const limitedFiles = []
+    const limitedFiles: { path: string; content: string; section: 'general' }[] = []
     for (const f of sortedFiles) {
       // Max 3000 chars per file
       let content = f.content.slice(0, 3000)
@@ -116,12 +117,26 @@ export async function runAIScan(
 
     stage = 'insert_scan_results'
     if (uniqueFindings.length > 0) {
-      uniqueFindings = uniqueFindings.map(f => ({
-        ...f,
-        fix_prompt: f.fix_prompt || generateFixPrompt(f),
-        fix_prompt_generated_at: f.fix_prompt_generated_at || new Date().toISOString(),
-        fix_prompt_model: f.fix_prompt_model || 'deterministic-template-v1'
-      }))
+      uniqueFindings = uniqueFindings.map(f => {
+        let line_number = f.line_number ?? null
+        let vulnerable_code = f.vulnerable_code ?? null
+        
+        if (line_number === null || vulnerable_code === null) {
+          const evidence = extractCodeEvidence(f, limitedFiles)
+          if (line_number === null) line_number = evidence.line_number
+          if (vulnerable_code === null) vulnerable_code = evidence.vulnerable_code
+        }
+        
+        f.line_number = line_number ?? undefined
+        f.vulnerable_code = vulnerable_code ?? undefined
+
+        return {
+          ...f,
+          fix_prompt: f.fix_prompt || generateFixPrompt(f),
+          fix_prompt_generated_at: f.fix_prompt_generated_at || new Date().toISOString(),
+          fix_prompt_model: f.fix_prompt_model || 'deterministic-template-v1'
+        }
+      })
 
       // PART 5 - Minimal insert shape
       const minimalRows = uniqueFindings.map((r) => {
@@ -143,7 +158,14 @@ export async function runAIScan(
           file_path: r.file_path || '',
           recommendation: r.recommendation || 'Review and fix this issue using secure coding practices.',
           status: 'open',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          
+          line_number: r.line_number ?? null,
+          vulnerable_code: r.vulnerable_code ?? null,
+          evidence_snippet: r.evidence_snippet ?? null,
+          fix_prompt: r.fix_prompt ?? null,
+          fix_prompt_generated_at: r.fix_prompt_generated_at ?? null,
+          fix_prompt_model: r.fix_prompt_model ?? null
         }
       })
 

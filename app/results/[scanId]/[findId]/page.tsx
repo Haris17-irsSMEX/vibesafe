@@ -291,6 +291,13 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
               </h2>
               <GlassPanel className="p-6">
                 <p className="whitespace-pre-wrap text-zinc-300 leading-relaxed text-sm">{paidFinding.description}</p>
+                
+                {paidFinding.why_it_matters && (
+                  <div className="mt-6 pt-6 border-t border-white/5">
+                    <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Why it matters</h3>
+                    <p className="whitespace-pre-wrap text-sm text-zinc-400 leading-relaxed">{paidFinding.why_it_matters}</p>
+                  </div>
+                )}
 
                 <div className="mt-6 pt-6 border-t border-white/5">
                   <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Recommendation</h3>
@@ -300,27 +307,33 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
             </section>
 
             {/* Code Diff / Snippets */}
-            {(paidFinding.evidence_snippet) && (
-              <section>
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
-                  <FileCode className="h-5 w-5 text-primary" />
-                  Code Context
-                </h2>
+            <section>
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                <FileCode className="h-5 w-5 text-primary" />
+                Affected Code
+              </h2>
+              {(!paidFinding.vulnerable_code && !paidFinding.evidence_snippet) ? (
+                <GlassPanel className="p-6">
+                  <p className="text-sm text-zinc-400">
+                    Exact line was not available for this finding. Review the affected file and recommendation below.
+                  </p>
+                </GlassPanel>
+              ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-1 gap-5">
                   <div className="rounded-xl border border-red-500/20 overflow-hidden shadow-sm flex flex-col bg-black/50">
                     <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2.5 text-[10px] font-bold text-red-400 uppercase tracking-wider flex justify-between items-center">
-                      <span>Evidence Snippet</span>
-                      <CopyButton text={paidFinding.evidence_snippet} className="hover:bg-red-500/20 hover:text-red-300 border-red-500/30" />
+                      <span>{paidFinding.file_path}{paidFinding.line_number ? ` : Line ${paidFinding.line_number}` : ''}</span>
+                      <CopyButton text={paidFinding.vulnerable_code || paidFinding.evidence_snippet || ''} className="hover:bg-red-500/20 hover:text-red-300 border-red-500/30" />
                     </div>
                     <div className="p-4 overflow-x-auto flex-1">
                       <pre className="text-[13px] text-red-300/80 font-mono leading-relaxed">
-                        <code>{paidFinding.evidence_snippet}</code>
+                        <code>{paidFinding.vulnerable_code || paidFinding.evidence_snippet}</code>
                       </pre>
                     </div>
                   </div>
                 </div>
-              </section>
-            )}
+              )}
+            </section>
 
             {/* Fix Prompt */}
             {paidFinding.fix_prompt && (

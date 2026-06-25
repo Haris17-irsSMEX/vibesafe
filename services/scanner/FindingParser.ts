@@ -104,6 +104,8 @@ function validateFinding(raw: unknown): ScanFinding | null {
   const cwe_id = optionalString(raw.cwe_id) || optionalString(raw.cwe)
   const owasp = optionalString(raw.owasp) || optionalString(raw.owasp_category)
   const evidence_snippet = optionalString(raw.evidence_snippet)
+  const vulnerable_code = optionalString(raw.vulnerable_code)
+  const why_it_matters = optionalString(raw.why_it_matters)
   const fix_prompt = optionalString(raw.fix_prompt)
   
   let confidenceRaw = optionalString(raw.confidence)?.toLowerCase()
@@ -126,6 +128,8 @@ function validateFinding(raw: unknown): ScanFinding | null {
   if (cwe_id !== undefined) finding.cwe_id = cwe_id
   if (owasp !== undefined) finding.owasp = owasp
   if (evidence_snippet !== undefined) finding.evidence_snippet = evidence_snippet
+  if (vulnerable_code !== undefined) finding.vulnerable_code = vulnerable_code
+  if (why_it_matters !== undefined) finding.why_it_matters = why_it_matters
   if (fix_prompt !== undefined) finding.fix_prompt = fix_prompt
 
   return finding

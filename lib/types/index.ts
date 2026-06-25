@@ -76,6 +76,12 @@ export interface ScanFinding {
   /** Excerpt of the problematic code (optional) */
   evidence_snippet?: string
 
+  /** Exact vulnerable line or smallest relevant snippet (optional) */
+  vulnerable_code?: string
+
+  /** Why this issue is risky (optional) */
+  why_it_matters?: string
+
   /** AI confidence level (optional) */
   confidence?: 'high' | 'medium' | 'low'
 

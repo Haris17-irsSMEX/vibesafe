@@ -24,8 +24,10 @@ export interface ScanResultRecord {
   category: string
   file_path: string
   line_number: number | null
+  vulnerable_code: string | null
   cwe_id: string | null
   description: string
+  why_it_matters: string
   recommendation: string
   evidence_snippet: string | null
   confidence: 'high' | 'medium' | 'low' | null
@@ -146,12 +148,13 @@ export async function createScanResults(
       owasp: f.owasp ? safeString(f.owasp) : null,
       description: safeString(f.description) || 'Security issue detected.',
       recommendation: safeString(f.recommendation) || 'Review and fix this issue using secure coding practices.',
-      why_it_matters: (f as ScanFinding & { why_it_matters?: unknown }).why_it_matters ? safeString((f as ScanFinding & { why_it_matters?: unknown }).why_it_matters) : (
+      why_it_matters: f.why_it_matters ? safeString(f.why_it_matters) : (
         ['critical', 'high'].includes(mapSeverity(f.severity))
           ? 'This issue can create serious security risk and should be fixed before production use.'
           : 'This issue may expose the application to security risk if left unresolved.'
       ),
       evidence_snippet: f.evidence_snippet ? safeString(f.evidence_snippet).substring(0, 500) : null,
+      vulnerable_code: f.vulnerable_code ? safeString(f.vulnerable_code) : null,
       confidence: f.confidence ? safeString(f.confidence).toLowerCase() : 'medium',
       fix_prompt: f.fix_prompt ? safeString(f.fix_prompt) : null,
       fix_prompt_generated_at: f.fix_prompt ? new Date().toISOString() : null,
@@ -193,6 +196,12 @@ export async function createScanResults(
       file_path: r.file_path,
       recommendation: r.recommendation,
       status: r.status,
+      line_number: r.line_number ?? null,
+      vulnerable_code: r.vulnerable_code ?? null,
+      evidence_snippet: r.evidence_snippet ?? null,
+      fix_prompt: r.fix_prompt ?? null,
+      fix_prompt_generated_at: r.fix_prompt_generated_at ?? null,
+      fix_prompt_model: r.fix_prompt_model ?? null,
     }))
 
     const { error: minimalError } = await admin

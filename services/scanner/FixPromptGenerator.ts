@@ -119,7 +119,8 @@ Specific advice for Security Headers:
 // ─── Main Generator ─────────────────────────────────────────────────────────
 
 export function generateFixPrompt(finding: ScanFinding): string {
-  const safeCode = finding.evidence_snippet ? redactSecrets(finding.evidence_snippet) : 'N/A'
+  const codeToShow = finding.vulnerable_code || finding.evidence_snippet
+  const safeCode = codeToShow ? redactSecrets(codeToShow) : 'N/A'
   const specificAdvice = getCategorySpecificAdvice(finding)
 
   return `You are fixing a security vulnerability in this codebase.
@@ -130,39 +131,35 @@ ${finding.check_name}
 Severity:
 ${finding.severity}
 
-Category:
-${finding.category}
-
 Affected file:
-${finding.file_path}${finding.line_number ? `\nLine number:\n${finding.line_number}` : ''}
+${finding.file_path}
+
+Affected line:
+${finding.line_number ?? 'unknown'}
+
+Vulnerable code:
+${safeCode}
 
 Problem:
 ${finding.description}
 
-Security risk:
-${finding.recommendation}
+Why it matters:
+${finding.why_it_matters || 'This issue may expose the application to security risk if left unresolved.'}
 
-${finding.evidence_snippet ? `\nEvidence snippet:\n\`\`\`\n${safeCode}\n\`\`\`\n` : ''}
 Fix instructions:
-1. Analyze the context of the vulnerability in the affected file.
-2. Implement the safest possible code change to resolve the issue.
-3. Ensure you follow the specific advice and constraints below.
-${specificAdvice}
-Constraints:
-* Do not change unrelated files.
-* Do not remove existing business logic.
-* Do not expose secrets.
-* Do not weaken authentication or authorization.
-* Keep TypeScript/build passing.
-* Add or update tests if the project already has tests.
-* Update environment variable examples if needed.
-* Explain the files changed after the fix.
-
+1. Fix the issue in the affected file.
+2. Preserve existing business logic.
+3. Do not change unrelated files.
+4. Do not expose secrets.
+5. Do not weaken authentication or authorization.
+6. Keep TypeScript/build passing.
+7. Add or update tests if the project already has tests.
+${specificAdvice ? `\nAdditional specific advice:\n${specificAdvice.trim()}\n` : ''}
 Acceptance criteria:
-* Vulnerability is removed.
+* The vulnerability is removed.
 * Existing behavior still works.
-* No new secrets are committed.
+* No secrets are logged or exposed.
 * Build/lint/tests pass if available.
 
-Generate the minimal safe code changes required.`
+After the fix, explain which files were changed and why.`
 }

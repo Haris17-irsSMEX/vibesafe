@@ -30,14 +30,16 @@ Schema:
       "check_name": "short issue name",
       "category": "secrets" | "database" | "auth" | "payments" | "dependencies" | "rate_limiting" | "cors" | "file_upload" | "input_validation" | "headers" | "config" | "general",
       "description": "clear explanation",
+      "why_it_matters": "why this is risky",
       "file_path": "actual file path",
-      "line_number": null,
+      "line_number": 12,
+      "vulnerable_code": "the exact vulnerable line or smallest relevant snippet",
+      "evidence_snippet": "redacted evidence only",
       "recommendation": "specific fix",
       "cwe": "CWE-XXX or null",
       "owasp": "OWASP category or null",
       "confidence": "high" | "medium" | "low",
-      "evidence_snippet": "redacted evidence only",
-      "fix_prompt": "copy-paste fix prompt for Cursor/Codex"
+      "fix_prompt": "copy-paste prompt for Cursor/Codex"
     }
   ]
 }
@@ -78,14 +80,16 @@ Schema:
       "check_name": "short issue name",
       "category": "secrets" | "database" | "auth" | "payments" | "dependencies" | "rate_limiting" | "cors" | "file_upload" | "input_validation" | "headers" | "config" | "general",
       "description": "clear explanation",
+      "why_it_matters": "why this is risky",
       "file_path": "actual file path",
-      "line_number": null,
+      "line_number": 12,
+      "vulnerable_code": "the exact vulnerable line or smallest relevant snippet",
+      "evidence_snippet": "redacted evidence only",
       "recommendation": "specific fix",
       "cwe": "CWE-XXX or null",
       "owasp": "OWASP category or null",
       "confidence": "high" | "medium" | "low",
-      "evidence_snippet": "redacted evidence only",
-      "fix_prompt": "copy-paste fix prompt for Cursor/Codex"
+      "fix_prompt": "copy-paste prompt for Cursor/Codex"
     }
   ]
 }
