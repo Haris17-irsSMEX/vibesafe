@@ -10,6 +10,8 @@ import { getUserProfile, upsertUserProfile, isPaidPlan } from '@/lib/db/users'
 import { isAdminEmail } from '@/lib/auth/admin'
 import { scoreToLabel, scoreToColor } from '@/services/scoring/SecurityScorer'
 import { FindingsList } from '@/components/results/FindingsList'
+import { SecurityOfficerReport } from '@/components/results/SecurityOfficerReport'
+import { formatSecurityReportMarkdown } from '@/services/scanner/SecurityReportFormatter'
 import { ArrowLeft, ExternalLink, GitBranch, Calendar, ShieldAlert } from 'lucide-react'
 import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { GlassPanel } from '@/components/ui/glow-card'
@@ -96,6 +98,30 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
   const findings = canViewFull
     ? await getScanResultsForScan(scanId)
     : await getScanResultsForScanFree(scanId)
+
+  // Build markdown report for copy button (paid/admin only)
+  const markdownReport = (canViewFull && scan.executive_summary)
+    ? formatSecurityReportMarkdown(
+        {
+          executive_summary:    scan.executive_summary ?? '',
+          security_verdict:     scan.security_verdict ?? '',
+          production_readiness: (scan.production_readiness as 'ready' | 'needs_attention' | 'not_ready' | 'critical_risk') ?? 'needs_attention',
+          top_risks:            (scan.top_risks as { title: string; severity: string; explanation: string; affected_area: string }[]) ?? [],
+          positive_findings:    (scan.positive_findings as string[]) ?? [],
+          remediation_plan:     (scan.remediation_plan as { priority: number; action: string; reason: string; estimated_effort: string }[]) ?? [],
+          business_impact:      scan.business_impact ?? '',
+          technical_summary:    scan.technical_summary ?? '',
+          estimated_fix_effort: scan.estimated_fix_effort ?? '',
+        },
+        scan,
+        findings.map(f => ({
+          severity:   f.severity,
+          check_name: f.check_name,
+          file_path:  f.file_path,
+          category:   f.category,
+        }))
+      )
+    : ''
 
   return (
     <ServerDashboardLayout>
@@ -198,6 +224,17 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             </div>
           </div>
         </GlassPanel>
+
+        {/* Security Officer Report — shown above findings when available */}
+        {scan.executive_summary && (
+          <SecurityOfficerReport
+            scan={scan}
+            findings={findings}
+            canViewFull={canViewFull}
+            isAdmin={isAdmin}
+            markdownReport={markdownReport}
+          />
+        )}
 
         {/* Findings List */}
         <div>

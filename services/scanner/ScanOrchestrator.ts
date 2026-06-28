@@ -5,7 +5,7 @@
  * Single API call implementation for stability.
  */
 
-import { getScanById, updateScanStatus, failScan } from '@/lib/db/scans'
+import { getScanById, updateScanStatus, failScan, updateScanReport } from '@/lib/db/scans'
 import { getScanFilesByScanId, type ScanFileRecord } from '@/lib/db/scan-files'
 import { deleteScanResultsForScan } from '@/lib/db/scan-results'
 import { runSectionScan } from './DeepSeekScanner'
@@ -18,6 +18,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { ScanFinding } from '@/lib/types'
 import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION } from './prompts/SecurityAuditPrompt'
 import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
+import { generateSecurityReport } from './SecurityReportGenerator'
 
 interface OrchestratorResult {
   ok: boolean
@@ -216,6 +217,40 @@ export async function runAIScan(
         lowCount: scoreResult.lowCount,
         resultsUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/results/${scanId}`,
       }).catch(() => {})
+    }
+
+    // PART 7 — Generate security officer report (deterministic, never fails scan)
+    stage = 'generate_report'
+    try {
+      const report = generateSecurityReport({
+        repoFullName:      scan.repo_full_name,
+        securityScore:     scoreResult.score,
+        criticalCount:     scoreResult.criticalCount,
+        highCount:         scoreResult.highCount,
+        mediumCount:       scoreResult.mediumCount,
+        lowCount:          scoreResult.lowCount,
+        totalFindings:     scoreResult.totalFindings,
+        findings:          uniqueFindings.map(f => ({
+          severity:      f.severity || 'medium',
+          check_name:    f.check_name || '',
+          category:      f.category || 'general',
+          description:   f.description,
+          file_path:     f.file_path,
+          recommendation: f.recommendation,
+          why_it_matters: (f as any).why_it_matters,
+        })),
+        filesScannedCount: limitedFiles.length,
+        scanEngine:        'deepseek',
+      })
+
+      await updateScanReport(scanId, report)
+      console.log(`[ScanOrchestrator] Security report generated for scan ${scanId}`)
+    } catch (reportErr) {
+      // Report generation failure MUST NOT fail the scan
+      console.warn(
+        `[ScanOrchestrator] Report generation failed for scan ${scanId} (non-fatal):`,
+        reportErr instanceof Error ? reportErr.message : 'Unknown error'
+      )
     }
 
     return { 

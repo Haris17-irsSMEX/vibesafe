@@ -63,6 +63,17 @@ export interface ScanRecord {
   created_at: string
   error_stage?: string | null
   scan_engine?: string | null
+  // Security Officer Report fields (nullable — populated after scan completes)
+  executive_summary?: string | null
+  security_verdict?: string | null
+  production_readiness?: string | null
+  top_risks?: unknown[] | null
+  positive_findings?: string[] | null
+  remediation_plan?: unknown[] | null
+  business_impact?: string | null
+  technical_summary?: string | null
+  estimated_fix_effort?: string | null
+  report_generated_at?: string | null
 }
 
 // ─── Admin client (service role — bypasses RLS) ─────────────────────────────
@@ -288,4 +299,51 @@ export async function getCompletedScansForUser(
   }
 
   return (data ?? []) as ScanRecord[]
+}
+
+// ─── Save security report ────────────────────────────────────────────────────
+
+/**
+ * Persist the generated security officer report fields onto a scan row.
+ * Called after scan_results are saved and summary is updated.
+ * Never called before scan is marked complete.
+ */
+export async function updateScanReport(
+  scanId: string,
+  report: {
+    executive_summary: string
+    security_verdict: string
+    production_readiness: string
+    top_risks: unknown[]
+    positive_findings: string[]
+    remediation_plan: unknown[]
+    business_impact: string
+    technical_summary: string
+    estimated_fix_effort: string
+  }
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = getAdminClient()
+
+  const { error } = await admin
+    .from('scans')
+    .update({
+      executive_summary:    report.executive_summary,
+      security_verdict:     report.security_verdict,
+      production_readiness: report.production_readiness,
+      top_risks:            report.top_risks,
+      positive_findings:    report.positive_findings,
+      remediation_plan:     report.remediation_plan,
+      business_impact:      report.business_impact,
+      technical_summary:    report.technical_summary,
+      estimated_fix_effort: report.estimated_fix_effort,
+      report_generated_at:  new Date().toISOString(),
+    })
+    .eq('id', scanId)
+
+  if (error) {
+    console.error('[updateScanReport] DB error:', error.message)
+    return { ok: false, error: error.message }
+  }
+
+  return { ok: true }
 }

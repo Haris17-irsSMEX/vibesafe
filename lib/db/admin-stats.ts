@@ -53,6 +53,8 @@ export interface AdminScanRow {
   high_count: number
   medium_count: number
   low_count: number
+  production_readiness: string | null
+  report_generated_at: string | null
 }
 
 export interface AdminFindingRow {
@@ -148,7 +150,7 @@ export async function getAdminRecentScans(
   const { data: scans, error } = await admin
     .from('scans')
     .select(
-      'id, repo_full_name, user_id, status, security_score, created_at, completed_at, total_findings, error_message, critical_count, high_count, medium_count, low_count'
+      'id, repo_full_name, user_id, status, security_score, created_at, completed_at, total_findings, error_message, critical_count, high_count, medium_count, low_count, production_readiness, report_generated_at'
     )
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -186,6 +188,8 @@ export async function getAdminRecentScans(
     high_count: s.high_count ?? 0,
     medium_count: s.medium_count ?? 0,
     low_count: s.low_count ?? 0,
+    production_readiness: s.production_readiness ?? null,
+    report_generated_at: s.report_generated_at ?? null,
   }))
 }
 

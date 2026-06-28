@@ -132,6 +132,28 @@ function SeverityBadge({ severity }: { severity: string }) {
   )
 }
 
+function ReadinessBadge({ readiness }: { readiness: string | null }) {
+  if (!readiness) return <span className="text-zinc-600 text-xs">—</span>
+  const colors: Record<string, string> = {
+    ready:            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    needs_attention:  'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    not_ready:        'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    critical_risk:    'bg-red-500/10 text-red-400 border-red-500/20',
+  }
+  const labels: Record<string, string> = {
+    ready:            'Ready',
+    needs_attention:  'Needs Attention',
+    not_ready:        'Not Ready',
+    critical_risk:    'Critical Risk',
+  }
+  const cls = colors[readiness] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${cls}`}>
+      {labels[readiness] ?? readiness}
+    </span>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AdminPage() {
@@ -370,6 +392,12 @@ export default async function AdminPage() {
                       Score
                     </th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                      Readiness
+                    </th>
+                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                      Report
+                    </th>
+                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
                       Findings
                     </th>
                     <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
@@ -412,6 +440,15 @@ export default async function AdminPage() {
                           </div>
                         ) : '—'}
                       </td>
+                      <td className="px-5 py-3.5">
+                        <ReadinessBadge readiness={s.production_readiness} />
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        {s.report_generated_at
+                          ? <span className="text-emerald-400 text-sm font-bold">✓</span>
+                          : <span className="text-zinc-600 text-xs">—</span>
+                        }
+                      </td>
                       <td className="px-5 py-3.5 text-zinc-400 font-medium text-sm">
                         {s.total_findings}
                       </td>
@@ -434,7 +471,7 @@ export default async function AdminPage() {
                   ))}
                   {recentScans.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-5 py-8 text-center text-zinc-600 text-sm">
+                      <td colSpan={9} className="px-5 py-8 text-center text-zinc-600 text-sm">
                         No scans yet.
                       </td>
                     </tr>
