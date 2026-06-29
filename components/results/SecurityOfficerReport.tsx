@@ -137,6 +137,7 @@ function ChecklistBadge({ verdict }: { verdict: string }) {
 export function SecurityOfficerReport({
   scan,
   canViewFull,
+  isAdmin,
   markdownReport,
 }: SecurityOfficerReportProps) {
   const readiness = (scan.production_readiness as ReadinessKey) ?? 'needs_attention'
@@ -183,6 +184,16 @@ export function SecurityOfficerReport({
           )}
         </div>
       </div>
+
+      {/* Admin Warning for Fallback Report */}
+      {isAdmin && checklist.length === 0 && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex items-center justify-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+          <span className="text-xs font-semibold text-amber-500 uppercase tracking-wider">
+            Audit metadata was not saved; fallback report displayed.
+          </span>
+        </div>
+      )}
 
       <div className="p-6 space-y-8">
         {/* Mobile readiness badge */}

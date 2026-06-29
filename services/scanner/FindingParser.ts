@@ -300,16 +300,7 @@ export function parseFullAuditResponse(rawText: string): FullParseResult {
 
   if (!parsed) {
     const snippet = getSafeLogSnippet(rawText)
-    console.warn(`[FindingParser] Full audit parse failed. Length: ${rawText.length}. Snippet: ${snippet}`)
-
-    return {
-      findings: [],
-      skippedCount: 0,
-      parseError: true,
-      parseErrorMessage: 'Failed to parse AI response. The response was not valid JSON.',
-      checklist: [],
-      report: null,
-    }
+    console.warn(`[FindingParser] Full audit JSON parse failed, attempting aggressive fallback. Length: ${rawText.length}. Snippet: ${snippet}`)
   }
 
   // ── Extract findings ────────────────────────────────────────────────────
@@ -320,6 +311,26 @@ export function parseFullAuditResponse(rawText: string): FullParseResult {
     findingsArray = parsed
   } else if (isRecord(parsed) && optionalString(parsed.check_name)) {
     findingsArray = [parsed]
+  } else if (!parsed) {
+    // Aggressive fallback to extract just the findings array if full JSON fails
+    const cleaned = stripMarkdownFences(rawText)
+    const findingsMatch = cleaned.match(/"findings"\s*:\s*(\[[\s\S]*?\])\s*(?:,\s*"checklist"|,\s*"report"|\})/i)
+    if (findingsMatch) {
+      const arrStr = findingsMatch[1]
+      try {
+        const arrParsed = JSON.parse(arrStr)
+        if (Array.isArray(arrParsed)) findingsArray = arrParsed
+      } catch (e) {
+        // Fallback to extractArray if regex fails to yield valid JSON
+        const arrStr2 = extractArray(cleaned)
+        if (arrStr2) {
+          try {
+            const arrParsed2 = JSON.parse(arrStr2)
+            if (Array.isArray(arrParsed2)) findingsArray = arrParsed2
+          } catch {}
+        }
+      }
+    }
   }
 
   const findings: ScanFinding[] = []
