@@ -13,6 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createScanForRepo } from '@/lib/db/scans'
+import { rateLimitScanCreate } from '@/lib/rate-limit'
 
 interface CreateScanBody {
   repoId: number
@@ -54,6 +55,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: 'You must be signed in.' },
       { status: 401 }
+    )
+  }
+
+  // Rate limiting (User based)
+  const rateLimit = await rateLimitScanCreate(user.id)
+  if (!rateLimit.success) {
+    console.warn(`[scan-create] Rate limit exceeded for user: ${user.id}`)
+    return NextResponse.json(
+      { success: false, error: 'Too many requests' },
+      { status: 429 }
     )
   }
 

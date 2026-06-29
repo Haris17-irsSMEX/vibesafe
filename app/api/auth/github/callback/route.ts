@@ -16,8 +16,17 @@ import {
   getGitHubUserProfile,
 } from '@/services/github/GitHubOAuthService'
 import { encryptToken } from '@/lib/security/encryption'
+import { rateLimitAuth } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  // Rate limiting (IP based)
+  const ip = request.headers.get('x-forwarded-for') || request.ip || 'unknown-ip'
+  const rateLimit = await rateLimitAuth(ip)
+  if (!rateLimit.success) {
+    console.warn(`[github-callback] Rate limit exceeded for IP: ${ip}`)
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const state = searchParams.get('state')
@@ -27,9 +36,11 @@ export async function GET(request: NextRequest) {
   const callbackHost = (() => {
     try { return new URL(request.url).hostname } catch { return 'unknown' }
   })()
-  console.log(
-    `[github-callback] received: host=${callbackHost}, codePresent=${!!code}, statePresent=${!!state}, githubError=${githubError ?? 'none'}, clientIdSet=${!!process.env.GITHUB_CLIENT_ID}`
-  )
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(
+      `[github-callback] received: host=${callbackHost}, codePresent=${!!code}, statePresent=${!!state}, githubError=${githubError ?? 'none'}, clientIdSet=${!!process.env.GITHUB_CLIENT_ID}`
+    )
+  }
 
   // Handle user-denied access
   if (githubError) {

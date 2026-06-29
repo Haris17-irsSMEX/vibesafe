@@ -24,6 +24,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHmac, timingSafeEqual } from 'crypto'
 import { updateUserPlan } from '@/lib/db/users'
 import type { UserPlan } from '@/lib/db/users'
+import { rateLimitWebhook } from '@/lib/rate-limit'
 
 // ─── Price ID → Plan mapping ──────────────────────────────────────────────────
 
@@ -87,6 +88,14 @@ function verifyPaddleSignature(
 // ─── Webhook handler ──────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // 0. Rate limiting (IP based)
+  const ip = req.headers.get('x-forwarded-for') || req.ip || 'unknown-ip'
+  const rateLimit = await rateLimitWebhook(ip)
+  if (!rateLimit.success) {
+    console.warn(`[webhook] Rate limit exceeded for IP: ${ip}`)
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   // 1. Read raw body BEFORE parsing — required for signature verification
   let rawBody: string
   try {

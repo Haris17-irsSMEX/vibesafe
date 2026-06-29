@@ -99,6 +99,54 @@ function getAiScanLimiter(plan: UserPlan): Ratelimit | null {
   return aiScanLimiters[plan]!
 }
 
+let webhookLimiter: Ratelimit | null = null
+
+function getWebhookLimiter(): Ratelimit | null {
+  if (webhookLimiter) return webhookLimiter
+  const r = getRedis()
+  if (!r) return null
+
+  webhookLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(10, '1 m'),
+    analytics: true,
+    prefix: 'paddle-webhook',
+  })
+  return webhookLimiter
+}
+
+let authLimiter: Ratelimit | null = null
+
+function getAuthLimiter(): Ratelimit | null {
+  if (authLimiter) return authLimiter
+  const r = getRedis()
+  if (!r) return null
+
+  authLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(10, '1 m'),
+    analytics: true,
+    prefix: 'auth',
+  })
+  return authLimiter
+}
+
+let scanCreateLimiter: Ratelimit | null = null
+
+function getScanCreateLimiter(): Ratelimit | null {
+  if (scanCreateLimiter) return scanCreateLimiter
+  const r = getRedis()
+  if (!r) return null
+
+  scanCreateLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(5, '1 m'),
+    analytics: true,
+    prefix: 'scan-create',
+  })
+  return scanCreateLimiter
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 interface RateLimitResult {
@@ -178,5 +226,86 @@ export async function rateLimitAIScan(userId: string, plan: UserPlan, isAdmin: b
       console.warn('[RateLimit] Bypassing Redis failure in development mode.')
       return { success: true, remaining: 999 }
     }
+  }
+}
+
+/**
+ * Limit webhook execution based on IP address.
+ * @param ip the request IP
+ * @returns success: false if the IP has exceeded the limit
+ */
+export async function rateLimitWebhook(ip: string): Promise<RateLimitResult> {
+  try {
+    const limiter = getWebhookLimiter()
+    if (!limiter) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[RateLimit] Missing Redis config in production! Failing open for webhooks to prevent missing events.')
+      }
+      return { success: true, remaining: 999 }
+    }
+
+    const key = `webhook:${ip}`
+    const { success, remaining } = await limiter.limit(key)
+    return { success, remaining }
+  } catch (err) {
+    console.error('[RateLimit] Error checking webhook limit:', err)
+    // Fail open on error to protect critical payment events
+    return { success: true, remaining: 999 }
+  }
+}
+
+/**
+ * Limit auth endpoints based on IP address.
+ * @param ip the request IP
+ * @returns success: false if the IP has exceeded the limit
+ */
+export async function rateLimitAuth(ip: string): Promise<RateLimitResult> {
+  try {
+    const limiter = getAuthLimiter()
+    if (!limiter) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[RateLimit] Missing Redis config in production! Failing closed for auth.')
+        return { success: false, remaining: 0 }
+      }
+      return { success: true, remaining: 999 }
+    }
+
+    const key = `auth:${ip}`
+    const { success, remaining } = await limiter.limit(key)
+    return { success, remaining }
+  } catch (err) {
+    console.error('[RateLimit] Error checking auth limit:', err)
+    if (process.env.NODE_ENV === 'production') {
+      return { success: false, remaining: 0 }
+    }
+    return { success: true, remaining: 999 }
+  }
+}
+
+/**
+ * Limit scan creation per user.
+ * @param userId the user ID
+ * @returns success: false if the user has exceeded the limit
+ */
+export async function rateLimitScanCreate(userId: string): Promise<RateLimitResult> {
+  try {
+    const limiter = getScanCreateLimiter()
+    if (!limiter) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[RateLimit] Missing Redis config in production! Failing closed for scan create.')
+        return { success: false, remaining: 0 }
+      }
+      return { success: true, remaining: 999 }
+    }
+
+    const key = `scan-create:${userId}`
+    const { success, remaining } = await limiter.limit(key)
+    return { success, remaining }
+  } catch (err) {
+    console.error('[RateLimit] Error checking scan create limit:', err)
+    if (process.env.NODE_ENV === 'production') {
+      return { success: false, remaining: 0 }
+    }
+    return { success: true, remaining: 999 }
   }
 }

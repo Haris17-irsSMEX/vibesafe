@@ -7,16 +7,24 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+import { useEffect, useState } from "react";
+
 export function Sidebar({
   className = "",
-  isAdmin = false,
 }: {
   className?: string;
-  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/admin/check')
+      .then(r => r.json())
+      .then(data => setIsAdmin(data.isAdmin))
+      .catch(console.error)
+  }, []);
 
   const links = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
