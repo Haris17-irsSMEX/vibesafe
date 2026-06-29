@@ -118,3 +118,36 @@ export interface SecurityScoreResult {
   lowCount: number
   totalFindings: number
 }
+
+// ─── Audit Checklist ─────────────────────────────────────────────────────────
+
+/** Verdict for a single checklist audit item */
+export type ChecklistVerdict = 'pass' | 'fail' | 'partial' | 'na'
+
+/** Overall security posture rating from the AI audit */
+export type SecurityPosture = 'critical' | 'needs_work' | 'acceptable' | 'strong'
+
+/** A single item from the structured security audit checklist */
+export interface AuditChecklistItem {
+  id: string
+  section: string
+  check: string
+  verdict: ChecklistVerdict
+  evidence: string
+  file_path?: string | null
+}
+
+/** The structured report returned by the AI alongside findings */
+export interface AuditReport {
+  security_posture: SecurityPosture
+  executive_summary: string
+  quick_wins: string[]
+  what_is_done_right: string[]
+  priority_plan: string[]
+}
+
+/** Extended parse result that includes checklist and report data */
+export interface FullParseResult extends ParseResult {
+  checklist: AuditChecklistItem[]
+  report: AuditReport | null
+}

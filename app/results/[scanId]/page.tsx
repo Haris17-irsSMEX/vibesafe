@@ -119,7 +119,9 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           check_name: f.check_name,
           file_path:  f.file_path,
           category:   f.category,
-        }))
+        })),
+        (scan.audit_checklist as import('@/lib/types').AuditChecklistItem[]) ?? [],
+        (scan.quick_wins as string[]) ?? []
       )
     : ''
 

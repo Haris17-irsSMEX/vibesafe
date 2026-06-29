@@ -1,21 +1,24 @@
 /**
  * services/scanner/FindingParser.ts
  *
- * Safely parses the raw text response from DeepSeek into typed ScanFinding[].
+ * Safely parses the raw text response from DeepSeek into typed ScanFinding[],
+ * and optionally extracts checklist + report data for strict audit mode (Phase 8G).
  *
  * Rules:
- * - Accepts only JSON arrays
+ * - Accepts only JSON arrays or objects
  * - Validates each finding against the schema
  * - Skips malformed findings rather than failing entirely
  * - Never throws unhandled exceptions
  * - Returns parse error metadata alongside valid findings
  */
 
-import type { ScanFinding, Severity, ParseResult } from '@/lib/types'
+import type { ScanFinding, Severity, ParseResult, AuditChecklistItem, ChecklistVerdict, AuditReport, SecurityPosture, FullParseResult } from '@/lib/types'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const VALID_SEVERITIES = new Set<Severity>(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'])
+const VALID_VERDICTS = new Set<ChecklistVerdict>(['pass', 'fail', 'partial', 'na'])
+const VALID_POSTURES = new Set<SecurityPosture>(['critical', 'needs_work', 'acceptable', 'strong'])
 
 // ─── Type guard helpers ───────────────────────────────────────────────────────
 
@@ -44,7 +47,6 @@ function isSeverity(val: unknown): val is Severity {
  * Strip those fences before attempting JSON.parse().
  */
 function stripMarkdownFences(raw: string): string {
-  // If there's a code block anywhere, extract its contents.
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
   if (fenceMatch) {
     return fenceMatch[1].trim()
@@ -74,14 +76,9 @@ function extractArray(raw: string): string | null {
 
 // ─── Validate a single finding ────────────────────────────────────────────────
 
-/**
- * Validates a raw object against the ScanFinding schema.
- * Returns a typed ScanFinding if valid, or null if it fails validation.
- */
 function validateFinding(raw: unknown): ScanFinding | null {
   if (!isRecord(raw)) return null
 
-  // Required fields
   const check_name = optionalString(raw.check_name)
   let severityRaw = optionalString(raw.severity)?.toUpperCase()
   const category = optionalString(raw.category) || 'general'
@@ -93,13 +90,11 @@ function validateFinding(raw: unknown): ScanFinding | null {
     return null
   }
 
-  // Fallback severity to MEDIUM if unknown
   if (!isSeverity(severityRaw)) {
     severityRaw = 'MEDIUM'
   }
   const severity = severityRaw as Severity
 
-  // Optional fields
   const line_number = optionalNumber(raw.line_number)
   const cwe_id = optionalString(raw.cwe_id) || optionalString(raw.cwe)
   const owasp = optionalString(raw.owasp) || optionalString(raw.owasp_category)
@@ -107,7 +102,7 @@ function validateFinding(raw: unknown): ScanFinding | null {
   const vulnerable_code = optionalString(raw.vulnerable_code)
   const why_it_matters = optionalString(raw.why_it_matters)
   const fix_prompt = optionalString(raw.fix_prompt)
-  
+
   let confidenceRaw = optionalString(raw.confidence)?.toLowerCase()
   if (confidenceRaw !== 'high' && confidenceRaw !== 'medium' && confidenceRaw !== 'low') {
     confidenceRaw = 'medium'
@@ -135,11 +130,58 @@ function validateFinding(raw: unknown): ScanFinding | null {
   return finding
 }
 
+// ─── Validate a single checklist item ─────────────────────────────────────────
+
+function validateChecklistItem(raw: unknown): AuditChecklistItem | null {
+  if (!isRecord(raw)) return null
+
+  const id = optionalString(raw.id)
+  const section = optionalString(raw.section)
+  const check = optionalString(raw.check)
+  const verdictRaw = optionalString(raw.verdict)?.toLowerCase()
+
+  if (!id || !section || !check) return null
+
+  const verdict: ChecklistVerdict = (verdictRaw && VALID_VERDICTS.has(verdictRaw as ChecklistVerdict))
+    ? (verdictRaw as ChecklistVerdict)
+    : 'partial'
+
+  const evidence = optionalString(raw.evidence) || ''
+  const file_path = optionalString(raw.file_path) || null
+
+  return { id, section, check, verdict, evidence, file_path }
+}
+
+// ─── Validate audit report ────────────────────────────────────────────────────
+
+function validateAuditReport(raw: unknown): AuditReport | null {
+  if (!isRecord(raw)) return null
+
+  const postureRaw = optionalString(raw.security_posture)?.toLowerCase()
+  const security_posture: SecurityPosture = (postureRaw && VALID_POSTURES.has(postureRaw as SecurityPosture))
+    ? (postureRaw as SecurityPosture)
+    : 'needs_work'
+
+  const executive_summary = optionalString(raw.executive_summary) || ''
+  const quick_wins = Array.isArray(raw.quick_wins)
+    ? (raw.quick_wins as unknown[]).map(s => typeof s === 'string' ? s : '').filter(Boolean)
+    : []
+  const what_is_done_right = Array.isArray(raw.what_is_done_right)
+    ? (raw.what_is_done_right as unknown[]).map(s => typeof s === 'string' ? s : '').filter(Boolean)
+    : []
+  const priority_plan = Array.isArray(raw.priority_plan)
+    ? (raw.priority_plan as unknown[]).map(s => typeof s === 'string' ? s : '').filter(Boolean)
+    : []
+
+  if (!executive_summary) return null
+
+  return { security_posture, executive_summary, quick_wins, what_is_done_right, priority_plan }
+}
+
 // ─── Safe Logging Helper ──────────────────────────────────────────────────────
 
 function getSafeLogSnippet(raw: string): string {
   let snippet = raw.slice(0, 300)
-  // Redact potential secrets
   snippet = snippet.replace(/sk_[a-zA-Z0-9]+/g, 'sk_...REDACTED')
   snippet = snippet.replace(/ghp_[a-zA-Z0-9]+/g, 'ghp_...REDACTED')
   snippet = snippet.replace(/ey[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[JWT REDACTED]')
@@ -147,46 +189,30 @@ function getSafeLogSnippet(raw: string): string {
   return snippet
 }
 
-// ─── Main parser ──────────────────────────────────────────────────────────────
+// ─── JSON parsing helpers ─────────────────────────────────────────────────────
 
-/**
- * Parse the raw text response from DeepSeek into typed findings.
- *
- * Always returns a ParseResult — never throws.
- */
-export function parseFindings(rawText: string): ParseResult {
-  // 1. Strip markdown fences if present
+function tryParse(str: string): unknown {
+  try {
+    return JSON.parse(str)
+  } catch {
+    return null
+  }
+}
+
+function attemptParse(rawText: string): unknown {
   const cleaned = stripMarkdownFences(rawText)
 
-  // 2. Handle empty response as empty findings (no error)
   if (cleaned === '' || cleaned === '[]' || cleaned === '{"findings":[]}') {
-    return {
-      findings: [],
-      skippedCount: 0,
-      parseError: false,
-    }
+    return { findings: [] }
   }
 
-  // 3. Attempt JSON parse with fallbacks
-  let parsed: unknown = null
+  let parsed = tryParse(cleaned)
 
-  const tryParse = (str: string) => {
-    try {
-      return JSON.parse(str)
-    } catch (e) {
-      return null
-    }
-  }
-
-  parsed = tryParse(cleaned)
-
-  // Fallback 1: Extract JSON Object
   if (!parsed) {
     const objStr = extractObject(cleaned)
     if (objStr) parsed = tryParse(objStr)
   }
 
-  // Fallback 2: Extract JSON Array
   if (!parsed) {
     const arrStr = extractArray(cleaned)
     if (arrStr) {
@@ -197,12 +223,24 @@ export function parseFindings(rawText: string): ParseResult {
     }
   }
 
+  return parsed
+}
+
+// ─── Main parser (backward compatible) ────────────────────────────────────────
+
+/**
+ * Parse the raw text response from DeepSeek into typed findings.
+ * Always returns a ParseResult — never throws.
+ */
+export function parseFindings(rawText: string): ParseResult {
+  const parsed = attemptParse(rawText)
+
   if (!parsed) {
     const snippet = getSafeLogSnippet(rawText)
     const hasFence = rawText.includes('\`\`\`')
     const hasBraces = rawText.includes('{') || rawText.includes('[')
     console.warn(`[FindingParser] Response parsing failed. Length: ${rawText.length}, hasFence: ${hasFence}, hasBraces: ${hasBraces}. Snippet: ${snippet}`)
-    
+
     return {
       findings: [],
       skippedCount: 0,
@@ -211,12 +249,10 @@ export function parseFindings(rawText: string): ParseResult {
     }
   }
 
-  // 4. Extract findings array
   let findingsArray: unknown = parsed
   if (isRecord(parsed) && Array.isArray(parsed.findings)) {
     findingsArray = parsed.findings
   } else if (isRecord(parsed) && optionalString(parsed.check_name)) {
-    // If object itself looks like a single finding, wrap it as one finding
     findingsArray = [parsed]
   }
 
@@ -231,7 +267,6 @@ export function parseFindings(rawText: string): ParseResult {
     }
   }
 
-  // 5. Validate each element — skip malformed ones
   const findings: ScanFinding[] = []
   let skippedCount = 0
 
@@ -248,6 +283,80 @@ export function parseFindings(rawText: string): ParseResult {
     findings,
     skippedCount,
     parseError: false,
+  }
+}
+
+// ─── Full audit parser (Phase 8G) ─────────────────────────────────────────────
+
+/**
+ * Parse the raw text response from DeepSeek into findings + checklist + report.
+ *
+ * Always returns a FullParseResult — never throws.
+ * If checklist or report is missing/malformed, returns empty checklist and null report
+ * but still preserves valid findings.
+ */
+export function parseFullAuditResponse(rawText: string): FullParseResult {
+  const parsed = attemptParse(rawText)
+
+  if (!parsed) {
+    const snippet = getSafeLogSnippet(rawText)
+    console.warn(`[FindingParser] Full audit parse failed. Length: ${rawText.length}. Snippet: ${snippet}`)
+
+    return {
+      findings: [],
+      skippedCount: 0,
+      parseError: true,
+      parseErrorMessage: 'Failed to parse AI response. The response was not valid JSON.',
+      checklist: [],
+      report: null,
+    }
+  }
+
+  // ── Extract findings ────────────────────────────────────────────────────
+  let findingsArray: unknown[] = []
+  if (isRecord(parsed) && Array.isArray(parsed.findings)) {
+    findingsArray = parsed.findings as unknown[]
+  } else if (Array.isArray(parsed)) {
+    findingsArray = parsed
+  } else if (isRecord(parsed) && optionalString(parsed.check_name)) {
+    findingsArray = [parsed]
+  }
+
+  const findings: ScanFinding[] = []
+  let skippedCount = 0
+
+  for (const item of findingsArray) {
+    const finding = validateFinding(item)
+    if (finding !== null) {
+      findings.push(finding)
+    } else {
+      skippedCount++
+    }
+  }
+
+  // ── Extract checklist ───────────────────────────────────────────────────
+  const checklist: AuditChecklistItem[] = []
+  if (isRecord(parsed) && Array.isArray(parsed.checklist)) {
+    for (const item of parsed.checklist as unknown[]) {
+      const ci = validateChecklistItem(item)
+      if (ci) checklist.push(ci)
+    }
+  }
+
+  // ── Extract report ──────────────────────────────────────────────────────
+  let report: AuditReport | null = null
+  if (isRecord(parsed) && isRecord(parsed.report)) {
+    report = validateAuditReport(parsed.report)
+  }
+
+  console.log(`[FindingParser] Full audit parsed: findings=${findings.length}, checklist=${checklist.length}, report=${report ? 'yes' : 'no'}`)
+
+  return {
+    findings,
+    skippedCount,
+    parseError: false,
+    checklist,
+    report,
   }
 }
 

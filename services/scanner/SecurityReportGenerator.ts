@@ -2,12 +2,13 @@
  * services/scanner/SecurityReportGenerator.ts
  *
  * Server-side ONLY. Generates a professional security officer report
- * from completed scan data using deterministic logic.
+ * from completed scan data using deterministic logic and AI audit data (Phase 8G).
  *
- * - No AI calls required
  * - Pure function — no side effects
  * - Never fails the scan — caller wraps in try/catch
  */
+
+import type { AuditReport, AuditChecklistItem } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ export interface ReportInput {
   }>
   filesScannedCount: number
   scanEngine: string
+  checklist?: AuditChecklistItem[]
+  auditReport?: AuditReport | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,11 +117,21 @@ function determineProductionReadiness(
   criticalCount: number,
   highCount: number,
   mediumCount: number,
-  totalFindings: number
+  totalFindings: number,
+  auditReport?: AuditReport | null
 ): ProductionReadiness {
+  // If AI provided a posture rating, honor it for extremes
+  if (auditReport) {
+    if (auditReport.security_posture === 'critical') return 'critical_risk'
+    if (auditReport.security_posture === 'strong' && criticalCount === 0 && highCount === 0) return 'ready'
+  }
+
   if (criticalCount > 0) return 'critical_risk'
   if (highCount >= 3)    return 'not_ready'
   if (highCount > 0 || mediumCount > 3) return 'needs_attention'
+  
+  if (auditReport?.security_posture === 'needs_work') return 'needs_attention'
+
   if (totalFindings === 0) return 'ready'
   return 'needs_attention'
 }
@@ -129,7 +142,8 @@ function buildVerdict(
   readiness: ProductionReadiness,
   criticalCount: number,
   highCount: number,
-  securityScore: number
+  securityScore: number,
+  auditReport?: AuditReport | null
 ): string {
   if (readiness === 'critical_risk') {
     return `${criticalCount} critical issue${criticalCount > 1 ? 's were' : ' was'} detected that must be resolved before this repository is safe for production use. Immediate action is required.`
@@ -138,6 +152,9 @@ function buildVerdict(
     return `${highCount} high severity issues were detected. This repository should not be deployed to production until these issues are addressed.`
   }
   if (readiness === 'needs_attention') {
+    if (auditReport?.security_posture === 'needs_work' && highCount === 0 && criticalCount === 0) {
+       return `While no high severity vulnerabilities were found, the codebase requires security hardening and attention to best practices before production deployment.`
+    }
     return `Security issues were detected that require attention. The repository may be usable but improvements are strongly recommended before production deployment.`
   }
   return `No significant vulnerabilities were detected in this scan. The repository demonstrates a strong security posture with a score of ${securityScore}/100.`
@@ -154,8 +171,14 @@ function buildExecutiveSummary(
   lowCount: number,
   totalFindings: number,
   readiness: ProductionReadiness,
-  filesScannedCount: number
+  filesScannedCount: number,
+  auditReport?: AuditReport | null
 ): string {
+  // Use AI summary if available and robust
+  if (auditReport && auditReport.executive_summary.length > 30) {
+    return auditReport.executive_summary
+  }
+
   const repoName = repoFullName.split('/').pop() ?? repoFullName
 
   if (totalFindings === 0) {
@@ -216,9 +239,15 @@ function buildTopRisks(
 function buildPositiveFindings(
   criticalCount: number,
   highCount: number,
-  findings: ReportInput['findings']
+  findings: ReportInput['findings'],
+  auditReport?: AuditReport | null
 ): string[] {
   const positives: string[] = []
+
+  // Pull AI observations if available
+  if (auditReport && Array.isArray(auditReport.what_is_done_right)) {
+    positives.push(...auditReport.what_is_done_right.slice(0, 3))
+  }
 
   const categoriesFound = new Set<string>(findings.map((f) => f.category))
 
@@ -241,19 +270,26 @@ function buildPositiveFindings(
     positives.push('No authentication or authorization vulnerabilities were detected.')
   }
 
-  // Always guarantee at least one positive
-  if (positives.length === 0) {
-    positives.push('VibeSafe completed a full automated security audit of this repository.')
-  }
-
-  return positives
+  // Deduplicate and cap
+  return Array.from(new Set(positives)).slice(0, 6)
 }
 
 // ─── Remediation plan ─────────────────────────────────────────────────────────
 
 function buildRemediationPlan(
-  findings: ReportInput['findings']
+  findings: ReportInput['findings'],
+  auditReport?: AuditReport | null
 ): RemediationStep[] {
+  // Use AI Priority Plan if available and findings exist to back it up
+  if (auditReport && Array.isArray(auditReport.priority_plan) && auditReport.priority_plan.length > 0 && findings.length === 0) {
+    return auditReport.priority_plan.map((action, idx) => ({
+       priority: idx + 1,
+       action,
+       reason: 'Security hardening recommended by AI audit.',
+       estimated_effort: '~1 hour'
+    }))
+  }
+
   if (findings.length === 0) return []
 
   // Priority assignment
@@ -303,10 +339,18 @@ function buildTechnicalSummary(
   findings: ReportInput['findings'],
   filesScannedCount: number,
   scanEngine: string,
-  totalFindings: number
+  totalFindings: number,
+  checklist?: AuditChecklistItem[]
 ): string {
+  let checklistStr = ''
+  if (checklist && checklist.length > 0) {
+    const passCount = checklist.filter(c => c.verdict === 'pass').length
+    const failCount = checklist.filter(c => c.verdict === 'fail').length
+    checklistStr = ` The AI audit verified ${checklist.length} checklist items (${passCount} passed, ${failCount} failed).`
+  }
+
   if (totalFindings === 0) {
-    return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} source files across all security domains including authentication, database access, secrets management, payment handling, rate limiting, CORS, file uploads, and input validation. No vulnerabilities were detected.`
+    return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} source files across all security domains including authentication, database access, secrets management, payment handling, rate limiting, CORS, file uploads, and input validation.${checklistStr} No vulnerabilities were detected.`
   }
 
   const cats = Array.from(new Set<string>(findings.map((f) => f.category))).map(categoryLabel)
@@ -314,7 +358,7 @@ function buildTechnicalSummary(
     ? cats.slice(0, 4).join(', ') + (cats.length > 4 ? `, and ${cats.length - 4} more areas` : '')
     : 'multiple security domains'
 
-  return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} source files. Issues were identified in ${catStr}. Findings were classified by severity and mapped to CWE/OWASP categories where applicable. The analysis included checks for authentication bypasses, data exposure, missing server-side validation, dependency risks, and configuration issues common in AI-generated codebases.`
+  return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} source files.${checklistStr} Issues were identified in ${catStr}. Findings were classified by severity and mapped to CWE/OWASP categories where applicable. The analysis included checks for authentication bypasses, data exposure, missing server-side validation, dependency risks, and configuration issues common in AI-generated codebases.`
 }
 
 // ─── Estimated fix effort ─────────────────────────────────────────────────────
@@ -337,7 +381,8 @@ function buildEstimatedFixEffort(
 
 /**
  * Generate a complete security officer report from scan data.
- * Pure deterministic function. No AI calls. Never throws — caller handles errors.
+ * Pure deterministic function composed with AI audit data.
+ * Never throws — caller handles errors.
  */
 export function generateSecurityReport(input: ReportInput): SecurityReport {
   const {
@@ -351,24 +396,26 @@ export function generateSecurityReport(input: ReportInput): SecurityReport {
     findings,
     filesScannedCount,
     scanEngine,
+    checklist,
+    auditReport
   } = input
 
   const readiness = determineProductionReadiness(
-    criticalCount, highCount, mediumCount, totalFindings
+    criticalCount, highCount, mediumCount, totalFindings, auditReport
   )
 
   return {
     executive_summary: buildExecutiveSummary(
       repoFullName, securityScore, criticalCount, highCount,
-      mediumCount, lowCount, totalFindings, readiness, filesScannedCount
+      mediumCount, lowCount, totalFindings, readiness, filesScannedCount, auditReport
     ),
-    security_verdict:  buildVerdict(readiness, criticalCount, highCount, securityScore),
+    security_verdict:  buildVerdict(readiness, criticalCount, highCount, securityScore, auditReport),
     production_readiness: readiness,
     top_risks:         buildTopRisks(findings),
-    positive_findings: buildPositiveFindings(criticalCount, highCount, findings),
-    remediation_plan:  buildRemediationPlan(findings),
+    positive_findings: buildPositiveFindings(criticalCount, highCount, findings, auditReport),
+    remediation_plan:  buildRemediationPlan(findings, auditReport),
     business_impact:   buildBusinessImpact(readiness, criticalCount, highCount, securityScore),
-    technical_summary: buildTechnicalSummary(findings, filesScannedCount, scanEngine, totalFindings),
+    technical_summary: buildTechnicalSummary(findings, filesScannedCount, scanEngine, totalFindings, checklist),
     estimated_fix_effort: buildEstimatedFixEffort(
       criticalCount, highCount, mediumCount, lowCount, totalFindings
     ),

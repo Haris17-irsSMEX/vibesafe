@@ -62,13 +62,17 @@ function severityEmoji(sev: string): string {
 
 // ─── Main formatter ───────────────────────────────────────────────────────────
 
+import type { AuditChecklistItem } from '@/lib/types'
+
 /**
  * Format a security report as clean markdown for copy/sharing.
  */
 export function formatSecurityReportMarkdown(
   report: SecurityReport,
   scan: ScanSummary,
-  findings: FindingSummary[]
+  findings: FindingSummary[],
+  checklist: AuditChecklistItem[] = [],
+  quickWins: string[] = []
 ): string {
   const lines: string[] = []
 
@@ -97,6 +101,16 @@ export function formatSecurityReportMarkdown(
   lines.push(``)
   lines.push(report.executive_summary)
   lines.push(``)
+
+  // Quick Wins
+  if (quickWins && quickWins.length > 0) {
+    lines.push(`## Quick Wins (High ROI Fixes)`)
+    lines.push(``)
+    quickWins.forEach((win) => {
+      lines.push(`- ⚡ ${win}`)
+    })
+    lines.push(``)
+  }
 
   // Key Risks
   if (report.top_risks && report.top_risks.length > 0) {
@@ -173,6 +187,27 @@ export function formatSecurityReportMarkdown(
     if (findings.length > 20) {
       lines.push(`| … | _${findings.length - 20} more findings_ | — |`)
     }
+    lines.push(``)
+  }
+
+  // Security Checklist
+  if (checklist && checklist.length > 0) {
+    lines.push(`## Automated Security Checklist`)
+    lines.push(``)
+    lines.push(`| Status | Area | Check | Evidence |`)
+    lines.push(`|--------|------|-------|----------|`)
+    
+    // Group by section, but for markdown a flat table is fine too. Let's do flat table.
+    checklist.forEach((item) => {
+      let statusEmoji = '❓'
+      if (item.verdict === 'pass') statusEmoji = '✅'
+      if (item.verdict === 'fail') statusEmoji = '❌'
+      if (item.verdict === 'partial') statusEmoji = '⚠️'
+      if (item.verdict === 'na') statusEmoji = '➖'
+      
+      const evidence = item.evidence ? item.evidence.replace(/\|/g, '-') : ''
+      lines.push(`| ${statusEmoji} ${item.verdict.toUpperCase()} | ${item.section} | ${item.check} | ${evidence} |`)
+    })
     lines.push(``)
   }
 

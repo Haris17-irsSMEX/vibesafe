@@ -5,18 +5,18 @@
  * Single API call implementation for stability.
  */
 
-import { getScanById, updateScanStatus, failScan, updateScanReport } from '@/lib/db/scans'
+import { getScanById, updateScanStatus, failScan, updateScanReport, updateScanAuditData } from '@/lib/db/scans'
 import { getScanFilesByScanId, type ScanFileRecord } from '@/lib/db/scan-files'
 import { deleteScanResultsForScan } from '@/lib/db/scan-results'
 import { runSectionScan } from './DeepSeekScanner'
-import { parseFindings, deduplicateFindings } from './FindingParser'
+import { parseFullAuditResponse, deduplicateFindings } from './FindingParser'
 import { generateFixPrompt } from './FixPromptGenerator'
 import { extractCodeEvidence } from './CodeEvidenceExtractor'
-import { calculateSecurityScore } from '@/services/scoring/SecurityScorer'
+import { calculateAuditAwareScore } from '@/services/scoring/SecurityScorer'
 import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notifications/ResendMailer'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { ScanFinding } from '@/lib/types'
-import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION } from './prompts/SecurityAuditPrompt'
+import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION, SINGLE_PASS_SYSTEM_PROMPT } from './prompts/SecurityAuditPrompt'
 import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
 import { generateSecurityReport } from './SecurityReportGenerator'
 
@@ -102,18 +102,18 @@ export async function runAIScan(
     const sectionPrompt = buildSectionPrompt(def, limitedFiles)
 
     stage = 'call_deepseek'
-    const apiResult = await runSectionScan('general', sectionPrompt)
+    const apiResult = await runSectionScan('general', sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT)
 
     if (!apiResult.ok) {
       throw new Error(apiResult.message || 'DeepSeek API failed')
     }
 
     stage = 'parse_response'
-    const parseResult = parseFindings(apiResult.rawText)
+    const parseResult = parseFullAuditResponse(apiResult.rawText)
     
     console.log(`[ScanOrchestrator] Audit complete. Prompt: ${SECURITY_AUDIT_PROMPT_VERSION}, Section: general, Files: ${limitedFiles.length}, Response length: ${apiResult.rawText.length}, Findings parsed: ${parseResult.findings.length}`)
 
-    if (parseResult.parseError && parseResult.findings.length === 0) {
+    if (parseResult.parseError && parseResult.findings.length === 0 && parseResult.checklist.length === 0) {
       throw new Error('Failed to parse AI response')
     }
 
@@ -181,8 +181,8 @@ export async function runAIScan(
     }
 
     stage = 'update_scan_summary'
-    const scoreResult = uniqueFindings.length > 0 
-      ? calculateSecurityScore(uniqueFindings) 
+    const scoreResult = (uniqueFindings.length > 0 || parseResult.checklist.length > 0 || parseResult.report)
+      ? calculateAuditAwareScore(uniqueFindings, parseResult.checklist, parseResult.report) 
       : { score: 100, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, totalFindings: 0 }
 
     // PART 6 - Mark complete correctly
@@ -241,6 +241,8 @@ export async function runAIScan(
         })),
         filesScannedCount: limitedFiles.length,
         scanEngine:        'deepseek',
+        checklist:         parseResult.checklist,
+        auditReport:       parseResult.report
       })
 
       await updateScanReport(scanId, report)
@@ -250,6 +252,26 @@ export async function runAIScan(
       console.warn(
         `[ScanOrchestrator] Report generation failed for scan ${scanId} (non-fatal):`,
         reportErr instanceof Error ? reportErr.message : 'Unknown error'
+      )
+    }
+
+    // PART 8 — Save Phase 8G Audit Data
+    stage = 'save_audit_data'
+    try {
+      if (parseResult.checklist.length > 0 || parseResult.report) {
+        await updateScanAuditData(scanId, {
+          audit_checklist: parseResult.checklist,
+          security_posture: parseResult.report?.security_posture || 'needs_work',
+          quick_wins: parseResult.report?.quick_wins || [],
+          what_is_done_right: parseResult.report?.what_is_done_right || [],
+          priority_plan: parseResult.report?.priority_plan || [],
+          audit_prompt_version: SECURITY_AUDIT_PROMPT_VERSION
+        })
+      }
+    } catch (auditErr) {
+       console.warn(
+        `[ScanOrchestrator] Audit data save failed for scan ${scanId} (non-fatal):`,
+        auditErr instanceof Error ? auditErr.message : 'Unknown error'
       )
     }
 
@@ -280,3 +302,4 @@ export async function runAIScan(
     throw err // Let route.ts catch it
   }
 }
+

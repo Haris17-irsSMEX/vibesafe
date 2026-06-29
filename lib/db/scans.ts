@@ -74,6 +74,13 @@ export interface ScanRecord {
   technical_summary?: string | null
   estimated_fix_effort?: string | null
   report_generated_at?: string | null
+  // Strict audit fields (nullable — populated after Phase 8G audit)
+  audit_checklist?: unknown[] | null
+  security_posture?: string | null
+  quick_wins?: string[] | null
+  what_is_done_right?: string[] | null
+  priority_plan?: string[] | null
+  audit_prompt_version?: string | null
 }
 
 // ─── Admin client (service role — bypasses RLS) ─────────────────────────────
@@ -342,6 +349,46 @@ export async function updateScanReport(
 
   if (error) {
     console.error('[updateScanReport] DB error:', error.message)
+    return { ok: false, error: error.message }
+  }
+
+  return { ok: true }
+}
+
+// ─── Save audit checklist data ───────────────────────────────────────────────
+
+/**
+ * Persist the strict audit checklist and report fields onto a scan row.
+ * Called after the security report is generated.
+ * Never fails the scan — caller wraps in try/catch.
+ */
+export async function updateScanAuditData(
+  scanId: string,
+  data: {
+    audit_checklist: unknown[]
+    security_posture: string
+    quick_wins: string[]
+    what_is_done_right: string[]
+    priority_plan: string[]
+    audit_prompt_version: string
+  }
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = getAdminClient()
+
+  const { error } = await admin
+    .from('scans')
+    .update({
+      audit_checklist:      data.audit_checklist,
+      security_posture:     data.security_posture,
+      quick_wins:           data.quick_wins,
+      what_is_done_right:   data.what_is_done_right,
+      priority_plan:        data.priority_plan,
+      audit_prompt_version: data.audit_prompt_version,
+    })
+    .eq('id', scanId)
+
+  if (error) {
+    console.error('[updateScanAuditData] DB error:', error.message)
     return { ok: false, error: error.message }
   }
 

@@ -61,15 +61,17 @@ function sleep(ms: number): Promise<void> {
  *
  * @param sectionName   - Human-readable section name (for logging only)
  * @param sectionPrompt - The full user-turn prompt built by buildSectionPrompt()
+ * @param customSystemPrompt - Optional custom system prompt
  *
  * Returns the raw text response from the model.
  * Never parses the response. Never stores anything.
  */
 export async function runSectionScan(
   sectionName: string,
-  sectionPrompt: string
+  sectionPrompt: string,
+  customSystemPrompt?: string
 ): Promise<ScanSectionResult> {
-  return attemptScan(sectionName, SYSTEM_PROMPT, sectionPrompt, 1, TIMEOUT_MS)
+  return attemptScan(sectionName, customSystemPrompt || SYSTEM_PROMPT, sectionPrompt, 1, TIMEOUT_MS)
 }
 
 export async function runSinglePassCall(

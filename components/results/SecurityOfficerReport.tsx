@@ -1,11 +1,12 @@
 'use client'
 
-import { Shield, CheckCircle2, AlertTriangle, TrendingUp, Briefcase, Code2, ListOrdered, Lock } from 'lucide-react'
+import { Shield, CheckCircle2, AlertTriangle, TrendingUp, Briefcase, Code2, ListOrdered, Lock, Zap, CheckSquare } from 'lucide-react'
 import type { ScanRecord } from '@/lib/db/scans'
 import type { GatedScanResultRecord } from '@/lib/db/scan-results'
 import { CopyReportButton } from './CopyReportButton'
 import { GlassPanel } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
+import type { AuditChecklistItem } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,19 @@ function PaidGate({ featureName }: { featureName: string }) {
   )
 }
 
+function ChecklistBadge({ verdict }: { verdict: string }) {
+  if (verdict === 'pass') {
+    return <span className="inline-flex items-center rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider border border-emerald-500/20">PASS</span>
+  }
+  if (verdict === 'fail') {
+    return <span className="inline-flex items-center rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-400 uppercase tracking-wider border border-red-500/20">FAIL</span>
+  }
+  if (verdict === 'partial') {
+    return <span className="inline-flex items-center rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-400 uppercase tracking-wider border border-amber-500/20">PARTIAL</span>
+  }
+  return <span className="inline-flex items-center rounded bg-zinc-500/10 px-2 py-0.5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border border-zinc-500/20">N/A</span>
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function SecurityOfficerReport({
@@ -131,6 +145,8 @@ export function SecurityOfficerReport({
   const topRisks: TopRisk[] = Array.isArray(scan.top_risks) ? (scan.top_risks as TopRisk[]) : []
   const positiveFindings: string[] = Array.isArray(scan.positive_findings) ? (scan.positive_findings as string[]) : []
   const remediationPlan: RemediationStep[] = Array.isArray(scan.remediation_plan) ? (scan.remediation_plan as RemediationStep[]) : []
+  const quickWins: string[] = Array.isArray(scan.quick_wins) ? (scan.quick_wins as string[]) : []
+  const checklist: AuditChecklistItem[] = Array.isArray(scan.audit_checklist) ? (scan.audit_checklist as AuditChecklistItem[]) : []
 
   const hasReport = !!scan.executive_summary
 
@@ -188,6 +204,24 @@ export function SecurityOfficerReport({
             {scan.executive_summary}
           </p>
         </div>
+
+        {/* Quick Wins */}
+        {quickWins.length > 0 && (
+          <div>
+            <SectionHeader icon={Zap} title="Quick Wins (High ROI Fixes)" />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {quickWins.map((item, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-2.5 rounded-lg border border-primary/10 bg-primary/[0.04] px-4 py-3"
+                >
+                  <Zap className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <span className="text-sm text-zinc-300">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Positive Findings — visible to all users */}
         {positiveFindings.length > 0 && (
@@ -267,6 +301,37 @@ export function SecurityOfficerReport({
           )
         ) : null}
 
+        {/* Automated Security Checklist — paid/admin only */}
+        {canViewFull ? (
+          checklist.length > 0 && (
+            <div>
+              <SectionHeader icon={CheckSquare} title="Automated Security Checklist" />
+              <div className="space-y-3">
+                {checklist.map((item, i) => (
+                  <div
+                    key={i}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-4"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold text-primary/70">{item.section}</span>
+                        <span className="text-zinc-600">•</span>
+                        <span className="text-sm font-medium text-zinc-200">{item.check}</span>
+                      </div>
+                      {item.evidence && (
+                        <p className="text-xs text-zinc-400 truncate">{item.evidence}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 flex items-center gap-3">
+                      <ChecklistBadge verdict={item.verdict} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        ) : null}
+
         {/* Remediation Plan — paid/admin only */}
         {canViewFull ? (
           remediationPlan.length > 0 && (
@@ -309,3 +374,4 @@ export function SecurityOfficerReport({
     </GlassPanel>
   )
 }
+
