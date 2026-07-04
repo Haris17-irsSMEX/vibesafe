@@ -9,13 +9,13 @@ interface GlowCardProps extends React.HTMLAttributes<HTMLDivElement> {
 export function GlowCard({
   children,
   className,
-  glowColor = "rgba(124, 58, 237, 0.15)", // Default violet glow
+  glowColor = "rgba(255, 255, 255, 0.06)",
   ...props
 }: GlowCardProps) {
   return (
     <div
       className={cn(
-        "relative group rounded-xl bg-card border border-white/5 transition-all duration-300 hover:border-white/10",
+        "relative group rounded-xl bg-cc-surface border border-cc-border transition-all duration-300 hover:border-cc-border-strong hover:bg-cc-surface-raised",
         className
       )}
       {...props}

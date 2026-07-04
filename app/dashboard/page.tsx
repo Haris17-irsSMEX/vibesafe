@@ -76,14 +76,14 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-primary border border-primary/20">
+            <span className="inline-flex items-center rounded-full border border-cc-border-strong bg-cc-surface-raised px-3 py-1 text-xs font-semibold uppercase tracking-widest text-cc-muted">
               {plan} Plan
             </span>
             <Link
               href="/dashboard/connect"
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-primary-foreground transition-all",
-                "bg-primary hover:bg-primary-hover shadow-[0_0_15px_-3px_rgba(124,58,237,0.4)]"
+                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all",
+                "bg-cc-text text-cc-bg hover:bg-white"
               )}
             >
               {isConnected ? <Plus className="h-4 w-4" /> : <GitFork className="h-4 w-4" />}

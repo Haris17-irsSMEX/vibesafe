@@ -64,7 +64,7 @@ const STATUS_CONFIG: Record<
   },
   fetching: {
     label: 'Fetching Files',
-    description: 'VibeSafe is securely fetching files from your repository.',
+    description: 'CtrlCode is securely fetching files from your repository.',
     icon: Download,
     iconColor: 'text-blue-500',
     bgColor: 'bg-blue-500/10',
@@ -425,7 +425,7 @@ export function ScanStatusClient({
                     {status === 'failed' ? 'Retry fetching repository files' : 'Fetch repository files to begin scanning'}
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                    VibeSafe will read security-relevant files (.ts, .js, .py, .env, .json, etc.) from your repository. No files will be written or modified.
+                    CtrlCode will read security-relevant files (.ts, .js, .py, .env, .json, etc.) from your repository. No files will be written or modified.
                   </p>
                   <button
                     id="fetch-files-btn"

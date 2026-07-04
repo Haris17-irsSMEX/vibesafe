@@ -37,7 +37,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: { p
         <div className="flex min-h-[60vh] flex-col items-center justify-center bg-slate-50 px-6 py-24">
           <Lock className="h-16 w-16 text-indigo-200 mb-6" />
           <h1 className="text-2xl font-bold text-slate-900 text-center">Sign in to continue your upgrade</h1>
-          <p className="mt-2 text-slate-600 text-center">You need a VibeSafe account to checkout securely.</p>
+          <p className="mt-2 text-slate-600 text-center">You need a CtrlCode account to checkout securely.</p>
           <Link
             href="/login"
             className="mt-8 inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 shadow-md"
@@ -76,7 +76,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: { p
 
           <div className="text-center mb-8">
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-              Complete your VibeSafe upgrade
+              Complete your CtrlCode upgrade
             </h1>
             <p className="mt-2 text-slate-600">
               You are upgrading to the {planName} plan.

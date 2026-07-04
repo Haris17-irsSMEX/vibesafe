@@ -6,6 +6,7 @@ import { LayoutDashboard, Link2, ShieldCheck, Settings, LogOut, ShieldAlert, Shi
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/brand-logo";
 
 import { useEffect, useState } from "react";
 
@@ -40,14 +41,9 @@ export function Sidebar({
   };
 
   return (
-    <aside className={cn("flex flex-col border-r border-white/5 bg-[#0e0e11]", className)}>
+    <aside className={cn("flex flex-col border-r border-cc-border bg-cc-bg-secondary", className)}>
       <div className="flex h-16 shrink-0 items-center px-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 group-hover:bg-primary/30 transition-colors">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white">VibeSafe</span>
-        </Link>
+        <BrandLogo />
       </div>
       
       <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -64,11 +60,11 @@ export function Sidebar({
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   isActive 
-                    ? "bg-primary/10 text-primary border border-primary/20" 
-                    : "text-zinc-400 hover:bg-white/5 hover:text-white border border-transparent"
+                    ? "border border-cc-border-strong bg-cc-surface-raised text-cc-text"
+                    : "border border-transparent text-cc-muted hover:bg-cc-surface-hover hover:text-cc-text"
                 )}
               >
-                <Icon className={cn("h-4 w-4", isActive ? "text-primary" : "text-zinc-500")} />
+                <Icon className={cn("h-4 w-4", isActive ? "text-cc-text" : "text-cc-subtle")} />
                 {link.name}
               </Link>
             );
@@ -97,19 +93,15 @@ export function Sidebar({
         )}
       </div>
 
-      <div className="p-4 border-t border-white/5">
-        {/* Simple usage widget */}
-        <div className="mb-4 rounded-lg bg-[#121214] border border-white/5 p-3">
-          <div className="flex items-center gap-2 mb-2 text-white">
-            <ShieldAlert className="h-4 w-4 text-primary" />
-            <span className="text-xs font-semibold">Pro Plan</span>
+      <div className="border-t border-cc-border p-4">
+        <div className="mb-4 rounded-lg border border-cc-border bg-cc-surface p-3">
+          <div className="mb-1 flex items-center gap-2 text-cc-text">
+            <ShieldAlert className="h-4 w-4 text-cc-muted" />
+            <span className="text-xs font-semibold">Current plan</span>
           </div>
-          <div className="w-full bg-black rounded-full h-1.5 mb-1.5 overflow-hidden">
-            <div className="bg-primary h-1.5 rounded-full w-1/3" />
-          </div>
-          <div className="text-[10px] text-zinc-500 flex justify-between">
-            <span>34 / 100 scans</span>
-            <Link href="/settings" className="hover:text-primary">Manage</Link>
+          <div className="flex justify-between text-[10px] text-cc-subtle">
+            <span>View usage and billing</span>
+            <Link href="/settings" className="text-cc-muted hover:text-cc-text">Manage</Link>
           </div>
         </div>
 

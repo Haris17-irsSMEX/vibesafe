@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { AlertCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { BrandLogo } from "@/components/brand/brand-logo";
 
 function GithubIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -56,7 +57,7 @@ function LoginForm() {
   return (
     <>
       {error && (
-        <div className="flex flex-row items-center gap-2 rounded-md bg-red-50 p-3 text-sm text-red-700 border border-red-200">
+        <div className="flex flex-row items-center gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -64,7 +65,7 @@ function LoginForm() {
       <button 
         onClick={handleGitHubLogin}
         disabled={loading}
-        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-slate-900 px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:opacity-50"
+        className="cc-button-primary h-10 w-full gap-2 text-sm"
       >
         <GithubIcon className="h-4 w-4" />
         {loading ? "Signing in..." : "Sign in with GitHub"}
@@ -75,15 +76,18 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-cc-bg p-6">
+      <div className="w-full max-w-sm rounded-xl border border-cc-border bg-cc-surface p-8 shadow-2xl">
+        <div className="mb-8 flex justify-center">
+          <BrandLogo />
+        </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Welcome back</h1>
-          <p className="mt-2 text-sm text-slate-600">Sign in to your account to continue</p>
+          <h1 className="text-2xl font-bold tracking-tight text-cc-text">Welcome back</h1>
+          <p className="mt-2 text-sm text-cc-muted">Sign in to your account to continue</p>
         </div>
         
         <div className="mt-6 flex flex-col gap-4">
-          <Suspense fallback={<div className="h-10 w-full animate-pulse rounded-md bg-slate-200"></div>}>
+          <Suspense fallback={<div className="h-10 w-full animate-pulse rounded-md bg-cc-surface-raised"></div>}>
             <LoginForm />
           </Suspense>
         </div>

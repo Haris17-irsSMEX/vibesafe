@@ -265,7 +265,7 @@ export function ConnectPageClient({
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground">Connect Repositories</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Authorize VibeSafe to access your repositories for AI security scanning.
+          Authorize CtrlCode to access your repositories for AI security scanning.
         </p>
       </div>
 
@@ -288,7 +288,7 @@ export function ConnectPageClient({
         <div role="status" className="mb-6 flex items-start gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
           <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
           <p className="text-sm text-emerald-400">
-            GitHub account successfully connected! VibeSafe can now access your repositories.
+            GitHub account successfully connected! CtrlCode can now access your repositories.
           </p>
         </div>
       )}
@@ -419,7 +419,7 @@ export function ConnectPageClient({
             <div className="mt-6 flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
               <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <p className="text-xs text-primary/80">
-                <strong>Read-only access:</strong> VibeSafe only reads code to perform security scans. It never writes, pushes, or modifies your repositories.
+                <strong>Read-only access:</strong> CtrlCode only reads code to perform security scans. It never writes, pushes, or modifies your repositories.
               </p>
             </div>
           </div>
@@ -435,7 +435,7 @@ export function ConnectPageClient({
               Connect GitHub Repository
             </h2>
             <p className="text-base text-muted-foreground max-w-md mx-auto mb-8">
-              Authorize VibeSafe to securely access your codebase and run AI-powered security scans.
+              Authorize CtrlCode to securely access your codebase and run AI-powered security scans.
             </p>
 
             <ul className="mb-10 space-y-3 text-left max-w-sm mx-auto">

@@ -57,7 +57,7 @@ function getResendClient(): Resend | null {
 }
 
 function getFromAddress(): string {
-  return process.env.RESEND_FROM_EMAIL ?? 'VibeSafe <noreply@vibesafe.io>'
+  return process.env.RESEND_FROM_EMAIL ?? 'CtrlCode <noreply@vibesafe.io>'
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ function buildScanCompleteHtml(input: ScanCompleteEmailInput): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>VibeSafe Scan Complete</title></head>
+<head><meta charset="UTF-8"><title>CtrlCode Scan Complete</title></head>
 <body style="margin: 0; padding: 0; background-color: #F9FAFB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F9FAFB; padding: 40px 20px;">
     <tr>
@@ -108,7 +108,7 @@ function buildScanCompleteHtml(input: ScanCompleteEmailInput): string {
           <!-- Header -->
           <tr>
             <td style="background: #0F172A; padding: 28px 32px; text-align: center;">
-              <span style="color: #FFFFFF; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">🛡️ VibeSafe</span>
+              <span style="color: #FFFFFF; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">CtrlCode</span>
             </td>
           </tr>
           <!-- Body -->
@@ -141,8 +141,8 @@ function buildScanCompleteHtml(input: ScanCompleteEmailInput): string {
           <tr>
             <td style="padding: 20px 32px; border-top: 1px solid #F3F4F6; text-align: center;">
               <p style="font-size: 12px; color: #9CA3AF; margin: 0;">
-                You're receiving this because you ran a VibeSafe security scan.<br/>
-                © VibeSafe
+                You're receiving this because you ran a CtrlCode security scan.<br/>
+                © CtrlCode
               </p>
             </td>
           </tr>
@@ -158,7 +158,7 @@ function buildScanFailedHtml(input: ScanFailedEmailInput): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><title>VibeSafe Scan Failed</title></head>
+<head><meta charset="UTF-8"><title>CtrlCode Scan Failed</title></head>
 <body style="margin: 0; padding: 0; background-color: #F9FAFB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F9FAFB; padding: 40px 20px;">
     <tr>
@@ -167,7 +167,7 @@ function buildScanFailedHtml(input: ScanFailedEmailInput): string {
           <!-- Header -->
           <tr>
             <td style="background: #0F172A; padding: 28px 32px; text-align: center;">
-              <span style="color: #FFFFFF; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">🛡️ VibeSafe</span>
+              <span style="color: #FFFFFF; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">CtrlCode</span>
             </td>
           </tr>
           <!-- Body -->
@@ -195,8 +195,8 @@ function buildScanFailedHtml(input: ScanFailedEmailInput): string {
           <tr>
             <td style="padding: 20px 32px; border-top: 1px solid #F3F4F6; text-align: center;">
               <p style="font-size: 12px; color: #9CA3AF; margin: 0;">
-                You're receiving this because you ran a VibeSafe security scan.<br/>
-                © VibeSafe
+                You're receiving this because you ran a CtrlCode security scan.<br/>
+                © CtrlCode
               </p>
             </td>
           </tr>
@@ -255,7 +255,7 @@ export async function sendScanFailedEmail(input: ScanFailedEmailInput): Promise<
     await resend.emails.send({
       from: getFromAddress(),
       to: input.userEmail,
-      subject: `⚠️ VibeSafe scan failed — ${input.repoFullName}`,
+      subject: `⚠️ CtrlCode scan failed — ${input.repoFullName}`,
       html: buildScanFailedHtml(input),
     })
     console.log(`[Resend] Scan failed email sent to ${input.userEmail.split('@')[0]}@*** for scan ${input.scanId}`)

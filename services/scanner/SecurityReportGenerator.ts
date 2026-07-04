@@ -182,13 +182,13 @@ function buildExecutiveSummary(
   const repoName = repoFullName.split('/').pop() ?? repoFullName
 
   if (totalFindings === 0) {
-    return `VibeSafe completed a comprehensive security audit of ${repoName} across ${filesScannedCount} source files and identified no vulnerabilities. The repository achieved a security score of ${securityScore}/100, indicating a clean and well-secured codebase. No immediate remediation is required.`
+    return `CtrlCode completed a comprehensive security audit of ${repoName} across ${filesScannedCount} source files and identified no vulnerabilities. The repository achieved a security score of ${securityScore}/100, indicating a clean and well-secured codebase. No immediate remediation is required.`
   }
 
   const parts: string[] = []
 
   parts.push(
-    `VibeSafe completed a security audit of ${repoName} across ${filesScannedCount} source files, identifying ${totalFindings} security issue${totalFindings > 1 ? 's' : ''} and assigning a security score of ${securityScore}/100.`
+    `CtrlCode completed a security audit of ${repoName} across ${filesScannedCount} source files, identifying ${totalFindings} security issue${totalFindings > 1 ? 's' : ''} and assigning a security score of ${securityScore}/100.`
   )
 
   const breakdown: string[] = []

@@ -13,23 +13,23 @@ const config: Config = {
         sans: ["var(--font-inter)", "sans-serif"],
       },
       colors: {
-        background: "#09090b", // zinc-950
-        foreground: "#fafafa", // zinc-50
+        background: "rgb(18 18 18 / <alpha-value>)",
+        foreground: "rgb(245 245 245 / <alpha-value>)",
         card: {
-          DEFAULT: "#18181b", // zinc-900
-          foreground: "#fafafa",
+          DEFAULT: "rgb(30 30 30 / <alpha-value>)",
+          foreground: "rgb(245 245 245 / <alpha-value>)",
         },
         primary: {
-          DEFAULT: "#7c3aed", // violet-600
-          hover: "#6d28d9", // violet-700
-          foreground: "#ffffff",
+          DEFAULT: "rgb(245 245 245 / <alpha-value>)",
+          hover: "#ffffff",
+          foreground: "rgb(18 18 18 / <alpha-value>)",
         },
         muted: {
-          DEFAULT: "#27272a", // zinc-800
-          foreground: "#a1a1aa", // zinc-400
+          DEFAULT: "rgb(36 36 36 / <alpha-value>)",
+          foreground: "rgb(163 163 163 / <alpha-value>)",
         },
         accent: {
-          DEFAULT: "#818cf8", // indigo-400
+          DEFAULT: "#8b5cf6",
           foreground: "#ffffff",
         },
         danger: {
@@ -44,7 +44,19 @@ const config: Config = {
           DEFAULT: "#f59e0b",
           foreground: "#ffffff",
         },
-        border: "#27272a", // zinc-800
+        border: "rgb(255 255 255 / 0.08)",
+        cc: {
+          bg: "rgb(18 18 18 / <alpha-value>)",
+          secondary: "rgb(24 24 24 / <alpha-value>)",
+          surface: "rgb(30 30 30 / <alpha-value>)",
+          "surface-raised": "rgb(36 36 36 / <alpha-value>)",
+          "surface-hover": "rgb(42 42 42 / <alpha-value>)",
+          border: "rgb(255 255 255 / 0.08)",
+          "border-strong": "rgb(255 255 255 / 0.14)",
+          text: "rgb(245 245 245 / <alpha-value>)",
+          muted: "rgb(163 163 163 / <alpha-value>)",
+          subtle: "rgb(115 115 115 / <alpha-value>)",
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -78,7 +90,7 @@ const config: Config = {
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "glass-gradient": "linear-gradient(to bottom right, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01))",
+        "glass-gradient": "linear-gradient(to bottom right, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01))",
       },
     },
   },

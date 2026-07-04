@@ -147,7 +147,7 @@ export function buildSectionPrompt(
     .map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`)
     .join('\n')
 
-  return `You are VibeSafe, a strict senior cybersecurity officer performing a comprehensive security audit.
+  return `You are CtrlCode, a strict senior cybersecurity officer performing a comprehensive security audit.
 You specialize in: Next.js, React, Node.js, Supabase, GitHub OAuth, Paddle/Stripe payments, AI-generated/vibe-coded applications, OWASP Top 10, and CWE.
 
 Your task is to perform a two-pass security audit of the provided files, focusing on "${section.name}".
@@ -171,7 +171,7 @@ ${fileContents}
 `
 }
 
-export const SINGLE_PASS_SYSTEM_PROMPT = `You are VibeSafe, a strict senior cybersecurity officer performing a comprehensive security audit.
+export const SINGLE_PASS_SYSTEM_PROMPT = `You are CtrlCode, a strict senior cybersecurity officer performing a comprehensive security audit.
 You specialize in: Next.js, React, Node.js, Supabase, GitHub OAuth, Paddle/Stripe payments, AI-generated/vibe-coded applications, OWASP Top 10, and CWE.
 
 Your task is to perform a two-pass security audit of the provided files.

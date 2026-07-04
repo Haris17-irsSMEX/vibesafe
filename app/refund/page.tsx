@@ -12,17 +12,17 @@ export default function RefundPage() {
             <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
             
             <p>
-              At VibeSafe (operated by irsSMEX), we want to ensure you are satisfied with our AI security scanning tools. This policy outlines the conditions under which refunds may be issued.
+              At CtrlCode (operated by irsSMEX), we want to ensure you are satisfied with our AI security scanning tools. This policy outlines the conditions under which refunds may be issued.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">1. Payment Processing</h2>
             <p>
-              All payments for VibeSafe premium plans (Starter and Builder) are securely processed by our Merchant of Record, Paddle. Paddle acts as the reseller of our services, and your transaction is officially with Paddle.
+              All payments for CtrlCode premium plans (Starter and Builder) are securely processed by our Merchant of Record, Paddle. Paddle acts as the reseller of our services, and your transaction is officially with Paddle.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">2. Subscription Cancellations</h2>
             <p>
-              You may cancel your subscription at any time through the billing portal available in your VibeSafe settings. Once canceled, your premium access will remain active until the end of your current billing cycle. Canceling a subscription prevents future charges but does not automatically issue a refund for the current period.
+              You may cancel your subscription at any time through the billing portal available in your CtrlCode settings. Once canceled, your premium access will remain active until the end of your current billing cycle. Canceling a subscription prevents future charges but does not automatically issue a refund for the current period.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">3. Refund Requests</h2>
@@ -35,7 +35,7 @@ export default function RefundPage() {
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">4. Contacting Support</h2>
             <p>
-              When requesting a refund, please include your account email and a brief explanation of why you are requesting the refund. This helps us improve VibeSafe for everyone.
+              When requesting a refund, please include your account email and a brief explanation of why you are requesting the refund. This helps us improve CtrlCode for everyone.
             </p>
             <p>
               Contact: <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>

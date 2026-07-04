@@ -20,12 +20,12 @@ export default function ContactPage() {
                 <Mail className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <h3 className="text-xl font-bold text-foreground mb-2">VibeSafe Support</h3>
-            <p className="text-sm text-muted-foreground mb-8">Operated by VibeSafe, Inc.</p>
+            <h3 className="text-xl font-bold text-foreground mb-2">CtrlCode Support</h3>
+            <p className="text-sm text-muted-foreground mb-8">A product of irsSMEX.</p>
             
             <a
               href="mailto:irssmex@gmail.com"
-              className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground transition-all hover:bg-primary-hover shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)]"
+              className="cc-button-primary h-12 px-8 text-base"
             >
               irssmex@gmail.com
             </a>

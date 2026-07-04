@@ -17,6 +17,7 @@ import {
   TerminalSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { shortDescription } from "@/lib/brand";
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -42,15 +43,15 @@ export default function Home() {
         <div className="relative mx-auto max-w-7xl px-6 z-10 flex flex-col items-center">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase mb-8 border border-primary/20 backdrop-blur-sm">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse" />
-            AI-Powered Security for Vibe Developers
+            AI Security Officer for GitHub repos
           </div>
           
           <h1 className="mx-auto max-w-5xl text-5xl font-extrabold tracking-tight text-foreground md:text-7xl lg:text-[5rem] leading-[1.1] text-balance">
-            Ship vibe-coded apps with <span className="text-gradient">security confidence.</span>
+            Review your code <span className="text-gradient">before attackers do.</span>
           </h1>
           
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl leading-relaxed text-balance">
-            VibeSafe uses AI to find real security issues in your code, APIs, and infrastructure—before attackers do. Built for fast-moving builders.
+            {shortDescription}
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -94,7 +95,7 @@ export default function Home() {
               <div className="flex-1 flex justify-center">
                 <div className="h-6 w-96 rounded-md bg-[#1e1e21] border border-white/5 flex items-center justify-center text-[11px] text-zinc-500 font-medium">
                   <Lock className="w-3 h-3 mr-1" />
-                  app.vibesafe.dev
+                  CtrlCode security workspace
                 </div>
               </div>
               <div className="w-16" /> {/* Spacer */}
@@ -106,7 +107,7 @@ export default function Home() {
               <div className="w-64 border-r border-white/5 bg-[#0e0e11] p-4 flex flex-col gap-2">
                 <div className="flex items-center gap-2 px-2 py-3 mb-4">
                   <ShieldCheck className="h-5 w-5 text-primary" />
-                  <span className="font-bold text-sm">VibeSafe</span>
+                  <span className="font-bold text-sm">CtrlCode</span>
                 </div>
                 <div className="px-3 py-2 text-sm text-white bg-white/5 rounded-md flex items-center gap-2">
                   <Activity className="w-4 h-4 text-primary" /> Overview
@@ -220,11 +221,11 @@ export default function Home() {
           <div className="mb-16">
             <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-3">The Problem</h2>
             <h3 className="text-3xl md:text-5xl font-bold text-foreground text-balance">
-              Vibe developers move fast.<br/>
+              Modern teams ship fast.<br/>
               <span className="text-muted-foreground">Attackers move faster.</span>
             </h3>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-              AI helps you build in hours what used to take weeks. But speed often comes with hidden risks. VibeSafe catches what&apos;s easy to miss.
+              AI helps teams build faster, but speed can hide security and production-readiness risks. CtrlCode helps surface them before release.
             </p>
           </div>
 
@@ -251,7 +252,7 @@ export default function Home() {
       <section id="how-it-works" className="py-24 border-t border-white/5 bg-black relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_40%_at_50%_50%,rgba(124,58,237,0.05),rgba(255,255,255,0))]" />
         <div className="mx-auto max-w-7xl px-6 relative z-10 text-center">
-          <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-3">How VibeSafe Works</h2>
+          <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-3">How CtrlCode Works</h2>
           <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-16">Secure your code in four simple steps.</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
@@ -284,7 +285,7 @@ export default function Home() {
               <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-3">Rich Results</h2>
               <h3 className="text-3xl md:text-4xl font-bold text-foreground mb-6">Actionable insights that help you ship securely.</h3>
               <p className="text-lg text-muted-foreground mb-8">
-                VibeSafe doesn&apos;t just find issues—it helps you fix them. See exactly where the problem is and how to resolve it.
+                CtrlCode identifies risks and helps you act on them. See where an issue appears and get an AI-ready remediation prompt.
               </p>
               <ul className="space-y-4">
                 {[

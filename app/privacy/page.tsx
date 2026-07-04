@@ -12,7 +12,7 @@ export default function PrivacyPage() {
             <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
             
             <p>
-              Welcome to VibeSafe, operated by irsSMEX. This Privacy Policy describes how we collect, use, and handle your information when you use our security scanning services.
+              Welcome to CtrlCode, operated by irsSMEX. This Privacy Policy describes how we collect, use, and handle your information when you use our security scanning services.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">1. What Data We Collect</h2>
@@ -23,7 +23,7 @@ export default function PrivacyPage() {
             </ul>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">2. How We Use Data</h2>
-            <p>We use the data we collect solely to provide, maintain, and improve the VibeSafe service. This includes:</p>
+            <p>We use the data we collect solely to provide, maintain, and improve the CtrlCode service. This includes:</p>
             <ul className="list-disc pl-5 space-y-2">
               <li>Authentication and account management.</li>
               <li>Performing AI-driven repository security scans.</li>
@@ -34,12 +34,12 @@ export default function PrivacyPage() {
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">3. GitHub Data Authorization</h2>
             <p>
-              VibeSafe requires read access to repositories that you explicitly authorize. We read your code strictly to perform automated security scans. We do not write to your repositories, and we do not store your source code permanently beyond the duration of the scan process.
+              CtrlCode requires read access to repositories that you explicitly authorize. We read your code strictly to perform automated security scans. We do not write to your repositories, and we do not store your source code permanently beyond the duration of the scan process.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">4. Payment Data</h2>
             <p>
-              All payment processing is handled securely by our Merchant of Record, Paddle. VibeSafe does not collect or store your credit card numbers or raw financial data.
+              All payment processing is handled securely by our Merchant of Record, Paddle. CtrlCode does not collect or store your credit card numbers or raw financial data.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">5. Security</h2>

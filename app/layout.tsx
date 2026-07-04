@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { productName } from "@/lib/brand";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "VibeSafe — AI Security Scanner for Vibe-Coded Apps",
-  description: "Ship vibe-coded apps with security confidence. VibeSafe uses AI to find real security issues before attackers do.",
+  title: `${productName} — AI Security Officer for GitHub repos`,
+  description:
+    "Scan GitHub repositories for security risks, architecture weaknesses, production-readiness issues, and AI-ready fix prompts.",
 };
 
 export default function RootLayout({

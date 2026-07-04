@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/brand-logo";
+import { legalCompanyName, shortDescription, supportEmail } from "@/lib/brand";
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -18,16 +19,11 @@ function GithubIcon({ className }: { className?: string }) {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden selection:bg-primary/30">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-cc-bg text-cc-text selection:bg-white/20">
       {/* Navbar */}
-      <header className="fixed top-0 z-50 w-full border-b border-white/5 bg-background/60 backdrop-blur-xl">
+      <header className="fixed top-0 z-50 w-full border-b border-cc-border bg-cc-bg/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80 group">
-            <div className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 group-hover:bg-primary/30 transition-colors">
-              <ShieldCheck className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">VibeSafe</span>
-          </Link>
+          <BrandLogo />
           
           <nav className="hidden md:flex items-center gap-8">
             <Link href="/" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -48,8 +44,8 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Link 
               href="/login" 
               className={cn(
-                "inline-flex h-9 items-center justify-center rounded-full px-5 text-sm font-medium text-primary-foreground transition-all",
-                "bg-primary hover:bg-primary-hover shadow-[0_0_20px_-3px_rgba(124,58,237,0.4)] hover:shadow-[0_0_25px_-3px_rgba(124,58,237,0.6)]"
+                "inline-flex h-9 items-center justify-center rounded-lg px-5 text-sm font-medium transition-all",
+                "bg-cc-text text-cc-bg hover:bg-white"
               )}
             >
               Start scanning &rarr;
@@ -64,18 +60,13 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-background/80 py-16">
+      <footer className="border-t border-cc-border bg-cc-bg-secondary py-16">
         <div className="mx-auto max-w-7xl px-6">
           <div className="grid grid-cols-1 gap-12 md:grid-cols-4 lg:grid-cols-5">
             <div className="col-span-1 lg:col-span-2">
-              <Link href="/" className="flex items-center gap-2 group">
-                <div className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 group-hover:bg-primary/30 transition-colors">
-                  <ShieldCheck className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <span className="text-xl font-bold tracking-tight text-foreground">VibeSafe</span>
-              </Link>
+              <BrandLogo />
               <p className="mt-6 max-w-xs text-sm text-muted-foreground leading-relaxed">
-                AI-powered security scanning for vibe developers. We catch what&apos;s easy to miss so you can ship with confidence.
+                {shortDescription}
               </p>
               <div className="mt-6 flex items-center gap-4 text-muted-foreground">
                 <a href="#" className="hover:text-foreground transition-colors"><GithubIcon className="h-5 w-5" /></a>
@@ -95,7 +86,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               <h3 className="text-sm font-semibold text-foreground">Company</h3>
               <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
                 <li><Link href="/contact" className="hover:text-primary transition-colors">Contact</Link></li>
-                <li><a href="mailto:irssmex@gmail.com" className="hover:text-primary transition-colors">irssmex@gmail.com</a></li>
+                <li><a href={`mailto:${supportEmail}`} className="hover:text-foreground transition-colors">{supportEmail}</a></li>
               </ul>
             </div>
 
@@ -110,7 +101,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mt-16 border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} VibeSafe, Inc. All rights reserved.
+              &copy; {new Date().getFullYear()} {legalCompanyName}. CtrlCode is a product of {legalCompanyName}.
             </p>
           </div>
         </div>

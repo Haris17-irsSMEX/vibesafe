@@ -5,6 +5,7 @@ import { Sidebar } from "./sidebar";
 import { Menu, X, Search, Bell, Plus } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { productName } from "@/lib/brand";
 
 export function DashboardLayout({
   children,
@@ -14,7 +15,7 @@ export function DashboardLayout({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-cc-bg">
       {/* Desktop Sidebar */}
       <Sidebar className="fixed inset-y-0 left-0 z-50 hidden w-64 lg:flex" />
 
@@ -22,7 +23,7 @@ export function DashboardLayout({
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="relative flex w-64 flex-col bg-card border-r border-white/5">
+          <div className="relative flex w-64 flex-col border-r border-cc-border bg-cc-bg-secondary">
             <button
               onClick={() => setIsMobileMenuOpen(false)}
               className="absolute right-4 top-4 text-zinc-500 hover:text-white z-50"
@@ -47,7 +48,7 @@ export function DashboardLayout({
               <Menu className="h-6 w-6" />
               <span className="sr-only">Open sidebar</span>
             </button>
-            <span className="text-lg font-semibold text-white">VibeSafe</span>
+            <span className="text-lg font-semibold text-cc-text">{productName}</span>
           </div>
           
           <div className="hidden lg:flex flex-1 max-w-md relative">
@@ -55,7 +56,7 @@ export function DashboardLayout({
             <input 
               type="text" 
               placeholder="Search repositories, scans, findings... (Press ⌘K)" 
-              className="w-full bg-[#121214] border border-white/5 rounded-md py-2 pl-9 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+              className="w-full rounded-md border border-cc-border bg-cc-bg-secondary py-2 pl-9 pr-4 text-sm text-cc-text placeholder-cc-subtle transition-all focus:border-cc-border-strong focus:outline-none focus:ring-1 focus:ring-white/20"
             />
           </div>
 
@@ -67,8 +68,8 @@ export function DashboardLayout({
             <Link 
               href="/dashboard/connect"
               className={cn(
-                "hidden sm:flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium text-primary-foreground transition-all",
-                "bg-primary hover:bg-primary-hover shadow-[0_0_15px_-3px_rgba(124,58,237,0.4)]"
+                "hidden h-9 items-center gap-2 rounded-md px-4 text-sm font-medium transition-all sm:flex",
+                "bg-cc-text text-cc-bg hover:bg-white"
               )}
             >
               <Plus className="h-4 w-4" />
