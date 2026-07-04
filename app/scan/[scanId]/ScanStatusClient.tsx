@@ -22,6 +22,7 @@ import {
 import type { ScanStatus } from '@/lib/db/scans'
 import { GlowCard, GlassPanel } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
+import { AppPageContainer, AppPageHeader } from '@/components/layout/app-page'
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -307,7 +308,7 @@ export function ScanStatusClient({
   const isAiPhase = status === 'scanning' || (status === 'failed' && readyForAI)
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in">
+    <AppPageContainer size="narrow">
       {/* Back link */}
       <Link
         href="/dashboard/connect"
@@ -317,19 +318,19 @@ export function ScanStatusClient({
         Back to repositories
       </Link>
 
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Scan Status</h1>
-        <p className="mt-2 text-sm text-muted-foreground flex items-center gap-2">
+      <AppPageHeader
+        title="Scan status"
+        description={
+          <span className="flex flex-wrap items-center gap-2">
           Security scan for
           <a
             href={repoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-white transition-colors hover:text-primary"
+            className="inline-flex min-w-0 items-center gap-1 font-medium text-cc-text transition-colors hover:text-white"
           >
             <GithubIcon className="h-3.5 w-3.5" />
-            {repoFullName}
+            <span className="truncate">{repoFullName}</span>
           </a>
           {isAdmin && (
             <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary/20 border border-primary/30 px-2 py-0.5 text-[10px] font-bold text-primary uppercase tracking-wider">
@@ -337,8 +338,9 @@ export function ScanStatusClient({
               Admin access
             </span>
           )}
-        </p>
-      </div>
+          </span>
+        }
+      />
 
       {/* ── Inline alerts ── */}
       {fetchError && (
@@ -663,6 +665,6 @@ export function ScanStatusClient({
           )}
         </div>
       </div>
-    </div>
+    </AppPageContainer>
   )
 }

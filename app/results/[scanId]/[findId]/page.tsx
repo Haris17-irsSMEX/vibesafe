@@ -11,6 +11,7 @@ import { CopyButton } from '@/components/results/CopyButton'
 import { CopyFixPromptButton } from '@/components/results/copy-fix-prompt-button'
 import { UpgradeCTA } from '@/components/results/UpgradeCTA'
 import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
+import { AppPageContainer } from '@/components/layout/app-page'
 import { GlowCard, GlassPanel } from '@/components/ui/glow-card'
 import { AlertTriangle, ArrowLeft, FileCode, Hash, Lock, ShieldAlert, ShieldCheck } from 'lucide-react'
 
@@ -107,7 +108,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
 
   return (
     <ServerDashboardLayout>
-      <div className="mx-auto max-w-4xl animate-fade-in">
+      <AppPageContainer size="narrow">
         {/* Back link */}
         <Link
           href={`/results/${scanId}`}
@@ -359,7 +360,7 @@ export default async function FindingDetailPage({ params }: FindingDetailPagePro
             )}
           </div>
         )}
-      </div>
+      </AppPageContainer>
     </ServerDashboardLayout>
   )
 }

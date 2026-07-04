@@ -9,6 +9,8 @@ import { GlowCard } from "@/components/ui/glow-card"
 import { Sparkline, DonutChart } from "@/components/ui/chart"
 import { cn } from "@/lib/utils"
 import { scoreToLabel, scoreToColor } from "@/services/scoring/SecurityScorer"
+import { AppPageContainer, AppPageHeader } from "@/components/layout/app-page"
+import { getPlanLabel } from "@/lib/plan-label"
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -64,21 +66,16 @@ export default async function DashboardPage() {
 
   return (
     <ServerDashboardLayout>
-      <div className="flex flex-col gap-8 animate-fade-in">
-        {/* Welcome Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Welcome back, {user.email?.split('@')[0]} 👋
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Here&apos;s your repository security overview.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+      <AppPageContainer size="wide" className="flex flex-col gap-8">
+        <AppPageHeader
+          title="Dashboard"
+          description="Monitor repository security, scan activity, and production readiness."
+          badge={
             <span className="inline-flex items-center rounded-full border border-cc-border-strong bg-cc-surface-raised px-3 py-1 text-xs font-semibold uppercase tracking-widest text-cc-muted">
-              {plan} Plan
+              {getPlanLabel(plan)} plan
             </span>
+          }
+          action={
             <Link
               href="/dashboard/connect"
               className={cn(
@@ -89,8 +86,8 @@ export default async function DashboardPage() {
               {isConnected ? <Plus className="h-4 w-4" /> : <GitFork className="h-4 w-4" />}
               {isConnected ? "New Scan" : "Connect GitHub"}
             </Link>
-          </div>
-        </div>
+          }
+        />
 
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -263,7 +260,7 @@ export default async function DashboardPage() {
             </div>
           )}
         </GlowCard>
-      </div>
+      </AppPageContainer>
     </ServerDashboardLayout>
   )
 }

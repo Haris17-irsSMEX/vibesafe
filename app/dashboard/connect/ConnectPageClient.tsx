@@ -20,6 +20,7 @@ import {
 import type { SafeRepo } from '@/services/github/RepoFetcher'
 import { GlowCard, GlassPanel } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
+import { AppPageContainer, AppPageHeader } from '@/components/layout/app-page'
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -260,14 +261,11 @@ export function ConnectPageClient({
   }
 
   return (
-    <div className="max-w-5xl animate-fade-in">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Connect Repositories</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Authorize CtrlCode to access your repositories for AI security scanning.
-        </p>
-      </div>
+    <AppPageContainer>
+      <AppPageHeader
+        title="Connect GitHub"
+        description="Authorize CtrlCode to access repositories for read-only security analysis."
+      />
 
       {/* ── Alerts ── */}
       {oauthError && (
@@ -498,6 +496,6 @@ export function ConnectPageClient({
           </p>
         </div>
       )}
-    </div>
+    </AppPageContainer>
   )
 }

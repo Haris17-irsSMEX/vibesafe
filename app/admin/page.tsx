@@ -38,6 +38,8 @@ import {
   ShieldCheck,
   ChevronRight,
 } from 'lucide-react'
+import { AppPageContainer, AppPageHeader } from '@/components/layout/app-page'
+import { getPlanLabel } from '@/lib/plan-label'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -91,7 +93,7 @@ function PlanBadge({ plan }: { plan: string }) {
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${cls}`}
     >
-      {plan}
+      {getPlanLabel(plan)}
     </span>
   )
 }
@@ -219,24 +221,17 @@ export default async function AdminPage() {
 
   return (
     <ServerDashboardLayout>
-      <div className="mx-auto max-w-7xl animate-fade-in space-y-10">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
+      <AppPageContainer size="wide" className="space-y-10">
+        <AppPageHeader
+          title="Internal dashboard"
+          description={<>Viewing as <span className="font-medium text-violet-300">{user.email}</span></>}
+          badge={
               <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider border bg-violet-500/10 text-violet-400 border-violet-500/30">
                 <ShieldCheck className="h-3 w-3" />
                 Admin Panel
               </span>
-            </div>
-            <h1 className="text-3xl font-black text-foreground tracking-tight">
-              Internal Dashboard
-            </h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Viewing as <span className="text-violet-400 font-medium">{user.email}</span>
-            </p>
-          </div>
-        </div>
+          }
+        />
 
         {/* ── Overview Cards ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
@@ -624,7 +619,7 @@ export default async function AdminPage() {
             </div>
           </div>
         </section>
-      </div>
+      </AppPageContainer>
     </ServerDashboardLayout>
   )
 }

@@ -16,6 +16,8 @@ import { ArrowLeft, ExternalLink, GitBranch, Calendar, ShieldAlert } from 'lucid
 import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
 import { GlassPanel } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
+import { AppPageContainer } from '@/components/layout/app-page'
+import { getPlanLabel } from '@/lib/plan-label'
 
 interface ResultsPageProps {
   params: {
@@ -127,7 +129,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   return (
     <ServerDashboardLayout>
-      <div className="mx-auto max-w-5xl animate-fade-in">
+      <AppPageContainer>
         {/* Back link */}
         <Link
           href={`/scan/${scanId}`}
@@ -171,7 +173,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
                       : 'bg-white/5 text-zinc-400 border-white/10'
                   )}
                 >
-                  {userPlan} plan
+                  {getPlanLabel(userPlan)} plan
                 </span>
                 {/* Admin badge — only visible when logged in as admin */}
                 {isAdmin && (
@@ -245,7 +247,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           </div>
           <FindingsList findings={findings} scanId={scanId} isPaid={canViewFull} />
         </div>
-      </div>
+      </AppPageContainer>
     </ServerDashboardLayout>
   )
 }

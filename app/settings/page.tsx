@@ -13,6 +13,7 @@ import { UsageCard } from '@/components/billing/UsageCard'
 import { AccountCard } from '@/components/billing/AccountCard'
 import { GitHubCard } from '@/components/billing/GitHubCard'
 import { Settings, CheckCircle, AlertTriangle } from 'lucide-react'
+import { AppPageContainer, AppPageHeader } from '@/components/layout/app-page'
 
 interface SettingsPageProps {
   searchParams: { upgraded?: string; error?: string }
@@ -48,17 +49,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const justUpgraded = searchParams.upgraded === '1'
   return (
     <ServerDashboardLayout>
-      <div className="mx-auto max-w-4xl animate-fade-in">
-        {/* Page header */}
-        <div className="mb-8 flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/5 border border-white/10 shadow-inner">
-            <Settings className="h-6 w-6 text-zinc-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Manage your account, plan, and billing integrations.</p>
-          </div>
-        </div>
+      <AppPageContainer size="narrow">
+        <AppPageHeader
+          title="Settings"
+          description="Manage your account, plan, billing, and integrations."
+          icon={<Settings className="h-5 w-5" />}
+        />
 
         {/* Alerts */}
         {justUpgraded && (
@@ -161,7 +157,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </section>
           </div>
         </div>
-      </div>
+      </AppPageContainer>
     </ServerDashboardLayout>
   )
 }
