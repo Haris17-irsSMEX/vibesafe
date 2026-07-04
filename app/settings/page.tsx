@@ -1,26 +1,39 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import {
-  getUserProfile,
-  upsertUserProfile,
-  getUserScanCount,
-  getUserCompletedScanCount,
-  getGitHubLoginForUser,
-} from '@/lib/db/users'
-import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
-import { PlanCard } from '@/components/billing/PlanCard'
-import { UsageCard } from '@/components/billing/UsageCard'
+  AlertTriangle,
+  CheckCircle,
+  Settings,
+  ShieldCheck,
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 import { AccountCard } from '@/components/billing/AccountCard'
 import { GitHubCard } from '@/components/billing/GitHubCard'
-import { Settings, CheckCircle, AlertTriangle } from 'lucide-react'
-import { AppPageContainer, AppPageHeader } from '@/components/layout/app-page'
+import { PlanCard } from '@/components/billing/PlanCard'
+import { UsageCard } from '@/components/billing/UsageCard'
+import { SurfaceCard } from '@/components/dashboard/dashboard-ui'
+import {
+  AppPageContainer,
+  AppPageHeader,
+  AppSectionHeader,
+} from '@/components/layout/app-page'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
+import { supportEmail } from '@/lib/brand'
+import {
+  getGitHubLoginForUser,
+  getUserCompletedScanCount,
+  getUserProfile,
+  getUserScanCount,
+  upsertUserProfile,
+} from '@/lib/db/users'
+import { getPlanLabel } from '@/lib/plan-label'
 
 interface SettingsPageProps {
   searchParams: { upgraded?: string; error?: string }
 }
 
-export default async function SettingsPage({ searchParams }: SettingsPageProps) {
-  // 1. Verify session
+export default async function SettingsPage({
+  searchParams,
+}: SettingsPageProps) {
   const supabase = createClient()
   const {
     data: { user },
@@ -31,14 +44,12 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     redirect('/login')
   }
 
-  // 2. Load/provision user profile
   let profile = await getUserProfile(user.id)
   if (!profile) {
     await upsertUserProfile(user.id, user.email ?? null)
     profile = await getUserProfile(user.id)
   }
 
-  // 3. Load all page data in parallel (safe — errors return defaults)
   const [totalScans, completedScans, githubConnection] = await Promise.all([
     getUserScanCount(user.id),
     getUserCompletedScanCount(user.id),
@@ -46,29 +57,30 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   ])
 
   const plan = profile?.plan ?? 'free'
+  const planLabel = getPlanLabel(plan)
   const justUpgraded = searchParams.upgraded === '1'
+
   return (
     <ServerDashboardLayout>
-      <AppPageContainer size="narrow">
+      <AppPageContainer size="wide" className="space-y-8">
         <AppPageHeader
           title="Settings"
-          description="Manage your account, plan, billing, and integrations."
+          description="Manage account, repository access, usage, and billing."
           icon={<Settings className="h-5 w-5" />}
         />
 
-        {/* Alerts */}
         {justUpgraded && (
           <div
             role="status"
-            className="mb-8 flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4 shadow-sm"
+            className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4"
           >
             <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
             <div>
               <p className="text-sm font-semibold text-emerald-400">
                 Plan upgraded successfully!
               </p>
-              <p className="mt-1 text-sm text-emerald-400/80">
-                Your new plan benefits are now active. Enjoy full access to all findings and AI features.
+              <p className="mt-1 text-sm text-emerald-300/90">
+                Your new plan benefits are now active for future reviews and premium findings.
               </p>
             </div>
           </div>
@@ -77,83 +89,100 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         {searchParams.error && (
           <div
             role="alert"
-            className="mb-8 flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-4 shadow-sm"
+            className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4"
           >
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
             <div>
-              <p className="text-sm font-semibold text-red-400">Billing Error</p>
-              <p className="mt-1 text-sm text-red-400/80">
-                {searchParams.error === 'checkout_failed' ? 'Failed to start checkout process.' : searchParams.error}
+              <p className="text-sm font-semibold text-red-400">Billing error</p>
+              <p className="mt-1 text-sm text-red-300/90">
+                {searchParams.error === 'checkout_failed'
+                  ? 'Failed to start checkout process.'
+                  : searchParams.error}
               </p>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            {/* ── Plan & Billing ── */}
+        <div className="grid gap-8 xl:grid-cols-12">
+          <div className="space-y-8 xl:col-span-7">
             <section aria-labelledby="plan-section-heading">
-              <h2
-                id="plan-section-heading"
-                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
-              >
-                Plan &amp; Billing
-                <div className="h-px flex-1 bg-white/5" />
-              </h2>
+              <AppSectionHeader
+                title="Plan and billing"
+                description="Review your current access level, daily review allowance, and billing actions."
+              />
               <PlanCard
                 currentPlan={plan}
                 paddleCustomerId={profile?.paddle_customer_id ?? null}
                 planUpdatedAt={profile?.plan_updated_at ?? null}
               />
             </section>
-          </div>
 
-          <div className="space-y-8">
-            {/* ── Scan Usage ── */}
             <section aria-labelledby="usage-section-heading">
-              <h2
-                id="usage-section-heading"
-                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
-              >
-                Usage
-                <div className="h-px flex-1 bg-white/5" />
-              </h2>
+              <AppSectionHeader
+                title="Usage"
+                description="Live scan counts from your account history, plus the real daily allowance for your active plan."
+              />
               <UsageCard
                 totalScans={totalScans}
                 completedScans={completedScans}
                 plan={plan}
               />
             </section>
+          </div>
 
-            {/* ── Account ── */}
+          <div className="space-y-8 xl:col-span-5">
             <section aria-labelledby="account-section-heading">
-              <h2
-                id="account-section-heading"
-                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
-              >
-                Account
-                <div className="h-px flex-1 bg-white/5" />
-              </h2>
+              <AppSectionHeader
+                title="Account"
+                description="Identity, membership, and current workspace access details."
+              />
               <AccountCard
                 email={user.email ?? profile?.email ?? null}
-                createdAt={profile?.created_at ?? new Date().toISOString()}
+                createdAt={profile?.created_at ?? null}
+                planLabel={planLabel}
+                githubLogin={githubConnection?.login ?? null}
               />
             </section>
 
-            {/* ── GitHub ── */}
             <section aria-labelledby="github-section-heading">
-              <h2
-                id="github-section-heading"
-                className="mb-4 text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2"
-              >
-                Integrations
-                <div className="h-px flex-1 bg-white/5" />
-              </h2>
+              <AppSectionHeader
+                title="GitHub integration"
+                description="Repository connection state and the actions available on your current GitHub link."
+              />
               <GitHubCard
                 connected={githubConnection !== null}
                 githubLogin={githubConnection?.login ?? null}
                 connectedAt={githubConnection?.connectedAt ?? null}
               />
+            </section>
+
+            <section aria-labelledby="security-notes-heading">
+              <AppSectionHeader
+                title="Security and access notes"
+                description="Operational notes about billing, repository access, and support."
+              />
+              <SurfaceCard className="p-6">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cc-border bg-cc-surface-raised text-cc-muted">
+                    <ShieldCheck className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-3 text-sm leading-6 text-cc-muted">
+                    <p>
+                      Billing is handled through Paddle using your existing checkout and portal flow. Repository access is managed through GitHub OAuth and used only for repo review workflows.
+                    </p>
+                    <p>
+                      Need help with account access or billing? Contact{' '}
+                      <a
+                        href={`mailto:${supportEmail}`}
+                        className="text-cc-text underline decoration-white/20 underline-offset-4 hover:decoration-white/50"
+                      >
+                        {supportEmail}
+                      </a>
+                      .
+                    </p>
+                  </div>
+                </div>
+              </SurfaceCard>
             </section>
           </div>
         </div>

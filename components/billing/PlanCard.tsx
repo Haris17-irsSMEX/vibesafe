@@ -1,83 +1,70 @@
 'use client'
 
 import { useState } from 'react'
+import type { ButtonHTMLAttributes, ElementType } from 'react'
 import {
-  Zap,
-  Sparkles,
-  CheckCircle2,
-  Loader2,
   ArrowRight,
-  ExternalLink,
+  CheckCircle2,
   Crown,
+  ExternalLink,
+  Loader2,
   ShieldCheck,
+  Zap,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { UserPlan } from '@/lib/db/users'
+import { formatSafeDate } from '@/lib/date'
+import { getPlanLabel } from '@/lib/plan-label'
+import { getAiScanAllowanceLabel } from '@/lib/plan-limits'
 import { GlowCard } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
 
-// ─── Plan feature definitions ────────────────────────────────────────────────
-
-const PLAN_FEATURES: Record<UserPlan, { title: string; description: string; features: string[] }> = {
-  free: {
-    title: 'Free',
-    description: 'Get started with basic security scanning.',
-    features: [
-      'Unlimited repository scans',
-      'Security score & severity counts',
-      'Finding names, categories & file paths',
-      'CWE identifier per finding',
-    ],
-  },
-  starter: {
-    title: 'Starter',
-    description: 'Full analysis for solo developers and small projects.',
-    features: [
-      'Everything in Free',
-      'Full issue descriptions & why it matters',
-      'Vulnerable code snippets',
-      'AI-generated fix code (copy-paste ready)',
-      'Cursor, Claude & IDE fix prompts',
-    ],
-  },
-  builder: {
-    title: 'Builder',
-    description: 'For teams shipping fast and securely at scale.',
-    features: [
-      'Everything in Starter',
-      'Higher scan frequency limits',
-      'Priority scanning queue',
-      'Team-ready features (coming soon)',
-      'Priority support',
-    ],
-  },
+type PlanDetails = {
+  description: string
+  features: string[]
+  icon: ElementType
+  badgeClassName: string
+  iconClassName: string
 }
 
-const PLAN_STYLES: Record<UserPlan, { badge: string; icon: React.ElementType; glowColor: string; bgColor: string; borderColor: string }> = {
+const PLAN_DETAILS: Record<UserPlan, PlanDetails> = {
   free: {
-    badge: 'bg-white/5 text-zinc-400 border border-white/10',
+    description: 'Basic review visibility for trying CtrlCode with your GitHub repositories.',
+    features: [
+      '2 AI security reviews / day',
+      'Security score and severity counts',
+      'Finding names, categories, file paths, and CWE IDs',
+      'Scan history for connected repositories',
+    ],
     icon: ShieldCheck,
-    glowColor: 'rgba(255, 255, 255, 0.05)',
-    bgColor: 'bg-card/50',
-    borderColor: 'border-white/10',
+    badgeClassName: 'border-white/10 bg-white/5 text-cc-muted',
+    iconClassName: 'border-white/10 bg-cc-bg-secondary text-cc-muted',
   },
   starter: {
-    badge: 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_10px_-2px_rgba(124,58,237,0.3)]',
+    description: 'Full finding detail and remediation guidance for active repositories.',
+    features: [
+      '20 AI security reviews / day',
+      'Full issue descriptions and why-it-matters context',
+      'Vulnerable code evidence and remediation guidance',
+      'Copy-ready fix prompts for Cursor and Codex',
+    ],
     icon: Zap,
-    glowColor: 'rgba(124, 58, 237, 0.15)',
-    bgColor: 'bg-primary/5',
-    borderColor: 'border-primary/20',
+    badgeClassName: 'border-white/15 bg-white/8 text-cc-text',
+    iconClassName: 'border-white/12 bg-white/6 text-cc-text',
   },
   builder: {
-    badge: 'bg-violet-500/10 text-violet-400 border border-violet-500/20 shadow-[0_0_10px_-2px_rgba(139,92,246,0.3)]',
+    description: 'Expanded daily review capacity for heavier repository coverage.',
+    features: [
+      '100 AI security reviews / day',
+      'Everything in Starter',
+      'Best fit for multiple active repositories',
+      'Higher daily allowance for repeated review cycles',
+    ],
     icon: Crown,
-    glowColor: 'rgba(139, 92, 246, 0.15)',
-    bgColor: 'bg-violet-500/5',
-    borderColor: 'border-violet-500/20',
+    badgeClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
+    iconClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
   },
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface PlanCardProps {
   currentPlan: UserPlan
@@ -85,18 +72,36 @@ interface PlanCardProps {
   planUpdatedAt: string | null
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function ActionButton({
+  children,
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      className={cn(
+        'inline-flex min-h-11 w-full items-center justify-between rounded-xl border px-4 py-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
 
-export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanCardProps) {
+export function PlanCard({
+  currentPlan,
+  paddleCustomerId,
+  planUpdatedAt,
+}: PlanCardProps) {
   const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const planInfo = PLAN_FEATURES[currentPlan]
-  const planStyle = PLAN_STYLES[currentPlan]
-  const PlanIcon = planStyle.icon
-  const isPaid = currentPlan !== 'free'
-
   const router = useRouter()
+
+  const planInfo = PLAN_DETAILS[currentPlan]
+  const PlanIcon = planInfo.icon
+  const isPaid = currentPlan !== 'free'
 
   const handleUpgrade = (plan: 'starter' | 'builder') => {
     router.push(`/checkout?plan=${plan}`)
@@ -130,164 +135,180 @@ export function PlanCard({ currentPlan, paddleCustomerId, planUpdatedAt }: PlanC
   }
 
   return (
-    <GlowCard glowColor={planStyle.glowColor} className={cn("p-0 overflow-hidden", planStyle.bgColor, planStyle.borderColor)}>
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-white/5 bg-black/20">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div
+    <GlowCard className="overflow-hidden rounded-2xl border-cc-border bg-cc-surface">
+      <div className="border-b border-cc-border bg-cc-bg-secondary/80 px-6 py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-4">
+            <span
               className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-xl border shadow-inner",
-                currentPlan === 'free'
-                  ? 'bg-white/5 border-white/10'
-                  : currentPlan === 'starter'
-                  ? 'bg-primary/20 border-primary/30'
-                  : 'bg-violet-500/20 border-violet-500/30'
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border',
+                planInfo.iconClassName
               )}
             >
-              <PlanIcon className={cn("h-6 w-6", currentPlan === 'free' ? 'text-zinc-400' : currentPlan === 'starter' ? 'text-primary' : 'text-violet-400')} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground">Current Plan</h2>
-              <p className="text-sm text-muted-foreground">{planInfo.description}</p>
+              <PlanIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cc-subtle">
+                Current plan
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-cc-text">
+                {getPlanLabel(currentPlan)}
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-cc-muted">
+                {planInfo.description}
+              </p>
             </div>
           </div>
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
-              planStyle.badge
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]',
+                planInfo.badgeClassName
+              )}
+            >
+              {getPlanLabel(currentPlan)}
+            </span>
+            <span className="inline-flex items-center rounded-full border border-cc-border bg-cc-surface px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-cc-muted">
+              {getAiScanAllowanceLabel(currentPlan)}
+            </span>
+            {isPaid && paddleCustomerId && (
+              <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-400">
+                Billing active
+              </span>
             )}
-          >
-            {planInfo.title}
-          </span>
+          </div>
         </div>
 
-        {planUpdatedAt && isPaid && (
-          <p className="mt-4 text-[11px] font-medium text-zinc-500 uppercase tracking-widest">
-            Plan active since {new Date(planUpdatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-        )}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-cc-border bg-cc-surface px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+              Plan allowance
+            </p>
+            <p className="mt-2 text-sm font-medium text-cc-text">
+              {getAiScanAllowanceLabel(currentPlan)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-cc-border bg-cc-surface px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+              Plan active since
+            </p>
+            <p className="mt-2 text-sm font-medium text-cc-text">
+              {isPaid
+                ? formatSafeDate(planUpdatedAt, 'Not available')
+                : 'Current free access'}
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Features */}
-      <div className="px-6 py-6 bg-card/30">
-        <h3 className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-4">
-          Included in {planInfo.title}
-        </h3>
-        <ul className="space-y-3">
+      <div className="px-6 py-6">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+          Included with {getPlanLabel(currentPlan)}
+        </p>
+        <ul className="mt-4 grid gap-3 sm:grid-cols-2">
           {planInfo.features.map((feature) => (
-            <li key={feature} className="flex items-start gap-3 text-sm text-zinc-300">
-              <CheckCircle2
-                className={cn(
-                  "mt-0.5 h-4 w-4 shrink-0",
-                  currentPlan === 'free'
-                    ? 'text-zinc-500'
-                    : currentPlan === 'starter'
-                    ? 'text-primary'
-                    : 'text-violet-500'
-                )}
-              />
-              {feature}
+            <li
+              key={feature}
+              className="flex items-start gap-3 rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-3 text-sm text-cc-muted"
+            >
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <span>{feature}</span>
             </li>
           ))}
         </ul>
-      </div>
 
-      {/* Error */}
-      {error && (
-        <div className="px-6 pb-2 bg-card/30">
+        {error && (
           <p
             role="alert"
-            className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+            className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
           >
             {error}
           </p>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="px-6 pb-6 bg-card/30">
-        {/* Free: show upgrade buttons */}
-        {currentPlan === 'free' && (
-          <div className="flex flex-col gap-3 sm:flex-row mt-2">
-            <button
-              id="plan-upgrade-starter-btn"
-              onClick={() => handleUpgrade('starter')}
-              className="flex flex-1 items-center justify-between w-full rounded-xl border border-primary/50 bg-primary/10 px-5 py-3.5 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary hover:text-white group"
-            >
-              <div className="flex items-center gap-2.5">
-                <Zap className="h-4 w-4" />
-                Upgrade to Starter
-              </div>
-              <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </button>
-
-            <button
-              id="plan-upgrade-builder-btn"
-              onClick={() => handleUpgrade('builder')}
-              className="flex flex-1 items-center justify-between w-full rounded-xl border border-transparent bg-violet-600 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_-5px_rgba(139,92,246,0.5)] transition-all hover:bg-violet-700 group"
-            >
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="h-4 w-4" />
-                Upgrade to Builder
-              </div>
-              <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </button>
-          </div>
         )}
 
-        {/* Starter: show upgrade to builder + manage billing */}
-        {currentPlan === 'starter' && (
-          <div className="flex flex-col gap-3 sm:flex-row mt-2">
-            <button
-              id="plan-upgrade-builder-from-starter-btn"
-              onClick={() => handleUpgrade('builder')}
-              disabled={portalLoading}
-              className="flex flex-1 items-center justify-between w-full rounded-xl border border-transparent bg-violet-600 px-5 py-3.5 text-sm font-semibold text-white shadow-[0_0_20px_-5px_rgba(139,92,246,0.5)] transition-all hover:bg-violet-700 disabled:opacity-50 group"
-            >
-              <div className="flex items-center gap-2.5">
-                <Crown className="h-4 w-4" />
-                Upgrade to Builder
-              </div>
-              <ArrowRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </button>
-
-            {paddleCustomerId && (
-              <button
-                id="manage-billing-btn"
-                onClick={handleManageBilling}
-                disabled={portalLoading}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-white/10 disabled:opacity-50"
+        <div className="mt-6 flex flex-col gap-3 lg:flex-row">
+          {currentPlan === 'free' && (
+            <>
+              <ActionButton
+                id="plan-upgrade-starter-btn"
+                onClick={() => handleUpgrade('starter')}
+                className="border-white/10 bg-cc-text text-cc-bg hover:bg-white"
               >
+                <span className="flex items-center gap-2">
+                  <Zap className="h-4 w-4" />
+                  Upgrade to Starter
+                </span>
+                <ArrowRight className="h-4 w-4" />
+              </ActionButton>
+              <ActionButton
+                id="plan-upgrade-builder-btn"
+                onClick={() => handleUpgrade('builder')}
+                className="border-cc-border-strong bg-cc-surface-raised text-cc-text hover:bg-cc-surface-hover"
+              >
+                <span className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-violet-300" />
+                  Upgrade to Builder
+                </span>
+                <ArrowRight className="h-4 w-4" />
+              </ActionButton>
+            </>
+          )}
+
+          {currentPlan === 'starter' && (
+            <>
+              <ActionButton
+                id="plan-upgrade-builder-from-starter-btn"
+                onClick={() => handleUpgrade('builder')}
+                disabled={portalLoading}
+                className="border-cc-border-strong bg-cc-surface-raised text-cc-text hover:bg-cc-surface-hover"
+              >
+                <span className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-violet-300" />
+                  Upgrade to Builder
+                </span>
+                <ArrowRight className="h-4 w-4" />
+              </ActionButton>
+
+              {paddleCustomerId && (
+                <ActionButton
+                  id="manage-billing-btn"
+                  onClick={handleManageBilling}
+                  disabled={portalLoading}
+                  className="border-cc-border bg-cc-bg-secondary text-cc-text hover:bg-cc-surface-hover"
+                >
+                  <span className="flex items-center gap-2">
+                    {portalLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4" />
+                    )}
+                    Manage billing
+                  </span>
+                  <ArrowRight className="h-4 w-4" />
+                </ActionButton>
+              )}
+            </>
+          )}
+
+          {currentPlan === 'builder' && paddleCustomerId && (
+            <ActionButton
+              id="manage-billing-btn-builder"
+              onClick={handleManageBilling}
+              disabled={portalLoading}
+              className="border-cc-border bg-cc-bg-secondary text-cc-text hover:bg-cc-surface-hover lg:max-w-xs"
+            >
+              <span className="flex items-center gap-2">
                 {portalLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <ExternalLink className="h-4 w-4" />
                 )}
-                Manage Billing
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Builder: show manage billing */}
-        {currentPlan === 'builder' && paddleCustomerId && (
-          <div className="mt-2">
-            <button
-              id="manage-billing-btn-builder"
-              onClick={handleManageBilling}
-              disabled={portalLoading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-white/10 disabled:opacity-50"
-            >
-              {portalLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ExternalLink className="h-4 w-4" />
-              )}
-              Manage Billing
-            </button>
-          </div>
-        )}
+                Manage billing
+              </span>
+              <ArrowRight className="h-4 w-4" />
+            </ActionButton>
+          )}
+        </div>
       </div>
     </GlowCard>
   )

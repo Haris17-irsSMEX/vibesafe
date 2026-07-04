@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, AlertCircle, Loader2, Calendar, Unlink } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, ShieldCheck, Unlink } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { formatSafeDate } from '@/lib/date'
 import { GlowCard } from '@/components/ui/glow-card'
 
-// lucide-react dropped the Github icon — use an inline SVG instead
 function GithubIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -26,23 +26,20 @@ interface GitHubCardProps {
   connectedAt: string | null
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-export function GitHubCard({ connected, githubLogin, connectedAt }: GitHubCardProps) {
+export function GitHubCard({
+  connected,
+  githubLogin,
+  connectedAt,
+}: GitHubCardProps) {
   const router = useRouter()
   const [disconnecting, setDisconnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleDisconnect = async () => {
     if (disconnecting) return
+
     const confirmed = window.confirm(
-      'Disconnect your GitHub account? You will need to reconnect to run new scans.'
+      'Disconnect your GitHub account? You will need to reconnect before starting new scans.'
     )
     if (!confirmed) return
 
@@ -61,7 +58,6 @@ export function GitHubCard({ connected, githubLogin, connectedAt }: GitHubCardPr
         return
       }
 
-      // Refresh to show updated state
       router.refresh()
     } catch {
       setError('Network error. Please try again.')
@@ -70,85 +66,99 @@ export function GitHubCard({ connected, githubLogin, connectedAt }: GitHubCardPr
   }
 
   return (
-    <GlowCard className="p-0 overflow-hidden bg-card/50">
-      <div className="border-b border-white/5 bg-white/5 px-6 py-4">
+    <GlowCard className="overflow-hidden rounded-2xl border-cc-border bg-cc-surface">
+      <div className="border-b border-cc-border bg-cc-bg-secondary/80 px-6 py-5">
         <div className="flex items-center gap-3">
-          <GithubIcon className="h-5 w-5 text-primary" />
-          <h2 className="text-base font-semibold text-foreground">GitHub Integration</h2>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-cc-border bg-cc-surface text-cc-muted">
+            <GithubIcon className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold text-cc-text">GitHub integration</h2>
+            <p className="text-sm text-cc-muted">
+              Repository access for CtrlCode reviews and scan execution.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="px-6 py-6">
+      <div className="space-y-4 px-6 py-6">
         {connected && githubLogin ? (
           <>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-black/40 border border-white/5 p-5 rounded-xl">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 border border-white/10 shadow-inner">
-                  <GithubIcon className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <p className="text-sm font-bold text-white">@{githubLogin}</p>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Connected
-                    </span>
-                  </div>
-                  {connectedAt && (
-                    <p className="text-[11px] font-medium text-zinc-500 flex items-center gap-1.5 uppercase tracking-wide">
-                      <Calendar className="h-3 w-3" />
-                      Since {formatDate(connectedAt)}
+            <div className="rounded-xl border border-cc-border bg-cc-bg-secondary p-5">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-4">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cc-border bg-cc-surface text-cc-text">
+                    <GithubIcon className="h-6 w-6" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-cc-text">
+                        @{githubLogin}
+                      </p>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Connected
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-cc-muted">
+                      Connected since {formatSafeDate(connectedAt, 'Not available')}
                     </p>
-                  )}
+                    <p className="mt-3 max-w-lg text-xs leading-5 text-cc-subtle">
+                      CtrlCode uses your GitHub connection to fetch repository files and metadata for security reviews. Sensitive tokens are never displayed in settings.
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                id="disconnect-github-btn"
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2.5 text-xs font-semibold text-red-400 transition-all hover:bg-red-500/20 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-background disabled:opacity-50 w-full sm:w-auto"
-                aria-label="Disconnect GitHub account"
-              >
-                {disconnecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Unlink className="h-4 w-4" />
-                )}
-                Disconnect
-              </button>
+                <button
+                  id="disconnect-github-btn"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 outline-none transition-colors hover:bg-red-500/15 focus-visible:ring-2 focus-visible:ring-red-500/30 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+                  aria-label="Disconnect GitHub account"
+                >
+                  {disconnecting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Unlink className="h-4 w-4" />
+                  )}
+                  Disconnect
+                </button>
+              </div>
             </div>
 
-            {error && (
-              <p
-                role="alert"
-                className="mt-4 flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-3 rounded-lg"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {error}
-              </p>
-            )}
+            <div className="rounded-xl border border-cc-border bg-cc-surface-raised px-4 py-3 text-xs leading-5 text-cc-muted">
+              Repository access stays tied to your existing GitHub OAuth connection. Reconnect only if you need to refresh or change account access.
+            </div>
           </>
         ) : (
-          <div className="flex flex-col items-center py-8 text-center bg-black/40 border border-dashed border-white/10 rounded-xl">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-white/5 border border-white/10">
-                <GithubIcon className="h-7 w-7 text-zinc-400" />
-              </div>
-            </div>
-            <h3 className="mt-5 text-base font-bold text-white">No GitHub account connected</h3>
-            <p className="mt-2 text-sm text-zinc-500 max-w-sm">
-              Connect your GitHub account to start analyzing your repositories for security vulnerabilities.
+          <div className="rounded-xl border border-dashed border-cc-border-strong bg-cc-bg-secondary px-6 py-8 text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cc-border bg-cc-surface text-cc-muted">
+              <ShieldCheck className="h-6 w-6" />
+            </span>
+            <h3 className="mt-4 text-base font-semibold text-cc-text">
+              No GitHub account connected
+            </h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-cc-muted">
+              Connect GitHub to choose repositories and start CtrlCode security reviews.
             </p>
             <a
               href="/dashboard/connect"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-[0_0_15px_-3px_rgba(124,58,237,0.5)] transition-all hover:bg-primary-hover"
+              className="mt-6 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-cc-text px-4 py-2 text-sm font-semibold text-cc-bg outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30"
             >
               <GithubIcon className="h-4 w-4" />
               Connect GitHub
             </a>
           </div>
+        )}
+
+        {error && (
+          <p
+            role="alert"
+            className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {error}
+          </p>
         )}
       </div>
     </GlowCard>

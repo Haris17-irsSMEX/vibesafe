@@ -1,97 +1,75 @@
-/**
- * app/admin/page.tsx
- *
- * Internal Admin Panel — accessible only to authenticated admin emails.
- * All data fetched server-side using service role client.
- * Non-admin users get a 404-style "Not found" response.
- * Unauthenticated users are redirected to /login.
- *
- * SECURITY:
- *  - Admin email list lives in ADMIN_EMAILS env var (server-only)
- *  - Never exposes actual secret values — only configured/not configured
- *  - All queries run via Supabase service role (bypasses RLS)
- */
-
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import type { ReactNode } from 'react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  CreditCard,
+  ScanLine,
+  ShieldAlert,
+  ShieldCheck,
+  Users,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { BackfillButton } from '@/components/admin/backfill-button'
+import { BackfillScoresButton } from '@/components/admin/backfill-scores-button'
+import { SurfaceCard, StatMetricCard } from '@/components/dashboard/dashboard-ui'
+import {
+  AppPageContainer,
+  AppPageHeader,
+  AppSectionHeader,
+} from '@/components/layout/app-page'
+import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
+import { ReadinessBadge, ResultSurface } from '@/components/results/result-ui'
 import { isAdminEmail } from '@/lib/auth/admin'
 import {
   getAdminOverviewStats,
-  getAdminRecentUsers,
-  getAdminRecentScans,
   getAdminRecentFindings,
+  getAdminRecentScans,
+  getAdminRecentUsers,
   getFindingsMissingFixPromptCount,
 } from '@/lib/db/admin-stats'
-import { BackfillButton } from '@/components/admin/backfill-button'
-import { BackfillScoresButton } from '@/components/admin/backfill-scores-button'
-import { ServerDashboardLayout } from '@/components/layout/server-dashboard-layout'
-import { scoreToLabel, scoreToColor } from '@/services/scoring/SecurityScorer'
-import {
-  Users,
-  ScanLine,
-  ShieldAlert,
-  CreditCard,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  ShieldCheck,
-  ChevronRight,
-} from 'lucide-react'
-import { AppPageContainer, AppPageHeader } from '@/components/layout/app-page'
+import { formatSafeDate, formatSafeDateTime } from '@/lib/date'
 import { getPlanLabel } from '@/lib/plan-label'
+import { scoreToColor, scoreToLabel } from '@/services/scoring/SecurityScorer'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+function formatMetric(value: number): string {
+  return Number.isFinite(value) ? value.toLocaleString() : 'Not available'
 }
 
-function formatDateTime(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+function formatPercent(numerator: number, denominator: number): string {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+    return 'Not available'
+  }
+
+  return `${((numerator / denominator) * 100).toFixed(1)}%`
 }
 
-function EnvStatus({ label, configured }: { label: string; configured: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
-      <span className="text-sm text-zinc-400">{label}</span>
-      {configured ? (
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          Configured
-        </span>
-      ) : (
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400">
-          <XCircle className="h-3.5 w-3.5" />
-          Not configured
-        </span>
-      )}
-    </div>
-  )
+function formatAverage(total: number, count: number): string {
+  if (!Number.isFinite(total) || !Number.isFinite(count) || count <= 0) {
+    return 'Not available'
+  }
+
+  return (total / count).toFixed(1)
+}
+
+function formatStatusLabel(status: string): string {
+  if (status === 'complete') return 'Completed'
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 function PlanBadge({ plan }: { plan: string }) {
-  const colors: Record<string, string> = {
-    free: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-    starter: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    builder: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    pro: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+  const tones: Record<string, string> = {
+    free: 'border-white/10 bg-white/5 text-cc-muted',
+    starter: 'border-white/15 bg-white/8 text-cc-text',
+    builder: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+    pro: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
   }
-  const cls = colors[plan] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${tones[plan] ?? 'border-white/10 bg-white/5 text-cc-muted'}`}
     >
       {getPlanLabel(plan)}
     </span>
@@ -99,67 +77,137 @@ function PlanBadge({ plan }: { plan: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    complete: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    completed: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    failed: 'bg-red-500/10 text-red-400 border-red-500/20',
-    pending: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
-    fetching: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    scanning: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
+  const tones: Record<string, string> = {
+    complete: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+    completed: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400',
+    failed: 'border-red-500/20 bg-red-500/10 text-red-400',
+    pending: 'border-white/10 bg-white/5 text-cc-muted',
+    fetching: 'border-blue-500/20 bg-blue-500/10 text-blue-400',
+    scanning: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
   }
-  const cls = colors[status] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${tones[status] ?? 'border-white/10 bg-white/5 text-cc-muted'}`}
     >
-      {status}
+      {formatStatusLabel(status)}
     </span>
   )
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
-  const colors: Record<string, string> = {
-    CRITICAL: 'bg-red-500/10 text-red-400 border-red-500/20',
-    HIGH: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    MEDIUM: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-    LOW: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  const tones: Record<string, string> = {
+    CRITICAL: 'border-red-500/20 bg-red-500/10 text-red-400',
+    HIGH: 'border-orange-500/20 bg-orange-500/10 text-orange-400',
+    MEDIUM: 'border-amber-500/20 bg-amber-500/10 text-amber-400',
+    LOW: 'border-blue-500/20 bg-blue-500/10 text-blue-400',
   }
-  const cls = colors[severity?.toUpperCase()] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${cls}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${tones[severity?.toUpperCase()] ?? 'border-white/10 bg-white/5 text-cc-muted'}`}
     >
       {severity}
     </span>
   )
 }
 
-function ReadinessBadge({ readiness }: { readiness: string | null }) {
-  if (!readiness) return <span className="text-zinc-600 text-xs">—</span>
-  const colors: Record<string, string> = {
-    ready:            'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    needs_attention:  'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    not_ready:        'bg-orange-500/10 text-orange-400 border-orange-500/20',
-    critical_risk:    'bg-red-500/10 text-red-400 border-red-500/20',
-  }
-  const labels: Record<string, string> = {
-    ready:            'Ready',
-    needs_attention:  'Needs Attention',
-    not_ready:        'Not Ready',
-    critical_risk:    'Critical Risk',
-  }
-  const cls = colors[readiness] ?? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20'
+function EnvStatus({
+  label,
+  configured,
+  value,
+}: {
+  label: string
+  configured?: boolean
+  value?: string
+}) {
+  const content =
+    typeof configured === 'boolean' ? (
+      configured ? (
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Configured
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-400">
+          <AlertCircle className="h-3.5 w-3.5" />
+          Not configured
+        </span>
+      )
+    ) : (
+      <span className="max-w-[220px] truncate text-xs font-medium text-cc-text">
+        {value ?? 'Not available'}
+      </span>
+    )
+
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${cls}`}>
-      {labels[readiness] ?? readiness}
-    </span>
+    <div className="flex items-center justify-between gap-3 border-b border-cc-border py-3 last:border-b-0 last:pb-0 first:pt-0">
+      <span className="text-sm text-cc-muted">{label}</span>
+      {content}
+    </div>
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+function AdminPlanSelector({
+  userId,
+  currentPlan,
+}: {
+  userId: string
+  currentPlan: string
+}) {
+  return (
+    <form
+      action="/api/admin/users/update-plan"
+      method="POST"
+      className="flex items-center gap-2"
+    >
+      <input type="hidden" name="userId" value={userId} />
+      <select
+        name="plan"
+        defaultValue={currentPlan}
+        className="min-h-9 rounded-lg border border-cc-border bg-cc-bg-secondary px-3 text-xs text-cc-text outline-none transition-colors focus:border-cc-border-strong focus:ring-2 focus:ring-white/10"
+        aria-label="Select plan override"
+      >
+        <option value="free">Free</option>
+        <option value="starter">Starter</option>
+        <option value="builder">Builder</option>
+        <option value="pro">Legacy Pro</option>
+      </select>
+      <button
+        type="submit"
+        className="inline-flex min-h-9 items-center justify-center rounded-lg border border-cc-border-strong bg-cc-surface-raised px-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-text transition-colors hover:bg-cc-surface-hover focus-visible:ring-2 focus-visible:ring-white/20"
+      >
+        Apply
+      </button>
+    </form>
+  )
+}
+
+function TableHeader({ children }: { children: ReactNode }) {
+  return (
+    <th className="bg-cc-bg-secondary px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+      {children}
+    </th>
+  )
+}
+
+function EmptyRow({
+  colSpan,
+  message,
+}: {
+  colSpan: number
+  message: string
+}) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-10 text-center text-sm text-cc-subtle">
+        {message}
+      </td>
+    </tr>
+  )
+}
 
 export default async function AdminPage() {
-  // 1. Auth check
   const supabase = createClient()
   const {
     data: { user },
@@ -170,40 +218,41 @@ export default async function AdminPage() {
     redirect('/login')
   }
 
-  // 2. Admin email check — server-side only
   if (!isAdminEmail(user.email)) {
-    // Return 404-style response — do not reveal admin route exists
     return (
       <ServerDashboardLayout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-12 max-w-md">
-            <ShieldAlert className="h-12 w-12 text-zinc-600 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-foreground mb-2">Not Found</h1>
-            <p className="text-zinc-500 text-sm mb-6">
-              The page you&apos;re looking for doesn&apos;t exist.
-            </p>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-            >
-              Return to Dashboard
-            </Link>
+        <AppPageContainer size="narrow">
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <SurfaceCard className="max-w-md p-10 text-center">
+              <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cc-border bg-cc-surface-raised text-cc-muted">
+                <ShieldAlert className="h-6 w-6" />
+              </span>
+              <h1 className="mt-5 text-2xl font-semibold text-cc-text">Not Found</h1>
+              <p className="mt-2 text-sm leading-6 text-cc-muted">
+                The page you&apos;re looking for doesn&apos;t exist.
+              </p>
+              <Link
+                href="/dashboard"
+                className="mt-6 inline-flex min-h-10 items-center justify-center rounded-lg bg-cc-text px-4 py-2 text-sm font-semibold text-cc-bg transition-colors hover:bg-white"
+              >
+                Return to dashboard
+              </Link>
+            </SurfaceCard>
           </div>
-        </div>
+        </AppPageContainer>
       </ServerDashboardLayout>
     )
   }
 
-  // 3. Fetch admin data (all in parallel)
-  const [stats, recentUsers, recentScans, recentFindings, missingFixPrompts] = await Promise.all([
-    getAdminOverviewStats(),
-    getAdminRecentUsers(20),
-    getAdminRecentScans(20),
-    getAdminRecentFindings(20),
-    getFindingsMissingFixPromptCount(),
-  ])
+  const [stats, recentUsers, recentScans, recentFindings, missingFixPrompts] =
+    await Promise.all([
+      getAdminOverviewStats(),
+      getAdminRecentUsers(20),
+      getAdminRecentScans(20),
+      getAdminRecentFindings(20),
+      getFindingsMissingFixPromptCount(),
+    ])
 
-  // 4. Env config status (never exposes values — only configured/not configured)
   const envStatus = {
     adminEmails: !!process.env.ADMIN_EMAILS?.trim(),
     paddle:
@@ -219,446 +268,383 @@ export default async function AdminPage() {
       !!process.env.UPSTASH_REDIS_REST_TOKEN,
   }
 
+  const freeUsers = Math.max(stats.totalUsers - stats.paidUsers, 0)
+
   return (
     <ServerDashboardLayout>
       <AppPageContainer size="wide" className="space-y-10">
         <AppPageHeader
-          title="Internal dashboard"
-          description={<>Viewing as <span className="font-medium text-violet-300">{user.email}</span></>}
+          title="Admin Panel"
+          description="Monitor CtrlCode usage, scans, users, billing state, and system health."
           badge={
-              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider border bg-violet-500/10 text-violet-400 border-violet-500/30">
-                <ShieldCheck className="h-3 w-3" />
-                Admin Panel
-              </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-300">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Internal / Admin only
+            </span>
           }
         />
 
-        {/* ── Overview Cards ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-          {[
-            {
-              label: 'Total Users',
-              value: stats.totalUsers,
-              icon: Users,
-              color: 'text-blue-400',
-              bg: 'bg-blue-500/10',
-              border: 'border-blue-500/20',
-            },
-            {
-              label: 'Total Scans',
-              value: stats.totalScans,
-              icon: ScanLine,
-              color: 'text-violet-400',
-              bg: 'bg-violet-500/10',
-              border: 'border-violet-500/20',
-            },
-            {
-              label: 'Total Findings',
-              value: stats.totalFindings,
-              icon: ShieldAlert,
-              color: 'text-orange-400',
-              bg: 'bg-orange-500/10',
-              border: 'border-orange-500/20',
-            },
-            {
-              label: 'Paid Users',
-              value: stats.paidUsers,
-              icon: CreditCard,
-              color: 'text-emerald-400',
-              bg: 'bg-emerald-500/10',
-              border: 'border-emerald-500/20',
-            },
-            {
-              label: 'Failed Scans',
-              value: stats.failedScans,
-              icon: AlertCircle,
-              color: 'text-red-400',
-              bg: 'bg-red-500/10',
-              border: 'border-red-500/20',
-            },
-          ].map(({ label, value, icon: Icon, color, bg, border }) => (
-            <div
-              key={label}
-              className={`rounded-2xl border ${border} ${bg} p-5 flex flex-col gap-3`}
-            >
-              <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${bg} border ${border}`}>
-                <Icon className={`h-5 w-5 ${color}`} />
-              </div>
-              <div>
-                <p className={`text-3xl font-black ${color} leading-none`}>
-                  {value.toLocaleString()}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatMetricCard
+            label="Total users"
+            value={formatMetric(stats.totalUsers)}
+            detail="Authenticated accounts provisioned in CtrlCode."
+            icon={<Users className="h-4 w-4" />}
+          />
+          <StatMetricCard
+            label="Total scans"
+            value={formatMetric(stats.totalScans)}
+            detail="All repository scans across every account."
+            icon={<ScanLine className="h-4 w-4" />}
+          />
+          <StatMetricCard
+            label="Total findings"
+            value={formatMetric(stats.totalFindings)}
+            detail="Stored findings generated by completed reviews."
+            icon={<ShieldAlert className="h-4 w-4" />}
+            tone="high"
+          />
+          <StatMetricCard
+            label="Paid users"
+            value={formatMetric(stats.paidUsers)}
+            detail="Accounts on Starter, Builder, or legacy paid access."
+            icon={<CreditCard className="h-4 w-4" />}
+            tone="safe"
+          />
+          <StatMetricCard
+            label="Failed scans"
+            value={formatMetric(stats.failedScans)}
+            detail="Scans that ended in a failed state."
+            icon={<AlertCircle className="h-4 w-4" />}
+            tone="critical"
+          />
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-12">
+          <SurfaceCard className="p-6 xl:col-span-7">
+            <AppSectionHeader
+              title="System health"
+              description="Configured services and active admin context."
+            />
+            <div className="space-y-1">
+              <EnvStatus label="Admin mode" value="Active" />
+              <EnvStatus label="Active admin email" value={user.email ?? 'Not available'} />
+              <EnvStatus label="Admin emails" configured={envStatus.adminEmails} />
+              <EnvStatus label="Paddle billing" configured={envStatus.paddle} />
+              <EnvStatus label="GitHub OAuth" configured={envStatus.github} />
+              <EnvStatus label="DeepSeek AI" configured={envStatus.deepseek} />
+              <EnvStatus label="Resend email" configured={envStatus.resend} />
+              <EnvStatus label="Upstash rate limiting" configured={envStatus.upstash} />
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard className="p-6 xl:col-span-5">
+            <AppSectionHeader
+              title="Operational stats"
+              description="Derived indicators from the current admin overview data."
+            />
+            <div className="grid gap-3">
+              <div className="rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+                  Conversion rate
                 </p>
-                <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mt-1.5">
-                  {label}
+                <p className="mt-2 text-2xl font-semibold text-cc-text">
+                  {formatPercent(stats.paidUsers, stats.totalUsers)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+                  Avg findings / scan
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-cc-text">
+                  {formatAverage(stats.totalFindings, stats.totalScans)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+                  Scan failure rate
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-cc-text">
+                  {formatPercent(stats.failedScans, stats.totalScans)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+                  Free users
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-cc-text">
+                  {formatMetric(freeUsers)}
                 </p>
               </div>
             </div>
-          ))}
+          </SurfaceCard>
         </div>
 
-        {/* ── Recent Users Table ─────────────────────────────────────────── */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <SurfaceCard className="p-6">
+            <AppSectionHeader
+              title="Operations"
+              description="Non-destructive maintenance tasks for keeping report output complete."
+            />
+            <div className="rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-4">
+              <p className="text-sm font-medium text-cc-text">
+                Missing fix prompts
+              </p>
+              <p className="mt-1 text-sm leading-6 text-cc-muted">
+                Backfill AI fix prompts for findings that do not yet have one stored.
+              </p>
+              <p className="mt-3 text-xs uppercase tracking-[0.12em] text-cc-subtle">
+                Pending items: {formatMetric(missingFixPrompts)}
+              </p>
+            </div>
+            <div className="mt-4">
+              <BackfillButton count={missingFixPrompts} />
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard className="p-6">
+            <AppSectionHeader
+              title="Danger zone"
+              description="High-impact maintenance operations touching historical data."
+            />
+            <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-4">
+              <p className="text-sm font-medium text-red-300">Recalibrate all stored scores</p>
+              <p className="mt-1 text-sm leading-6 text-red-200/80">
+                Re-runs score calibration for historical scans. A confirmation prompt appears before execution.
+              </p>
+            </div>
+            <div className="mt-4">
+              <BackfillScoresButton />
+            </div>
+          </SurfaceCard>
+        </div>
+
         <section>
-          <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <Users className="h-5 w-5 text-blue-400" />
-            Recent Users
-          </h2>
-          <div className="rounded-2xl border border-white/10 bg-card/50 overflow-hidden">
+          <AppSectionHeader
+            title="Recent users"
+            description="Latest provisioned accounts, plan state, and admin override access."
+          />
+          <ResultSurface className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[720px] text-sm">
                 <thead>
-                  <tr className="border-b border-white/5 bg-white/5">
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Plan
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Scans
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Joined
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Plan Updated
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Override
-                    </th>
+                  <tr className="border-b border-cc-border">
+                    <TableHeader>Email</TableHeader>
+                    <TableHeader>Plan</TableHeader>
+                    <TableHeader>Scans</TableHeader>
+                    <TableHeader>Joined</TableHeader>
+                    <TableHeader>Plan updated</TableHeader>
+                    <TableHeader>Override</TableHeader>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  {recentUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-5 py-3.5 text-zinc-300 font-mono text-xs">
-                        {u.email ?? <span className="text-zinc-600">—</span>}
+                <tbody className="divide-y divide-cc-border">
+                  {recentUsers.map((record) => (
+                    <tr key={record.id} className="transition-colors hover:bg-white/3">
+                      <td
+                        className="px-4 py-4 font-mono text-xs text-cc-text"
+                        title={record.email ?? undefined}
+                      >
+                        <span className="block max-w-[220px] truncate">
+                          {record.email ?? 'Not available'}
+                        </span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <PlanBadge plan={u.plan} />
+                      <td className="px-4 py-4">
+                        <PlanBadge plan={record.plan} />
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-400 font-medium">
-                        {u.scan_count}
+                      <td className="px-4 py-4 text-cc-muted">
+                        {formatMetric(record.scan_count)}
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-500 text-xs">
-                        {formatDate(u.created_at)}
+                      <td className="px-4 py-4 text-xs text-cc-muted">
+                        {formatSafeDate(record.created_at)}
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-500 text-xs">
-                        {formatDate(u.plan_updated_at)}
+                      <td className="px-4 py-4 text-xs text-cc-muted">
+                        {formatSafeDate(record.plan_updated_at)}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <AdminPlanSelector userId={u.id} currentPlan={u.plan} />
+                      <td className="px-4 py-4">
+                        <AdminPlanSelector
+                          userId={record.id}
+                          currentPlan={record.plan}
+                        />
                       </td>
                     </tr>
                   ))}
                   {recentUsers.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-8 text-center text-zinc-600 text-sm">
-                        No users yet.
-                      </td>
-                    </tr>
+                    <EmptyRow colSpan={6} message="No users yet." />
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </ResultSurface>
         </section>
 
-        {/* ── Recent Scans Table ────────────────────────────────────────────── */}
         <section>
-          <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <ScanLine className="h-5 w-5 text-violet-400" />
-            Recent Scans
-          </h2>
-          <div className="rounded-2xl border border-white/10 bg-card/50 overflow-hidden">
+          <AppSectionHeader
+            title="Recent scans"
+            description="Latest scan activity, repository status, findings, and completion state."
+          />
+          <ResultSurface className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[1220px] text-sm">
                 <thead>
-                  <tr className="border-b border-white/5 bg-white/5">
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Repository
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Score
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Readiness
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Report
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Findings
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Severities
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Error Message
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Completed
-                    </th>
+                  <tr className="border-b border-cc-border">
+                    <TableHeader>Repository</TableHeader>
+                    <TableHeader>User</TableHeader>
+                    <TableHeader>Status</TableHeader>
+                    <TableHeader>Score</TableHeader>
+                    <TableHeader>Readiness</TableHeader>
+                    <TableHeader>Report</TableHeader>
+                    <TableHeader>Findings</TableHeader>
+                    <TableHeader>Severities</TableHeader>
+                    <TableHeader>Error</TableHeader>
+                    <TableHeader>Created</TableHeader>
+                    <TableHeader>Completed</TableHeader>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  {recentScans.map((s) => (
-                    <tr key={s.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="px-5 py-3.5">
+                <tbody className="divide-y divide-cc-border">
+                  {recentScans.map((scan) => (
+                    <tr key={scan.id} className="transition-colors hover:bg-white/3">
+                      <td className="px-4 py-4">
                         <Link
-                          href={`/scan/${s.id}`}
-                          className="flex items-center gap-1.5 text-zinc-300 font-mono text-xs hover:text-primary transition-colors"
+                          href={`/scan/${scan.id}`}
+                          className="group inline-flex max-w-[230px] items-center gap-1.5 font-mono text-xs text-cc-text transition-colors hover:text-white"
+                          title={scan.repo_full_name}
                         >
-                          {s.repo_full_name}
-                          <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <span className="truncate">{scan.repo_full_name}</span>
+                          <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                         </Link>
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-500 text-xs font-mono">
-                        {s.user_email ?? '—'}
+                      <td
+                        className="px-4 py-4 font-mono text-xs text-cc-muted"
+                        title={scan.user_email ?? undefined}
+                      >
+                        <span className="block max-w-[200px] truncate">
+                          {scan.user_email ?? 'Not available'}
+                        </span>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge status={s.status} />
+                      <td className="px-4 py-4">
+                        <StatusBadge status={scan.status} />
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-300 font-bold text-sm">
-                        {s.security_score !== null ? (
-                          <div className="flex flex-col">
-                            <span className={scoreToColor(s.security_score)}>{s.security_score}</span>
-                            <span className="text-[10px] text-zinc-500 font-normal">{scoreToLabel(s.security_score)}</span>
+                      <td className="px-4 py-4">
+                        {scan.security_score !== null ? (
+                          <div className="space-y-1">
+                            <p className={`text-sm font-semibold ${scoreToColor(scan.security_score)}`}>
+                              {scan.security_score}
+                            </p>
+                            <p className="text-xs text-cc-subtle">
+                              {scoreToLabel(scan.security_score)}
+                            </p>
                           </div>
-                        ) : '—'}
+                        ) : (
+                          <span className="text-xs text-cc-subtle">Not available</span>
+                        )}
                       </td>
-                      <td className="px-5 py-3.5">
-                        <ReadinessBadge readiness={s.production_readiness} />
+                      <td className="px-4 py-4">
+                        <ReadinessBadge readiness={scan.production_readiness} />
                       </td>
-                      <td className="px-5 py-3.5 text-center">
-                        {s.report_generated_at
-                          ? <span className="text-emerald-400 text-sm font-bold">✓</span>
-                          : <span className="text-zinc-600 text-xs">—</span>
-                        }
+                      <td className="px-4 py-4 text-xs text-cc-muted">
+                        {scan.report_generated_at ? 'Generated' : 'Pending'}
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-400 font-medium text-sm">
-                        {s.total_findings}
+                      <td className="px-4 py-4 text-cc-muted">
+                        {formatMetric(scan.total_findings)}
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-400 text-[10px] uppercase font-bold tracking-widest whitespace-nowrap">
-                        <span className="text-red-400">C:{s.critical_count}</span>{' '}
-                        <span className="text-orange-400">H:{s.high_count}</span>{' '}
-                        <span className="text-amber-400">M:{s.medium_count}</span>{' '}
-                        <span className="text-blue-400">L:{s.low_count}</span>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-1.5 text-[10px]">
+                          <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-red-400">
+                            C {scan.critical_count}
+                          </span>
+                          <span className="rounded-full border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-orange-400">
+                            H {scan.high_count}
+                          </span>
+                          <span className="rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-amber-400">
+                            M {scan.medium_count}
+                          </span>
+                          <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-blue-400">
+                            L {scan.low_count}
+                          </span>
+                        </div>
                       </td>
-                      <td className="px-5 py-3.5 text-red-400 text-xs max-w-[200px] truncate">
-                        {s.error_message ?? '—'}
+                      <td
+                        className="px-4 py-4 text-xs text-red-300/80"
+                        title={scan.error_message ?? undefined}
+                      >
+                        <span className="block max-w-[220px] truncate">
+                          {scan.error_message ?? 'Not available'}
+                        </span>
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-500 text-xs">
-                        {formatDateTime(s.created_at)}
+                      <td className="px-4 py-4 text-xs text-cc-muted">
+                        {formatSafeDateTime(scan.created_at)}
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-500 text-xs">
-                        {formatDateTime(s.completed_at)}
+                      <td className="px-4 py-4 text-xs text-cc-muted">
+                        {formatSafeDateTime(scan.completed_at)}
                       </td>
                     </tr>
                   ))}
                   {recentScans.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="px-5 py-8 text-center text-zinc-600 text-sm">
-                        No scans yet.
-                      </td>
-                    </tr>
+                    <EmptyRow colSpan={11} message="No scans yet." />
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
+          </ResultSurface>
         </section>
 
-        {/* ── Recent Findings Table ─────────────────────────────────────── */}
         <section>
-          <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-orange-400" />
-            Recent Findings
-          </h2>
-          <div className="rounded-2xl border border-white/10 bg-card/50 overflow-hidden">
+          <AppSectionHeader
+            title="Recent findings"
+            description="Latest stored findings flowing into report and remediation surfaces."
+          />
+          <ResultSurface className="overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
-                  <tr className="border-b border-white/5 bg-white/5">
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Severity
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Check
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      File Path
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Scan ID
-                    </th>
-                    <th className="px-5 py-3 text-left text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
-                      Created
-                    </th>
+                  <tr className="border-b border-cc-border">
+                    <TableHeader>Severity</TableHeader>
+                    <TableHeader>Check</TableHeader>
+                    <TableHeader>File path</TableHeader>
+                    <TableHeader>Scan</TableHeader>
+                    <TableHeader>Created</TableHeader>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  {recentFindings.map((f) => (
-                    <tr key={f.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="px-5 py-3.5">
-                        <SeverityBadge severity={f.severity} />
+                <tbody className="divide-y divide-cc-border">
+                  {recentFindings.map((finding) => (
+                    <tr key={finding.id} className="transition-colors hover:bg-white/3">
+                      <td className="px-4 py-4">
+                        <SeverityBadge severity={finding.severity} />
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-300 text-xs">
-                        {f.check_name}
+                      <td className="px-4 py-4 text-xs text-cc-text">
+                        {finding.check_name}
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-xs text-zinc-500 max-w-[200px] truncate">
-                        {f.file_path}
+                      <td
+                        className="px-4 py-4 font-mono text-xs text-cc-muted"
+                        title={finding.file_path}
+                      >
+                        <span className="block max-w-[260px] truncate">
+                          {finding.file_path}
+                        </span>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-4 py-4">
                         <Link
-                          href={`/scan/${f.scan_id}`}
-                          className="flex items-center gap-1 font-mono text-[11px] text-zinc-600 hover:text-primary transition-colors"
+                          href={`/scan/${finding.scan_id}`}
+                          className="group inline-flex items-center gap-1.5 font-mono text-[11px] text-cc-muted transition-colors hover:text-cc-text"
                         >
-                          {f.scan_id.slice(0, 8)}…
-                          <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100" />
+                          {finding.scan_id.slice(0, 8)}...
+                          <ChevronRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                         </Link>
                       </td>
-                      <td className="px-5 py-3.5 text-zinc-500 text-xs">
-                        {formatDateTime(f.created_at)}
+                      <td className="px-4 py-4 text-xs text-cc-muted">
+                        {formatSafeDateTime(finding.created_at)}
                       </td>
                     </tr>
                   ))}
                   {recentFindings.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-8 text-center text-zinc-600 text-sm">
-                        No findings yet.
-                      </td>
-                    </tr>
+                    <EmptyRow colSpan={5} message="No findings yet." />
                   )}
                 </tbody>
               </table>
             </div>
-          </div>
-        </section>
-
-        {/* ── Debug / Env Status ────────────────────────────────────────── */}
-        <section>
-          <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-400" />
-            System Configuration
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-white/10 bg-card/50 p-6">
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-4">
-                Services
-              </h3>
-              <EnvStatus label="Admin Emails (ADMIN_EMAILS)" configured={envStatus.adminEmails} />
-              
-              <div className="flex items-center justify-between py-2.5 border-b border-white/5">
-                <span className="text-sm text-zinc-400">Admin Mode Active</span>
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-400">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Yes
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2.5 border-b border-white/5">
-                <span className="text-sm text-zinc-400">Active Admin Email</span>
-                <span className="text-xs font-mono text-zinc-300 truncate max-w-[150px]">
-                  {user.email}
-                </span>
-              </div>
-              <EnvStatus label="Paddle Billing" configured={envStatus.paddle} />
-              <EnvStatus label="GitHub OAuth" configured={envStatus.github} />
-              <EnvStatus label="DeepSeek AI" configured={envStatus.deepseek} />
-              <EnvStatus label="Resend Email" configured={envStatus.resend} />
-              <EnvStatus label="Upstash Rate Limiting" configured={envStatus.upstash} />
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-card/50 p-6">
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-4">
-                Quick Stats
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between items-center py-2.5 border-b border-white/5">
-                  <span className="text-zinc-400">Conversion Rate</span>
-                  <span className="text-zinc-300 font-bold">
-                    {stats.totalUsers > 0
-                      ? `${((stats.paidUsers / stats.totalUsers) * 100).toFixed(1)}%`
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2.5 border-b border-white/5">
-                  <span className="text-zinc-400">Avg Findings/Scan</span>
-                  <span className="text-zinc-300 font-bold">
-                    {stats.totalScans > 0
-                      ? (stats.totalFindings / stats.totalScans).toFixed(1)
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2.5 border-b border-white/5">
-                  <span className="text-zinc-400">Scan Failure Rate</span>
-                  <span className="text-zinc-300 font-bold">
-                    {stats.totalScans > 0
-                      ? `${((stats.failedScans / stats.totalScans) * 100).toFixed(1)}%`
-                      : '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2.5">
-                  <span className="text-zinc-400">Free Users</span>
-                  <span className="text-zinc-300 font-bold">
-                    {(stats.totalUsers - stats.paidUsers).toLocaleString()}
-                  </span>
-                </div>
-              </div>
-              
-              <BackfillButton count={missingFixPrompts} />
-              <BackfillScoresButton />
-            </div>
-          </div>
+          </ResultSurface>
         </section>
       </AppPageContainer>
     </ServerDashboardLayout>
-  )
-}
-
-// ─── Client component: Plan selector ─────────────────────────────────────────
-// Extracted as a separate async server wrapper to keep page RSC.
-// The actual interactive element is in a separate client component file.
-
-function AdminPlanSelector({
-  userId,
-  currentPlan,
-}: {
-  userId: string
-  currentPlan: string
-}) {
-  return (
-    <form
-      action={`/api/admin/users/update-plan`}
-      method="POST"
-      className="flex items-center gap-2"
-    >
-      <input type="hidden" name="userId" value={userId} />
-      <select
-        name="plan"
-        defaultValue={currentPlan}
-        className="rounded-md bg-[#121214] border border-white/10 text-xs text-zinc-300 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/50"
-        aria-label="Select plan override"
-      >
-        <option value="free">free</option>
-        <option value="starter">starter</option>
-        <option value="builder">builder</option>
-        <option value="pro">pro</option>
-      </select>
-      <button
-        type="submit"
-        className="rounded-md bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider px-2 py-1 hover:bg-primary/20 transition-colors"
-      >
-        Set
-      </button>
-    </form>
   )
 }

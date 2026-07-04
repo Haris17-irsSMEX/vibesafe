@@ -9,6 +9,11 @@ export function BackfillScoresButton() {
   const router = useRouter()
 
   const handleBackfill = async () => {
+    const confirmed = window.confirm(
+      'Recalibrate scores for all stored scans? This updates historical score data and may take time.'
+    )
+    if (!confirmed) return
+
     setIsLoading(true)
     try {
       const res = await fetch('/api/admin/scans/backfill-scores', {
@@ -31,7 +36,7 @@ export function BackfillScoresButton() {
     <button
       onClick={handleBackfill}
       disabled={isLoading}
-      className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-orange-500/10 px-4 py-2 text-sm font-medium text-orange-400 border border-orange-500/20 hover:bg-orange-500/20 transition-colors"
+      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin" />

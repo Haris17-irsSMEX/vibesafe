@@ -1,61 +1,83 @@
-import { User, Mail, Calendar } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Calendar, GitBranch, Mail, ShieldCheck } from 'lucide-react'
+import { formatSafeDate } from '@/lib/date'
 import { GlowCard } from '@/components/ui/glow-card'
 
 interface AccountCardProps {
   email: string | null
-  createdAt: string
+  createdAt: string | null
+  planLabel: string
+  githubLogin: string | null
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-export function AccountCard({ email, createdAt }: AccountCardProps) {
+function DetailRow({
+  label,
+  value,
+  icon,
+  mono = false,
+}: {
+  label: string
+  value: string
+  icon: ReactNode
+  mono?: boolean
+}) {
   return (
-    <GlowCard className="p-0 overflow-hidden bg-card/50">
-      <div className="border-b border-white/5 bg-white/5 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <User className="h-5 w-5 text-primary" />
-          <h2 className="text-base font-semibold text-foreground">Account Details</h2>
-        </div>
+    <div className="flex items-start gap-4 rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cc-border bg-cc-surface text-cc-muted">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-cc-subtle">
+          {label}
+        </p>
+        <p className={`mt-1 text-sm font-medium text-cc-text ${mono ? 'truncate font-mono' : ''}`}>
+          {value}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+export function AccountCard({
+  email,
+  createdAt,
+  planLabel,
+  githubLogin,
+}: AccountCardProps) {
+  return (
+    <GlowCard className="overflow-hidden rounded-2xl border-cc-border bg-cc-surface">
+      <div className="border-b border-cc-border bg-cc-bg-secondary/80 px-6 py-5">
+        <h2 className="text-base font-semibold text-cc-text">Account details</h2>
+        <p className="mt-1 text-sm text-cc-muted">
+          Account identity and access metadata for your CtrlCode workspace.
+        </p>
       </div>
 
-      <div className="px-6 py-6 space-y-5">
-        <div className="flex items-center gap-4 bg-white/5 border border-white/5 rounded-xl p-4 transition-colors hover:bg-white/10">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/40 shadow-inner">
-            <Mail className="h-4 w-4 text-zinc-400" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-              Email Address
-            </p>
-            <p className="mt-1 text-sm font-medium text-zinc-200 truncate">
-              {email ?? 'No email on file'}
-            </p>
-          </div>
-        </div>
+      <div className="space-y-4 px-6 py-6">
+        <DetailRow
+          label="Email"
+          value={email ?? 'Not available'}
+          icon={<Mail className="h-4 w-4" />}
+          mono
+        />
+        <DetailRow
+          label="Member since"
+          value={formatSafeDate(createdAt, 'Not available')}
+          icon={<Calendar className="h-4 w-4" />}
+        />
+        <DetailRow
+          label="Current plan"
+          value={planLabel}
+          icon={<ShieldCheck className="h-4 w-4" />}
+        />
+        <DetailRow
+          label="GitHub account"
+          value={githubLogin ? `@${githubLogin}` : 'Not available'}
+          icon={<GitBranch className="h-4 w-4" />}
+        />
 
-        <div className="flex items-center gap-4 bg-white/5 border border-white/5 rounded-xl p-4 transition-colors hover:bg-white/10">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/40 shadow-inner">
-            <Calendar className="h-4 w-4 text-zinc-400" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-              Member Since
-            </p>
-            <p className="mt-1 text-sm font-medium text-zinc-200">{formatDate(createdAt)}</p>
-          </div>
-        </div>
-
-        <div className="mt-2 pt-5 border-t border-white/5">
-          <p className="text-xs text-muted-foreground flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary/50" />
-            Account email is synchronized from your GitHub integration.
-          </p>
+        <div className="rounded-xl border border-cc-border bg-cc-surface-raised px-4 py-3 text-xs leading-5 text-cc-muted">
+          Tokens and sensitive access credentials are never shown here. Repository access is managed through your authenticated session and GitHub connection.
         </div>
       </div>
     </GlowCard>

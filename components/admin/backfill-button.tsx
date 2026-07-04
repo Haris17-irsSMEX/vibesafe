@@ -32,7 +32,7 @@ export function BackfillButton({ count }: { count: number }) {
     return (
       <button
         disabled
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-zinc-500 border border-white/10"
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cc-border bg-cc-bg-secondary px-4 py-3 text-sm font-medium text-cc-subtle"
       >
         <Sparkles className="h-4 w-4" />
         All fix prompts are up to date
@@ -44,12 +44,12 @@ export function BackfillButton({ count }: { count: number }) {
     <button
       onClick={handleBackfill}
       disabled={isLoading}
-      className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-cc-border-strong bg-cc-surface-raised px-4 py-3 text-sm font-medium text-cc-text transition-colors hover:bg-cc-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <Sparkles className="h-4 w-4" />
+        <Sparkles className="h-4 w-4 text-violet-300" />
       )}
       {isLoading ? 'Generating prompts...' : `Backfill ${count} missing fix prompt${count === 1 ? '' : 's'}`}
     </button>
