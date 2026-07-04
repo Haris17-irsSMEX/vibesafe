@@ -1,124 +1,197 @@
-import { createClient } from '@/lib/supabase/server';
-import { PublicLayout } from '@/components/layout/public-layout';
-import Link from 'next/link';
-import { CheckCircle2, ShieldCheck, ArrowLeft, Lock } from 'lucide-react';
-import { CheckoutClient } from './CheckoutClient';
+import Link from "next/link";
+import {
+  ArrowLeft,
+  Check,
+  Lock,
+  ShieldCheck,
+} from "lucide-react";
+import { PublicLayout } from "@/components/layout/public-layout";
+import { createClient } from "@/lib/supabase/server";
+import { getPricingPlan, isPurchasablePlan } from "@/lib/pricing";
+import { CheckoutClient } from "./CheckoutClient";
 
-export default async function CheckoutPage({ searchParams }: { searchParams: { plan?: string } }) {
-  const plan = searchParams.plan;
-  const isValidPlan = plan === 'starter' || plan === 'builder';
+function CheckoutShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative min-h-[72vh] overflow-hidden bg-cc-bg px-5 py-16 sm:px-6 sm:py-24">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.065),transparent_65%)]"
+      />
+      <div className="relative mx-auto max-w-xl">{children}</div>
+    </div>
+  );
+}
 
-  // Fallback for missing/invalid plan
-  if (!isValidPlan) {
+export default async function CheckoutPage({
+  searchParams,
+}: {
+  searchParams: { plan?: string };
+}) {
+  const requestedPlan = searchParams.plan;
+
+  if (!isPurchasablePlan(requestedPlan)) {
     return (
       <PublicLayout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center bg-slate-50 px-6 py-24">
-          <ShieldCheck className="h-16 w-16 text-slate-300 mb-6" />
-          <h1 className="text-2xl font-bold text-slate-900 text-center">Invalid Plan Selected</h1>
-          <p className="mt-2 text-slate-600 text-center">We couldn&apos;t find the plan you were looking for.</p>
-          <Link
-            href="/pricing"
-            className="mt-8 inline-flex items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
-          >
-            View Pricing Plans
-          </Link>
-        </div>
+        <CheckoutShell>
+          <div className="rounded-2xl border border-cc-border-strong bg-cc-surface p-7 text-center sm:p-10">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-cc-border bg-cc-surface-raised text-cc-muted">
+              <ShieldCheck className="h-5 w-5" />
+            </span>
+            <h1 className="mt-6 text-2xl font-semibold tracking-[-0.03em] text-cc-text">
+              Select a valid plan
+            </h1>
+            <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-cc-muted">
+              Choose Starter or Builder from the pricing page to continue.
+            </p>
+            <Link
+              href="/pricing"
+              className="mt-7 inline-flex h-11 items-center justify-center rounded-lg bg-cc-text px-6 text-sm font-semibold text-cc-bg transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              View pricing
+            </Link>
+          </div>
+        </CheckoutShell>
       </PublicLayout>
     );
   }
 
-  // Auth check
+  const selectedPlan = getPricingPlan(requestedPlan);
   const supabase = createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
 
   if (error || !user) {
     return (
       <PublicLayout>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center bg-slate-50 px-6 py-24">
-          <Lock className="h-16 w-16 text-indigo-200 mb-6" />
-          <h1 className="text-2xl font-bold text-slate-900 text-center">Sign in to continue your upgrade</h1>
-          <p className="mt-2 text-slate-600 text-center">You need a CtrlCode account to checkout securely.</p>
-          <Link
-            href="/login"
-            className="mt-8 inline-flex items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 shadow-md"
-          >
-            Sign in
-          </Link>
-        </div>
+        <CheckoutShell>
+          <div className="overflow-hidden rounded-2xl border border-cc-border-strong bg-cc-surface">
+            <div className="border-b border-cc-border p-7 text-center sm:p-9">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-cc-border bg-cc-surface-raised text-cc-muted">
+                <Lock className="h-5 w-5" />
+              </span>
+              <h1 className="mt-6 text-2xl font-semibold tracking-[-0.03em] text-cc-text">
+                Sign in to continue
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-cc-muted">
+                A CtrlCode account is required before starting secure Paddle checkout.
+              </p>
+            </div>
+            <div className="bg-cc-secondary p-6 sm:p-7">
+              <div className="flex items-center justify-between gap-5">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cc-subtle">
+                    Selected plan
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-cc-text">
+                    {selectedPlan.label}
+                  </p>
+                  <p className="mt-1 text-xs text-cc-muted">
+                    {selectedPlan.scanAllowanceLabel}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-semibold tracking-[-0.04em] text-cc-text">
+                    {selectedPlan.displayPriceMonthly}
+                  </p>
+                  <p className="text-xs text-cc-subtle">
+                    {selectedPlan.displayPriceSuffix}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/login"
+                className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-lg bg-cc-text px-6 text-sm font-semibold text-cc-bg transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                Sign in
+              </Link>
+            </div>
+          </div>
+        </CheckoutShell>
       </PublicLayout>
     );
   }
 
-  const planName = plan === 'starter' ? 'Starter' : 'Builder';
-  const planPrice = plan === 'starter' ? '$29 / month' : '$99 / month';
-  const planFeatures = plan === 'starter' 
-    ? [
-        'Full finding explanations',
-        'Suggested fixes & vulnerable code snippets',
-        'Copy-paste fix prompts for Cursor/Claude',
-        'Higher scan limits'
-      ]
-    : [
-        'Highest scan limits',
-        'More serious project usage',
-        'Priority scan capacity',
-        'Team-ready workflow'
-      ];
-
   return (
     <PublicLayout>
-      <div className="min-h-screen bg-slate-50 py-12 md:py-24 px-6">
-        <div className="mx-auto max-w-lg">
-          <Link href="/settings" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors mb-8">
-            <ArrowLeft className="h-4 w-4" />
-            Back to settings
-          </Link>
+      <CheckoutShell>
+        <Link
+          href="/settings"
+          className="mb-7 inline-flex items-center gap-2 text-sm font-medium text-cc-muted transition-colors hover:text-cc-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to settings
+        </Link>
 
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
-              Complete your CtrlCode upgrade
-            </h1>
-            <p className="mt-2 text-slate-600">
-              You are upgrading to the {planName} plan.
-            </p>
+        <div className="mb-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cc-subtle">
+            Secure upgrade
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-cc-text">
+            Complete your CtrlCode upgrade
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-cc-muted">
+            Confirm the {selectedPlan.label} plan before continuing to Paddle.
+          </p>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-cc-border-strong bg-cc-surface shadow-[0_24px_70px_rgba(0,0,0,0.25)]">
+          <div className="flex items-start justify-between gap-5 border-b border-cc-border bg-cc-secondary p-6 sm:p-7">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cc-subtle">
+                Selected plan
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-cc-text">
+                {selectedPlan.label}
+              </h2>
+              <p className="mt-1 text-xs text-cc-muted">
+                {selectedPlan.scanAllowanceLabel}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-3xl font-semibold tracking-[-0.05em] text-cc-text">
+                {selectedPlan.displayPriceMonthly}
+              </span>
+              <p className="mt-1 text-xs text-cc-subtle">
+                {selectedPlan.displayPriceSuffix}
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-xl p-8">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-6 mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">{planName} Plan</h2>
-                <p className="text-sm text-slate-500 mt-1">Billed securely via Paddle</p>
-              </div>
-              <div className="text-right">
-                <span className="text-2xl font-extrabold text-slate-900">{planPrice.split(' ')[0]}</span>
-                <span className="text-sm text-slate-500"> {planPrice.split(' ').slice(1).join(' ')}</span>
-              </div>
-            </div>
+          <div className="p-6 sm:p-7">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cc-subtle">
+              Included
+            </p>
+            <ul className="mt-5 space-y-3">
+              {selectedPlan.features.map((feature) => (
+                <li key={feature} className="flex items-start gap-3 text-sm leading-6 text-cc-muted">
+                  <Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
 
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4 uppercase tracking-wide">Benefits unlocked</h3>
-              <ul className="space-y-3">
-                {planFeatures.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-3 text-sm text-slate-600">
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-lg bg-slate-50 border border-slate-100 p-4 mb-2 flex items-start gap-3">
-              <Lock className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Payments are securely processed by Paddle, our merchant of record. 
-                By continuing, you agree to our <Link href="/terms" className="text-indigo-600 hover:underline">Terms</Link> and <Link href="/privacy" className="text-indigo-600 hover:underline">Privacy Policy</Link>.
+            <div className="mt-7 flex items-start gap-3 rounded-xl border border-cc-border bg-cc-secondary p-4">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-cc-muted" />
+              <p className="text-xs leading-5 text-cc-muted">
+                Payments are securely processed by Paddle, our merchant of record. By
+                continuing, you agree to our{" "}
+                <Link href="/terms" className="text-cc-text underline-offset-4 hover:underline">
+                  Terms
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-cc-text underline-offset-4 hover:underline">
+                  Privacy Policy
+                </Link>
+                .
               </p>
             </div>
 
-            <CheckoutClient plan={plan} />
+            <CheckoutClient plan={requestedPlan} />
           </div>
         </div>
-      </div>
+      </CheckoutShell>
     </PublicLayout>
   );
 }

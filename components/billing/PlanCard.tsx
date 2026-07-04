@@ -15,13 +15,11 @@ import { useRouter } from 'next/navigation'
 import type { UserPlan } from '@/lib/db/users'
 import { formatSafeDate } from '@/lib/date'
 import { getPlanLabel } from '@/lib/plan-label'
-import { getAiScanAllowanceLabel } from '@/lib/plan-limits'
+import { getPricingPlan } from '@/lib/pricing'
 import { GlowCard } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
 
 type PlanDetails = {
-  description: string
-  features: string[]
   icon: ElementType
   badgeClassName: string
   iconClassName: string
@@ -29,37 +27,16 @@ type PlanDetails = {
 
 const PLAN_DETAILS: Record<UserPlan, PlanDetails> = {
   free: {
-    description: 'Basic review visibility for trying CtrlCode with your GitHub repositories.',
-    features: [
-      '2 AI security reviews / day',
-      'Security score and severity counts',
-      'Finding names, categories, file paths, and CWE IDs',
-      'Scan history for connected repositories',
-    ],
     icon: ShieldCheck,
     badgeClassName: 'border-white/10 bg-white/5 text-cc-muted',
     iconClassName: 'border-white/10 bg-cc-bg-secondary text-cc-muted',
   },
   starter: {
-    description: 'Full finding detail and remediation guidance for active repositories.',
-    features: [
-      '20 AI security reviews / day',
-      'Full issue descriptions and why-it-matters context',
-      'Vulnerable code evidence and remediation guidance',
-      'Copy-ready fix prompts for Cursor and Codex',
-    ],
     icon: Zap,
     badgeClassName: 'border-white/15 bg-white/8 text-cc-text',
     iconClassName: 'border-white/12 bg-white/6 text-cc-text',
   },
   builder: {
-    description: 'Expanded daily review capacity for heavier repository coverage.',
-    features: [
-      '100 AI security reviews / day',
-      'Everything in Starter',
-      'Best fit for multiple active repositories',
-      'Higher daily allowance for repeated review cycles',
-    ],
     icon: Crown,
     badgeClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
     iconClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
@@ -99,8 +76,9 @@ export function PlanCard({
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const planInfo = PLAN_DETAILS[currentPlan]
-  const PlanIcon = planInfo.icon
+  const planVisual = PLAN_DETAILS[currentPlan]
+  const planInfo = getPricingPlan(currentPlan)
+  const PlanIcon = planVisual.icon
   const isPaid = currentPlan !== 'free'
 
   const handleUpgrade = (plan: 'starter' | 'builder') => {
@@ -142,7 +120,7 @@ export function PlanCard({
             <span
               className={cn(
                 'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border',
-                planInfo.iconClassName
+                planVisual.iconClassName
               )}
             >
               <PlanIcon className="h-5 w-5" />
@@ -155,7 +133,7 @@ export function PlanCard({
                 {getPlanLabel(currentPlan)}
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-cc-muted">
-                {planInfo.description}
+                {planInfo.shortDescription}
               </p>
             </div>
           </div>
@@ -163,13 +141,13 @@ export function PlanCard({
             <span
               className={cn(
                 'inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]',
-                planInfo.badgeClassName
+                planVisual.badgeClassName
               )}
             >
               {getPlanLabel(currentPlan)}
             </span>
             <span className="inline-flex items-center rounded-full border border-cc-border bg-cc-surface px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-cc-muted">
-              {getAiScanAllowanceLabel(currentPlan)}
+              {planInfo.scanAllowanceLabel}
             </span>
             {isPaid && paddleCustomerId && (
               <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-400">
@@ -185,7 +163,7 @@ export function PlanCard({
               Plan allowance
             </p>
             <p className="mt-2 text-sm font-medium text-cc-text">
-              {getAiScanAllowanceLabel(currentPlan)}
+              {planInfo.scanAllowanceLabel}
             </p>
           </div>
           <div className="rounded-xl border border-cc-border bg-cc-surface px-4 py-4">

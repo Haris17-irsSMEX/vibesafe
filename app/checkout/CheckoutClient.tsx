@@ -36,18 +36,22 @@ export function CheckoutClient({ plan }: { plan: 'starter' | 'builder' }) {
   return (
     <div className="mt-8">
       {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300"
+        >
           {error}
         </div>
       )}
 
       <button
+        type="button"
         onClick={handleCheckout}
         disabled={loading}
-        className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-8 text-base font-semibold text-white transition-all hover:bg-indigo-700 disabled:opacity-70 shadow-md"
+        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-cc-text px-8 text-sm font-semibold text-cc-bg transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-5 w-5" />}
-        {loading ? 'Preparing secure checkout...' : 'Continue to secure payment'}
+        {loading ? 'Preparing secure checkout…' : 'Continue to secure payment'}
       </button>
     </div>
   );
