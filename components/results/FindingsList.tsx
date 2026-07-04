@@ -1,151 +1,179 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { FileCode, AlertCircle, ChevronRight, Hash } from 'lucide-react'
-import type { ScanResultRecord, FreeScanResultRecord, GatedScanResultRecord } from '@/lib/db/scan-results'
-import { isPaidResult } from '@/lib/db/scan-results'
-import { SeverityBadge, type SeverityLevel } from './SeverityBadge'
-import { LockedFindingCard } from './LockedFindingCard'
-import { UpgradeCTA } from './UpgradeCTA'
-import { GlowCard } from '@/components/ui/glow-card'
-import { CopyFixPromptButton } from './copy-fix-prompt-button'
+import Link from "next/link";
+import {
+  ArrowRight,
+  CheckCircle2,
+  FileCode,
+  Hash,
+  ShieldCheck,
+} from "lucide-react";
+import type {
+  ScanResultRecord,
+  FreeScanResultRecord,
+  GatedScanResultRecord,
+} from "@/lib/db/scan-results";
+import { SeverityBadge, type SeverityLevel } from "./SeverityBadge";
+import { LockedFindingCard } from "./LockedFindingCard";
+import { UpgradeCTA } from "./UpgradeCTA";
+import { CopyFixPromptButton } from "./copy-fix-prompt-button";
+import { MetadataChip } from "./result-ui";
+import { cn } from "@/lib/utils";
 
 interface FindingsListProps {
-  findings: GatedScanResultRecord[]
-  scanId: string
-  isPaid: boolean
+  findings: GatedScanResultRecord[];
+  scanId: string;
+  isPaid: boolean;
 }
 
-const SEVERITY_ORDER: Record<SeverityLevel, number> = {
+const severityOrder: Record<SeverityLevel, number> = {
   CRITICAL: 0,
   HIGH: 1,
   MEDIUM: 2,
   LOW: 3,
+};
+
+const severityRail: Record<SeverityLevel, string> = {
+  CRITICAL: "bg-red-500",
+  HIGH: "bg-orange-500",
+  MEDIUM: "bg-amber-500",
+  LOW: "bg-blue-500",
+};
+
+function isFullFinding(
+  finding: GatedScanResultRecord
+): finding is ScanResultRecord {
+  return "description" in finding;
 }
 
 function PaidFindingCard({
   finding,
   scanId,
 }: {
-  finding: ScanResultRecord
-  scanId: string
+  finding: ScanResultRecord;
+  scanId: string;
 }) {
+  const severity = finding.severity.toUpperCase() as SeverityLevel;
+
   return (
-    <Link
-      key={finding.id}
-      href={`/results/${scanId}/${finding.id}`}
-      className="group block transition-all"
-      aria-label={`View finding: ${finding.check_name}`}
-    >
-      <GlowCard className="p-5 hover:border-primary/50 hover:shadow-[0_0_20px_-5px_rgba(124,58,237,0.3)] transition-all bg-card/50">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-5">
-          <div className="flex-1 space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <SeverityBadge severity={finding.severity as SeverityLevel} />
-              <span className="inline-flex items-center rounded-md bg-white/5 border border-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                {finding.category}
-              </span>
+    <article className="relative overflow-hidden rounded-2xl border border-cc-border bg-cc-surface transition-colors hover:border-cc-border-strong hover:bg-cc-surface-raised">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "absolute inset-y-0 left-0 w-1",
+          severityRail[severity] ?? severityRail.LOW
+        )}
+      />
+      <div className="p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <SeverityBadge severity={severity} />
+              <MetadataChip>{finding.category}</MetadataChip>
               {finding.cwe_id && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-400">
-                  <Hash className="h-3 w-3" />
+                <MetadataChip icon={<Hash className="h-3 w-3" />}>
                   {finding.cwe_id}
-                </span>
+                </MetadataChip>
+              )}
+              {finding.confidence && (
+                <MetadataChip>
+                  {finding.confidence} confidence
+                </MetadataChip>
               )}
             </div>
 
-            <div>
-              <h4 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
-                {finding.check_name}
-              </h4>
-              <p className="mt-1.5 line-clamp-2 text-sm text-muted-foreground leading-relaxed">
-                {finding.description}
-              </p>
-            </div>
+            <h3 className="mt-4 text-base font-semibold text-cc-text">
+              {finding.check_name}
+            </h3>
+            <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-cc-muted">
+              {finding.description || "Description not available."}
+            </p>
 
-            <div className="flex items-center gap-2 text-sm">
-              <FileCode className="h-4 w-4 shrink-0 text-zinc-500" />
-              <span className="truncate font-mono text-xs text-zinc-400">{finding.file_path}</span>
+            <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">
+              <MetadataChip
+                mono
+                icon={<FileCode className="h-3.5 w-3.5 shrink-0" />}
+                className="max-w-full"
+              >
+                {finding.file_path || "File unavailable"}
+              </MetadataChip>
               {finding.line_number && (
-                <span className="font-mono text-xs text-zinc-500">
-                  :{finding.line_number}
-                </span>
+                <MetadataChip mono>Line {finding.line_number}</MetadataChip>
               )}
             </div>
           </div>
 
-          <div className="flex items-center shrink-0 sm:self-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
             {finding.fix_prompt && (
-              <div className="hidden sm:flex items-center gap-3">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                  Fix prompt ready
-                </span>
-                <div 
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                  }}
-                >
-                  <CopyFixPromptButton promptText={finding.fix_prompt} />
-                </div>
-              </div>
+              <CopyFixPromptButton promptText={finding.fix_prompt} />
             )}
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-zinc-500 transition-all group-hover:bg-primary group-hover:border-primary group-hover:text-white group-hover:shadow-[0_0_15px_rgba(124,58,237,0.5)]">
-              <ChevronRight className="h-5 w-5" />
-            </div>
+            <Link
+              href={`/results/${scanId}/${finding.id}`}
+              aria-label={`View details for ${finding.check_name}`}
+              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-cc-border-strong bg-cc-surface-raised px-3 text-sm font-medium text-cc-text outline-none transition-colors hover:bg-cc-surface-hover focus-visible:ring-2 focus-visible:ring-white/20"
+            >
+              View details
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
-      </GlowCard>
-    </Link>
-  )
+      </div>
+    </article>
+  );
 }
 
-export function FindingsList({ findings, scanId, isPaid }: FindingsListProps) {
-  // Sort findings by severity
+export function FindingsList({
+  findings,
+  scanId,
+  isPaid,
+}: FindingsListProps) {
   const sortedFindings = [...findings].sort((a, b) => {
-    const aOrder = SEVERITY_ORDER[a.severity as SeverityLevel] ?? 99
-    const bOrder = SEVERITY_ORDER[b.severity as SeverityLevel] ?? 99
-    return aOrder - bOrder
-  })
+    const aSeverity = a.severity.toUpperCase() as SeverityLevel;
+    const bSeverity = b.severity.toUpperCase() as SeverityLevel;
+    return (
+      (severityOrder[aSeverity] ?? 99) - (severityOrder[bSeverity] ?? 99)
+    );
+  });
 
   if (findings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-white/10 bg-card/30 py-20 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20 shadow-inner relative mb-6">
-          <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl animate-pulse" />
-          <AlertCircle className="h-10 w-10 text-emerald-500 relative z-10" />
-        </div>
-        <h3 className="text-xl font-bold text-foreground">No issues found in this scan.</h3>
-        <p className="mt-3 text-sm text-muted-foreground max-w-md">
-          DeepSeek security analysis did not identify any critical, high, medium, or low severity issues. Your codebase is clean!
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.04] px-6 py-14 text-center">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+          <ShieldCheck className="h-5 w-5" />
+        </span>
+        <h3 className="mt-5 text-lg font-semibold text-cc-text">
+          No findings recorded
+        </h3>
+        <p className="mt-2 max-w-md text-sm leading-6 text-cc-muted">
+          This scan did not record critical, high, medium, or low-severity
+          findings.
         </p>
+        <span className="mt-4 inline-flex items-center gap-1.5 text-xs text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Review complete
+        </span>
       </div>
-    )
+    );
   }
 
   return (
     <div className="space-y-4">
-      {/* Upgrade CTA banner for free users — shown once at the top */}
-      {!isPaid && (
-        <UpgradeCTA
-          context="overview"
-          className="mb-8"
-        />
-      )}
+      {!isPaid && <UpgradeCTA context="overview" className="mb-7" />}
 
-      {sortedFindings.map((finding) => {
-        if (isPaid && isPaidResult(finding)) {
-          return (
-            <PaidFindingCard key={finding.id} finding={finding} scanId={scanId} />
-          )
-        }
-        // Free user: show locked card (FreeScanResultRecord)
-        return (
+      {sortedFindings.map((finding) =>
+        isPaid && isFullFinding(finding) ? (
+          <PaidFindingCard
+            key={finding.id}
+            finding={finding}
+            scanId={scanId}
+          />
+        ) : (
           <LockedFindingCard
             key={finding.id}
             finding={finding as FreeScanResultRecord}
           />
         )
-      })}
+      )}
     </div>
-  )
+  );
 }

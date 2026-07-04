@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Lock, Sparkles, Zap, ArrowRight, Loader2 } from 'lucide-react'
-import { GlowCard } from '@/components/ui/glow-card'
+import { Lock, ShieldCheck, Zap, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface UpgradeCTAProps {
@@ -43,53 +42,40 @@ export function UpgradeCTA({ context = 'overview', className = '' }: UpgradeCTAP
   }
 
   return (
-    <GlowCard
-      glowColor="rgba(124, 58, 237, 0.15)"
-      className={cn("relative overflow-hidden p-8 border-primary/20 bg-primary/5", className)}
+    <section
+      className={cn("relative overflow-hidden rounded-2xl border border-cc-border-strong bg-cc-surface p-6 sm:p-7", className)}
       role="region"
       aria-label="Upgrade to unlock full results"
     >
-      {/* Decorative blurred glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-primary/20 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-violet-500/20 blur-3xl"
-      />
-
-      {/* Header */}
-      <div className="relative flex flex-col md:flex-row md:items-start gap-8">
+      <div className="relative flex flex-col gap-7 md:flex-row md:items-start">
         <div className="flex-1">
           <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/20 border border-primary/30 shadow-inner">
-              <Lock className="h-6 w-6 text-primary" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cc-border-strong bg-cc-surface-raised text-cc-muted">
+              <Lock className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-foreground">
+              <h3 className="text-lg font-semibold text-cc-text">
                 {context === 'detail'
                   ? 'Full analysis locked on Free plan'
-                  : 'Unlock the full power of AI Security Analysis'}
+                  : 'Unlock the complete security analysis'}
               </h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              <p className="mt-2 text-sm leading-6 text-cc-muted">
                 {context === 'detail'
-                  ? 'Upgrade to unlock detailed vulnerability descriptions, code snippets, and copy-paste fixes for your IDE.'
-                  : 'Free tier limits findings to basic metadata. Upgrade to get complete descriptions, vulnerable code snippets, and AI fix prompts for every finding.'}
+                  ? 'Unlock vulnerable code, detailed remediation guidance, and an agent-ready fix prompt.'
+                  : 'Free results include safe finding metadata. Upgrade for full explanations, evidence, remediation guidance, and AI fix prompts.'}
               </p>
             </div>
           </div>
 
-          {/* Feature list */}
-          <ul className="relative mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ul className="relative mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[
               'Full issue description & why it matters',
-              'Vulnerable code snippet highlighted',
-              'AI-generated fix code (copy-paste ready)',
-              'Cursor / Claude / IDE fix prompt',
+              'Vulnerable code and evidence',
+              'Detailed remediation guidance',
+              'Cursor / Codex fix prompt',
             ].map((item) => (
-              <li key={item} className="flex items-center gap-2.5 text-sm text-zinc-300">
-                <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <li key={item} className="flex items-center gap-2.5 text-sm text-cc-muted">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-400" />
                 {item}
               </li>
             ))}
@@ -106,13 +92,12 @@ export function UpgradeCTA({ context = 'overview', className = '' }: UpgradeCTAP
           )}
         </div>
 
-        {/* CTA Buttons */}
-        <div className="relative flex flex-col gap-3 shrink-0 md:w-64">
+        <div className="relative flex shrink-0 flex-col gap-3 md:w-64">
           <button
             id="upgrade-starter-btn"
             onClick={() => handleUpgrade('starter')}
             disabled={loadingPlan !== null}
-            className="flex items-center justify-between w-full rounded-xl border border-primary/50 bg-primary/10 px-5 py-3.5 text-sm font-semibold text-primary shadow-sm transition-all hover:bg-primary hover:text-white disabled:pointer-events-none disabled:opacity-50 group"
+            className="group flex min-h-11 w-full items-center justify-between rounded-lg border border-cc-border-strong bg-cc-surface-raised px-4 text-sm font-semibold text-cc-text outline-none transition-colors hover:bg-cc-surface-hover focus-visible:ring-2 focus-visible:ring-white/20 disabled:pointer-events-none disabled:opacity-50"
             aria-label="Upgrade to Starter plan"
           >
             <div className="flex items-center gap-2.5">
@@ -130,14 +115,14 @@ export function UpgradeCTA({ context = 'overview', className = '' }: UpgradeCTAP
             id="upgrade-builder-btn"
             onClick={() => handleUpgrade('builder')}
             disabled={loadingPlan !== null}
-            className="flex items-center justify-between w-full rounded-xl border border-transparent bg-primary px-5 py-3.5 text-sm font-semibold text-primary-foreground shadow-[0_0_20px_-5px_rgba(124,58,237,0.5)] transition-all hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-50 group"
+            className="group flex min-h-11 w-full items-center justify-between rounded-lg border border-transparent bg-cc-text px-4 text-sm font-semibold text-cc-bg outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30 disabled:pointer-events-none disabled:opacity-50"
             aria-label="Upgrade to Builder plan"
           >
             <div className="flex items-center gap-2.5">
               {loadingPlan === 'builder' ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <ShieldCheck className="h-4 w-4" />
               )}
               Builder Plan
             </div>
@@ -145,6 +130,6 @@ export function UpgradeCTA({ context = 'overview', className = '' }: UpgradeCTAP
           </button>
         </div>
       </div>
-    </GlowCard>
+    </section>
   )
 }

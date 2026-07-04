@@ -26,10 +26,10 @@ export function CopyFixPromptButton({ promptText, className }: CopyFixPromptButt
     <button
       onClick={handleCopy}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all shadow-sm active:scale-95",
+        "inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/20",
         copied 
           ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-          : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-[0_0_10px_-3px_rgba(124,58,237,0.3)]",
+          : "border-cc-border-strong bg-cc-text text-cc-bg hover:bg-white",
         className
       )}
       aria-label="Copy Fix Prompt"

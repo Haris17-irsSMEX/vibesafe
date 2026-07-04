@@ -36,10 +36,10 @@ export function CopyReportButton({ markdown }: CopyReportButtonProps) {
       id="copy-security-report-btn"
       onClick={handleCopy}
       className={`
-        inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border transition-all duration-200
+        inline-flex min-h-10 items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold border transition-colors
         ${copied
-          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_12px_-2px_rgba(16,185,129,0.3)]'
-          : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10 hover:border-white/20 hover:text-white'
+          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+          : 'bg-cc-surface-raised border-cc-border-strong text-cc-text hover:bg-cc-surface-hover'
         }
       `}
       aria-label="Copy security report as markdown"
