@@ -39,14 +39,14 @@ import { RepoListSkeleton, Skeleton } from '@/components/ui/skeletons'
 
 function ConnectSkeleton() {
   return (
-    <div className="max-w-5xl animate-pulse">
+    <div className="mx-auto w-full max-w-7xl animate-pulse">
       <div className="mb-8">
         <Skeleton className="h-8 w-64" />
-        <Skeleton className="mt-2 h-4 w-96" />
+        <Skeleton className="mt-2 h-4 w-full max-w-md" />
       </div>
-      <div className="rounded-xl border border-white/5 bg-card p-6 shadow-sm">
+      <div className="rounded-2xl border border-cc-border bg-cc-surface p-6">
         <div className="flex items-center gap-4">
-          <Skeleton className="h-16 w-16 rounded-full" />
+          <Skeleton className="h-12 w-12 rounded-xl" />
           <div className="space-y-2">
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-64" />
@@ -58,10 +58,15 @@ function ConnectSkeleton() {
           ))}
         </div>
       </div>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-xl" />
+        ))}
+      </div>
       <div className="mt-8">
-        <div className="mb-6 flex justify-between">
+        <div className="mb-4 flex justify-between">
           <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-9 w-64" />
+          <Skeleton className="hidden h-10 w-64 sm:block" />
         </div>
         <RepoListSkeleton />
       </div>
