@@ -53,7 +53,9 @@ export default function PricingPage() {
               <div className="border-b border-cc-border p-6 sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold text-cc-text">{plan.label}</h2>
+                    <h2 className="text-xl font-semibold text-cc-text">
+                      CtrlCode {plan.label}
+                    </h2>
                     <p className="mt-2 min-h-12 text-sm leading-6 text-cc-muted">
                       {plan.shortDescription}
                     </p>
@@ -71,6 +73,9 @@ export default function PricingPage() {
                     {plan.displayPriceSuffix}
                   </span>
                 </div>
+                <p className="mt-3 text-xs text-cc-subtle">
+                  Taxes may apply and will be calculated at checkout.
+                </p>
 
                 <div className="mt-6 rounded-xl border border-cc-border bg-cc-bg-secondary p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cc-subtle">
@@ -121,8 +126,9 @@ export default function PricingPage() {
         <div className="mx-auto mt-8 max-w-4xl rounded-xl border border-cc-border bg-cc-secondary px-5 py-4 text-center">
           <p className="text-xs leading-5 text-cc-subtle">
             Paid checkout is securely processed by Paddle. Review capacity is enforced
-            according to your active plan; CtrlCode does not guarantee that a repository
-            is free from security issues.
+            according to your active plan. Taxes may apply and will be calculated at
+            checkout. CtrlCode does not guarantee that a repository is free from security
+            issues.
           </p>
         </div>
       </section>

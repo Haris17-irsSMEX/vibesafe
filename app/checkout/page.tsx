@@ -85,7 +85,7 @@ export default async function CheckoutPage({
                     Selected plan
                   </p>
                   <p className="mt-2 text-lg font-semibold text-cc-text">
-                    {selectedPlan.label}
+                    CtrlCode {selectedPlan.label}
                   </p>
                   <p className="mt-1 text-xs text-cc-muted">
                     {selectedPlan.scanAllowanceLabel}
@@ -100,6 +100,9 @@ export default async function CheckoutPage({
                   </p>
                 </div>
               </div>
+              <p className="mt-4 text-xs leading-5 text-cc-subtle">
+                Taxes may apply and will be calculated at checkout.
+              </p>
               <Link
                 href="/login"
                 className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-lg bg-cc-text px-6 text-sm font-semibold text-cc-bg transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
@@ -143,7 +146,7 @@ export default async function CheckoutPage({
                 Selected plan
               </p>
               <h2 className="mt-2 text-xl font-semibold text-cc-text">
-                {selectedPlan.label}
+                CtrlCode {selectedPlan.label}
               </h2>
               <p className="mt-1 text-xs text-cc-muted">
                 {selectedPlan.scanAllowanceLabel}
@@ -155,6 +158,9 @@ export default async function CheckoutPage({
               </span>
               <p className="mt-1 text-xs text-cc-subtle">
                 {selectedPlan.displayPriceSuffix}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-cc-subtle">
+                Taxes may apply and will be calculated at checkout.
               </p>
             </div>
           </div>
@@ -184,7 +190,7 @@ export default async function CheckoutPage({
                 <Link href="/privacy" className="text-cc-text underline-offset-4 hover:underline">
                   Privacy Policy
                 </Link>
-                .
+                . Taxes may apply and will be calculated at checkout.
               </p>
             </div>
 
