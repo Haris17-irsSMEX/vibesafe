@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import {
   AlertTriangle,
   CheckCircle,
+  Clock,
   Settings,
   ShieldCheck,
 } from 'lucide-react'
@@ -28,7 +29,13 @@ import {
 import { getPlanLabel } from '@/lib/plan-label'
 
 interface SettingsPageProps {
-  searchParams: { upgraded?: string; error?: string }
+  searchParams: {
+    _ptxn?: string
+    checkout?: string
+    error?: string
+    payment?: string
+    upgraded?: string
+  }
 }
 
 export default async function SettingsPage({
@@ -58,7 +65,15 @@ export default async function SettingsPage({
 
   const plan = profile?.plan ?? 'free'
   const planLabel = getPlanLabel(plan)
-  const justUpgraded = searchParams.upgraded === '1'
+  const isPaidPlan = plan === 'starter' || plan === 'builder'
+  const hasCheckoutSignal =
+    searchParams.checkout === 'success' ||
+    searchParams.payment === 'success' ||
+    searchParams.payment === 'pending' ||
+    searchParams.upgraded === '1' ||
+    Boolean(searchParams._ptxn)
+  const showUpgradeSuccess = hasCheckoutSignal && isPaidPlan
+  const showPaymentPending = hasCheckoutSignal && !isPaidPlan
 
   return (
     <ServerDashboardLayout>
@@ -69,7 +84,7 @@ export default async function SettingsPage({
           icon={<Settings className="h-5 w-5" />}
         />
 
-        {justUpgraded && (
+        {showUpgradeSuccess && (
           <div
             role="status"
             className="flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-5 py-4"
@@ -81,6 +96,24 @@ export default async function SettingsPage({
               </p>
               <p className="mt-1 text-sm text-emerald-300/90">
                 Your new plan benefits are now active for future reviews and premium findings.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {showPaymentPending && (
+          <div
+            role="status"
+            className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4"
+          >
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+            <div>
+              <p className="text-sm font-semibold text-amber-300">
+                Payment received. Verifying plan update.
+              </p>
+              <p className="mt-1 text-sm text-amber-100/80">
+                Your plan is still showing as {planLabel}. Paddle webhook processing will
+                activate paid access after payment confirmation.
               </p>
             </div>
           </div>

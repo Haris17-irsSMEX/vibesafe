@@ -2,7 +2,7 @@
  * app/api/billing/checkout/route.ts
  *
  * Server-side Paddle checkout session creator.
- * Creates a Paddle checkout for the authenticated user.
+ * Creates a Paddle transaction for the authenticated user.
  * Validates plan, verifies session, then returns checkout URL.
  *
  * POST /api/billing/checkout
@@ -15,6 +15,13 @@ import { createClient } from '@/lib/supabase/server'
 const PADDLE_PRICE_IDS: Record<string, string> = {
   starter: process.env.PADDLE_STARTER_PRICE_ID ?? '',
   builder: process.env.PADDLE_BUILDER_PRICE_ID ?? '',
+}
+
+function getAppUrl() {
+  return (process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(
+    /\/$/,
+    ''
+  )
 }
 
 export async function POST(req: NextRequest) {
@@ -65,7 +72,8 @@ export async function POST(req: NextRequest) {
       ? 'https://sandbox-api.paddle.com/transactions' 
       : 'https://api.paddle.com/transactions'
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const appUrl = getAppUrl()
+    const paymentUrl = `${appUrl}/pay`
 
     console.log(`[checkout] Initiating checkout for plan=${plan}, env=${environment}`)
 
@@ -83,10 +91,11 @@ export async function POST(req: NextRequest) {
         },
         custom_data: {
           user_id: user.id,
+          email: user.email ?? '',
           plan,
         },
         checkout: {
-          url: `${appUrl}/settings?upgraded=1`,
+          url: paymentUrl,
         },
       }),
     })
@@ -118,6 +127,21 @@ export async function POST(req: NextRequest) {
       console.error('[checkout] No checkout URL returned by Paddle')
       return NextResponse.json(
         { error: 'Failed to create checkout session. Please try again.' },
+        { status: 502 }
+      )
+    }
+
+    if (typeof checkoutUrl !== 'string' || !checkoutUrl.startsWith(paymentUrl)) {
+      let returnedHost = 'unknown'
+      try {
+        returnedHost = new URL(String(checkoutUrl)).host
+      } catch {
+        returnedHost = 'invalid-url'
+      }
+
+      console.error('[checkout] Unexpected Paddle checkout URL returned:', returnedHost)
+      return NextResponse.json(
+        { error: 'Checkout configuration error. Please contact support.' },
         { status: 502 }
       )
     }

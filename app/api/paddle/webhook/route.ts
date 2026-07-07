@@ -8,9 +8,11 @@
  * Never trusts frontend plan updates.
  *
  * Supported events:
+ *   - subscription.created     → upgrade plan
  *   - subscription.activated   → upgrade plan
  *   - subscription.updated     → update plan
  *   - subscription.canceled    → downgrade to free
+ *   - transaction.paid         → ensure plan is set
  *   - transaction.completed    → ensure plan is set (one-time purchase fallback)
  *
  * Security:
@@ -136,6 +138,7 @@ export async function POST(req: NextRequest) {
   try {
     switch (eventType) {
       case 'subscription.activated':
+      case 'subscription.created':
       case 'subscription.updated': {
         await handleSubscriptionChange(data, 'active')
         break
@@ -148,6 +151,11 @@ export async function POST(req: NextRequest) {
       }
 
       case 'transaction.completed': {
+        await handleTransactionCompleted(data)
+        break
+      }
+
+      case 'transaction.paid': {
         await handleTransactionCompleted(data)
         break
       }
