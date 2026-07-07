@@ -73,7 +73,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     id: "builder",
     label: "Builder",
     shortDescription: "Increase review capacity for repeated production-readiness cycles.",
-    displayPriceMonthly: "$99",
+    displayPriceMonthly: "$79",
     displayPriceSuffix: "/month",
     scanAllowanceLabel: getAiScanAllowanceLabel("builder"),
     repoAllowanceLabel: null,
