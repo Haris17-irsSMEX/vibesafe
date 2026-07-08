@@ -12,30 +12,30 @@ export default function RefundPage() {
             <p><strong>Last Updated:</strong> {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
             
             <p>
-              At CtrlCode (operated by irsSMEX), we want to ensure you are satisfied with our AI security scanning tools. This policy outlines the conditions under which refunds may be issued.
+              At CtrlCode (operated by irsSMEX), we want billing, cancellation, and refund handling to be clear. This policy explains how subscription cancellations and eligible refund or withdrawal requests are handled for CtrlCode purchases.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">1. Payment Processing</h2>
             <p>
-              All payments for CtrlCode premium plans (Starter and Builder) are securely processed by our Merchant of Record, Paddle. Paddle acts as the reseller of our services, and your transaction is officially with Paddle.
+              CtrlCode is sold through Paddle, our merchant of record. All payments for CtrlCode premium plans (Starter and Builder) are securely processed by Paddle. Paddle acts as the reseller of our services, and your transaction is officially with Paddle.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">2. Subscription Cancellations</h2>
             <p>
-              You may cancel your subscription at any time through the billing portal available in your CtrlCode settings. Once canceled, your premium access will remain active until the end of your current billing cycle. Canceling a subscription prevents future charges but does not automatically issue a refund for the current period.
+              Customers can cancel subscriptions at any time through Paddle using the receipt or manage subscription link provided after purchase, or through the billing area in their CtrlCode settings page when available. Cancellation prevents future renewals. Access to paid features may continue until the end of the current billing period unless Paddle or applicable law determines otherwise.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">3. Refund Requests</h2>
             <p>
-              If you believe you have been billed in error, or if you are entirely unsatisfied with the service, you may request a refund by emailing us at <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>. 
+              Eligible refund, cancellation, or withdrawal requests are handled according to the <a href="https://www.paddle.com/legal/buyer-terms" className="text-indigo-600 hover:underline">Paddle Buyer Terms</a> and <a href="https://www.paddle.com/legal/refund-policy" className="text-indigo-600 hover:underline">Paddle Refund Policy</a>. Customers may request cancellation or refund within 14 days of purchase where applicable under Paddle Buyer Terms or consumer law.
             </p>
             <p>
-              Refunds are reviewed on a case-by-case basis. While we aim to be fair and accommodating, we do not guarantee refunds, particularly in cases of heavy service usage, programmatic abuse, or terms of service violations.
+              Refund eligibility can depend on the buyer’s location, product use, applicable consumer law, and Paddle policies. Paddle may issue refunds in certain cases, including chargeback-risk situations, according to Paddle policies and without requiring additional consent from CtrlCode where Paddle determines a refund is appropriate. Taxes and refund timing are handled by Paddle where applicable.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">4. Contacting Support</h2>
             <p>
-              When requesting a refund, please include your account email and a brief explanation of why you are requesting the refund. This helps us improve CtrlCode for everyone.
+              For refund or billing help, customers can contact Paddle through the receipt or manage subscription link sent after purchase. Customers can also contact CtrlCode support at <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>. When contacting support, please include your account email and a brief explanation of the billing issue so we can help route the request.
             </p>
             <p>
               Contact: <a href="mailto:irssmex@gmail.com" className="text-indigo-600 hover:underline">irssmex@gmail.com</a>

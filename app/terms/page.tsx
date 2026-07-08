@@ -32,7 +32,7 @@ export default function TermsPage() {
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">4. Paid Plans and Billing</h2>
             <p>
-              Certain features of CtrlCode are available only under paid subscription plans. All payments are securely processed by our Merchant of Record, Paddle. By subscribing, you agree to Paddle’s terms of service and billing policies. Subscriptions automatically renew unless canceled prior to the renewal date.
+              Certain features of CtrlCode are available only under paid subscription plans. Payments, subscriptions, cancellations, and eligible refunds are processed by Paddle, our merchant of record. Paid plans renew monthly until canceled. You may cancel your subscription at any time, and cancellation prevents future renewals. Refund and withdrawal requests are handled according to <a href="https://www.paddle.com/legal/buyer-terms" className="text-indigo-600 hover:underline">Paddle Buyer Terms</a> and <a href="https://www.paddle.com/legal/refund-policy" className="text-indigo-600 hover:underline">Paddle Refund Policy</a>.
             </p>
 
             <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-4">5. Acceptable Use</h2>

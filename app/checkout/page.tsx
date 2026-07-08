@@ -195,6 +195,14 @@ export default async function CheckoutPage({
               </p>
             </div>
 
+            <div className="mt-4 rounded-xl border border-cc-border bg-cc-secondary p-4">
+              <p className="text-xs leading-5 text-cc-muted">
+                Subscriptions can be canceled at any time. Eligible refund or withdrawal
+                requests are handled according to Paddle Buyer Terms and Paddle Refund
+                Policy.
+              </p>
+            </div>
+
             <CheckoutClient plan={requestedPlan} />
           </div>
         </div>
