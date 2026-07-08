@@ -12,7 +12,7 @@ import { CheckoutClient } from "./CheckoutClient";
 
 function CheckoutShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-[72vh] overflow-hidden bg-cc-bg px-5 py-16 sm:px-6 sm:py-24">
+    <div className="relative min-h-[72vh] overflow-hidden bg-cc-bg px-5 pb-16 pt-20 sm:px-6 sm:pb-24 sm:pt-28">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.065),transparent_65%)]"
@@ -56,6 +56,7 @@ export default async function CheckoutPage({
   }
 
   const selectedPlan = getPricingPlan(requestedPlan);
+  const subscriptionSummary = `You are subscribing to CtrlCode ${selectedPlan.label} for ${selectedPlan.displayPriceFull}. This plan renews monthly until canceled. No trial or introductory pricing applies. Taxes may apply and will be calculated at checkout.`;
   const supabase = createClient();
   const {
     data: { user },
@@ -101,7 +102,7 @@ export default async function CheckoutPage({
                 </div>
               </div>
               <p className="mt-4 text-xs leading-5 text-cc-subtle">
-                Taxes may apply and will be calculated at checkout.
+                {subscriptionSummary}
               </p>
               <Link
                 href="/login"
@@ -160,7 +161,7 @@ export default async function CheckoutPage({
                 {selectedPlan.displayPriceSuffix}
               </p>
               <p className="mt-2 text-xs leading-5 text-cc-subtle">
-                Taxes may apply and will be calculated at checkout.
+                {subscriptionSummary}
               </p>
             </div>
           </div>

@@ -9,6 +9,9 @@ import { PublicLayout } from "@/components/layout/public-layout";
 import { PRICING_PLANS } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
+const PRICING_COMPLIANCE_NOTE =
+  "All prices are in USD. Paid plans are monthly subscriptions and renew every month until canceled. No trial or introductory pricing is currently offered. Taxes may apply and will be calculated at checkout.";
+
 export default function PricingPage() {
   return (
     <PublicLayout>
@@ -125,10 +128,9 @@ export default function PricingPage() {
 
         <div className="mx-auto mt-8 max-w-4xl rounded-xl border border-cc-border bg-cc-secondary px-5 py-4 text-center">
           <p className="text-xs leading-5 text-cc-subtle">
-            Paid checkout is securely processed by Paddle. Review capacity is enforced
-            according to your active plan. Taxes may apply and will be calculated at
-            checkout. CtrlCode does not guarantee that a repository is free from security
-            issues.
+            {PRICING_COMPLIANCE_NOTE} Paid checkout is securely processed by Paddle.
+            Review capacity is enforced according to your active plan. CtrlCode does not
+            guarantee that a repository is free from security issues.
           </p>
         </div>
       </section>

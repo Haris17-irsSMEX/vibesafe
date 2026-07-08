@@ -9,6 +9,7 @@ export type PricingPlan = {
   shortDescription: string;
   displayPriceMonthly: string;
   displayPriceSuffix: string;
+  displayPriceFull: string;
   scanAllowanceLabel: string;
   repoAllowanceLabel: string | null;
   highlighted: boolean;
@@ -31,7 +32,8 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     label: "Free",
     shortDescription: "Start with basic repository reviews and security posture.",
     displayPriceMonthly: "$0",
-    displayPriceSuffix: "/month",
+    displayPriceSuffix: "USD/month",
+    displayPriceFull: "$0 USD/month",
     scanAllowanceLabel: getAiScanAllowanceLabel("free"),
     repoAllowanceLabel: null,
     highlighted: false,
@@ -53,7 +55,8 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     label: "Starter",
     shortDescription: "Unlock full finding context and practical remediation guidance.",
     displayPriceMonthly: "$29",
-    displayPriceSuffix: "/month",
+    displayPriceSuffix: "USD/month",
+    displayPriceFull: "$29 USD/month",
     scanAllowanceLabel: getAiScanAllowanceLabel("starter"),
     repoAllowanceLabel: null,
     highlighted: true,
@@ -74,7 +77,8 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     label: "Builder",
     shortDescription: "Increase review capacity for repeated production-readiness cycles.",
     displayPriceMonthly: "$79",
-    displayPriceSuffix: "/month",
+    displayPriceSuffix: "USD/month",
+    displayPriceFull: "$79 USD/month",
     scanAllowanceLabel: getAiScanAllowanceLabel("builder"),
     repoAllowanceLabel: null,
     highlighted: false,

@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, ShieldCheck } from 'lucide-react';
+
+const CHECKOUT_PENDING_APPROVAL_MESSAGE =
+  'Secure checkout is processed by Paddle. If checkout does not open, this domain may still be pending Paddle approval.';
 
 export function CheckoutClient({ plan }: { plan: 'starter' | 'builder' }) {
   const [loading, setLoading] = useState(false);
@@ -21,14 +24,14 @@ export function CheckoutClient({ plan }: { plan: 'starter' | 'builder' }) {
       const data = await res.json();
 
       if (!res.ok || !data.checkoutUrl) {
-        setError(data.error || 'An unexpected error occurred. Please try again.');
+        setError(CHECKOUT_PENDING_APPROVAL_MESSAGE);
         setLoading(false);
         return;
       }
 
       window.location.href = data.checkoutUrl;
     } catch {
-      setError('Could not reach Paddle. Check your internet connection and Paddle environment.');
+      setError(CHECKOUT_PENDING_APPROVAL_MESSAGE);
       setLoading(false);
     }
   };
@@ -37,10 +40,11 @@ export function CheckoutClient({ plan }: { plan: 'starter' | 'builder' }) {
     <div className="mt-8">
       {error && (
         <div
-          role="alert"
-          className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300"
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-xl border border-cc-border bg-cc-secondary p-4 text-sm text-cc-muted"
         >
-          {error}
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-cc-text" />
+          <span>{error}</span>
         </div>
       )}
 
