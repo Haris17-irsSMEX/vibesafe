@@ -99,7 +99,7 @@ export function buildProjectContext(files: ContextFile[]): ProjectContext {
 }
 
 export function formatProjectContext(context: ProjectContext): string {
-  const list = (values: string[]) => values.length ? values.join(', ') : 'none observed'
+  const list = (values: string[]) => values.length ? values.slice(0, 12).join(', ') : 'none observed'
   return [
     `Frameworks: ${list(context.frameworks)}`,
     `Languages/runtime: ${list([...context.languages, ...context.runtime])}`,

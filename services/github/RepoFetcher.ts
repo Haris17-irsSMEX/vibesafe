@@ -21,10 +21,17 @@ const EXCLUDED_DIRS = [
   '.cache/', '.output/',
 ]
 
-const MAX_FILES_PER_SCAN = 50
+// A larger bounded intake gives staged AI analysis a meaningful repository map.
+const MAX_FILES_PER_SCAN = readLimit('SCAN_MAX_FILES_PER_REPOSITORY', 200)
+const MAX_CONCURRENT_FILE_FETCHES = readLimit('SCAN_FILE_FETCH_CONCURRENCY', 6)
 const MAX_FILE_SIZE_BYTES = 100_000 // 100KB
 const MAX_STORED_CONTENT_CHARS = 8_000
-const FETCH_TIMEOUT_MS = 60_000 // 60 seconds total
+const FETCH_TIMEOUT_MS = readLimit('SCAN_FILE_FETCH_TIMEOUT_MS', 180_000)
+
+function readLimit(name: string, fallback: number): number {
+  const value = Number(process.env[name])
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback
+}
 
 // ─── Types (repo listing — existing) ─────────────────────────────────────────
 
@@ -102,6 +109,17 @@ function hasAllowedExtension(path: string): boolean {
   }
   const ext = path.slice(lastDot).toLowerCase()
   return ALLOWED_EXTENSIONS.has(ext)
+}
+
+function fetchPriority(path: string): number {
+  const p = path.toLowerCase()
+  if (/^(app\/api|pages\/api)\//.test(p) || /route\.(ts|js)$/.test(p)) return 100
+  if (/middleware|auth|session|oauth|admin|permission|role/.test(p)) return 95
+  if (/webhook|payment|billing|checkout|paddle|stripe/.test(p)) return 90
+  if (/supabase|database|\/db\/|prisma|drizzle|migration/.test(p)) return 85
+  if (/upload|storage|secret|config|\.env|validat|schema|rate.?limit/.test(p)) return 80
+  if (/package\.json$/.test(p)) return 70
+  return 10
 }
 
 // ─── Fetch user repositories (existing) ──────────────────────────────────────
@@ -324,24 +342,22 @@ export async function fetchRelevantRepositoryFiles(
     .filter((e) => !isExcludedPath(e.path))
     .filter((e) => hasAllowedExtension(e.path))
     .filter((e) => !e.size || e.size <= MAX_FILE_SIZE_BYTES)
+    .sort((a, b) => fetchPriority(b.path) - fetchPriority(a.path))
     .slice(0, MAX_FILES_PER_SCAN)
 
-  // 3. Fetch content for each file (sequential to avoid rate limiting)
+  // 3. Fetch content in a small bounded pool while retaining priority order.
   const files: FetchedFile[] = []
-
-  for (const candidate of candidates) {
-    // Check total timeout
-    if (Date.now() - startTime > FETCH_TIMEOUT_MS) {
-      console.warn('[RepoFetcher] Total fetch timeout reached, returning partial results')
-      break
+  let nextIndex = 0
+  const worker = async () => {
+    while (nextIndex < candidates.length && Date.now() - startTime <= FETCH_TIMEOUT_MS) {
+      const candidate = candidates[nextIndex++]
+      const result = await fetchFileContent(accessToken, owner, repo, candidate.path, branch)
+      if (result.ok) files.push({ path: candidate.path, content: result.content })
     }
-
-    const result = await fetchFileContent(accessToken, owner, repo, candidate.path, branch)
-
-    if (result.ok) {
-      files.push({ path: candidate.path, content: result.content })
-    }
-    // Skip files that fail (binary, too large, etc.) — don't abort the whole scan
+  }
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_FILE_FETCHES, candidates.length) }, worker))
+  if (nextIndex < candidates.length) {
+    console.warn('[RepoFetcher] Total fetch timeout reached', { fetched: files.length, candidates: candidates.length })
   }
 
   return { ok: true, files }

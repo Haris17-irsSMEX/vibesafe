@@ -468,7 +468,10 @@ export function ScanStatusClient({
                   <div>
                     <h3 className="text-base font-semibold text-foreground">Files collected — awaiting AI analysis</h3>
                     <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                      <strong className="text-indigo-400 font-semibold">{fileCount}</strong> security-relevant {fileCount === 1 ? 'file' : 'files'} fetched and categorized. AI-powered analysis is available in the next phase.
+                      <strong className="text-indigo-400 font-semibold">{fileCount}</strong> security-relevant {fileCount === 1 ? 'file' : 'files'} fetched and categorized. AI-powered analysis is ready to run.
+                      {fileCount > 16 && (
+                        <span className="block mt-1 text-cc-muted">This repository is large, so CtrlCode is analyzing it in multiple security-focused passes.</span>
+                      )}
                       {status === 'failed' && (
                         <span className="block mt-1 text-red-400 font-medium">AI scan could not be completed. Please retry.</span>
                       )}

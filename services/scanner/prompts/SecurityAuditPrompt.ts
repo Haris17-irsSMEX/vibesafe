@@ -44,31 +44,26 @@ PRODUCTION READINESS CHECKS — include in your audit:
 // ─── Checklist and report output schema ──────────────────────────────────────
 
 const OUTPUT_SCHEMA = `
-REQUIRED OUTPUT FORMAT — Return a single JSON object with three top-level keys:
+REQUIRED OUTPUT FORMAT — Return one compact JSON object. The only required top-level key is "findings".
 
 {
   "findings": [
     {
-      "severity": "critical" | "high" | "medium" | "low",
-      "check_name": "short issue name",
-      "category": "secrets" | "database" | "auth" | "payments" | "dependencies" | "rate_limiting" | "cors" | "file_upload" | "input_validation" | "headers" | "config" | "general",
-      "description": "clear explanation of the vulnerability",
-      "finding_status": "confirmed" | "potential" | "needs_manual_verification",
-      "why_it_matters": "why this is risky in production",
-      "file_path": "actual file path from the provided files or null",
-      "line_number": 12 | null,
-      "line_end": 14 | null,
-      "evidence": "short, redacted quote or observable source fact",
-      "vulnerable_code": "the exact vulnerable line or smallest relevant snippet",
-      "evidence_snippet": "redacted evidence only — never include real secret values",
-      "attack_scenario": "concrete scenario only if supported by the code, otherwise null",
-      "recommendation": "specific fix instruction",
-      "cwe": "CWE-XXX or null",
-      "owasp": "OWASP category or null",
+      "title": "short issue name",
+      "severity": "critical" | "high" | "medium" | "low" | "info",
       "confidence": "high" | "medium" | "low",
-      "false_positive_risk": "low | moderate | high with a short reason",
-      "verification_steps": ["specific step to prove or disprove the finding"],
-      "fix_prompt": "copy-paste prompt for Cursor/Codex/Claude (see FIX_PROMPT RULES below)"
+      "status": "confirmed" | "potential" | "needs_manual_verification",
+      "category": "short security domain",
+      "affectedFile": "exact supplied file path or null",
+      "lineStart": 12 | null,
+      "lineEnd": 14 | null,
+      "evidence": "short redacted source quote or observable fact",
+      "vulnerableCodeSnippet": "smallest relevant source snippet or null",
+      "whyItMatters": "concise risk explanation",
+      "recommendation": "specific fix direction",
+      "fixPrompt": "agent-ready fix prompt or null",
+      "verificationSteps": ["specific step to prove or disprove the issue"],
+      "falsePositiveRisk": "short calibrated caveat"
     }
   ],
   "checklist": [
@@ -91,7 +86,7 @@ REQUIRED OUTPUT FORMAT — Return a single JSON object with three top-level keys
 }
 
 CHECKLIST RULES:
-- The checklist MUST cover every major audit domain systematically.
+- Keep the response bounded: return at most 12 checklist items total, one concise item per applicable domain. Use "na" for domains that do not apply.
 - Use these sections with the following IDs:
   1.x Secrets & Environment
   2.x Database & Supabase RLS
@@ -105,7 +100,6 @@ CHECKLIST RULES:
   10.x Security Headers
   11.x AI/Vibe-Coded Risks
   12.x Production Readiness
-- Each domain must have at least 2-3 checklist items.
 - verdict meanings:
   - "pass": Code evidence proves this check is handled correctly.
   - "fail": Code evidence shows this check is violated or missing.
@@ -115,6 +109,7 @@ CHECKLIST RULES:
 - If the relevant files were not provided or you cannot verify, use "partial" — never "pass".
 
 REPORT RULES:
+- Keep every string concise. Use at most 3 quick wins, 3 positive observations, and 5 priority-plan items.
 - security_posture must reflect the overall audit honestly:
   - "critical": Critical vulnerabilities found or multiple high-severity issues
   - "needs_work": High issues or many medium issues present
@@ -125,9 +120,11 @@ REPORT RULES:
 - priority_plan: Ordered list of what to fix first (most critical → least)
 
 FINDINGS RULES:
+- Return at most 12 findings. Prefer fewer evidence-backed findings over broad, speculative coverage.
 - Only report real vulnerabilities with code evidence.
 - Do NOT invent files or line numbers. If line number is uncertain, use null.
-- Use the exact file path from the supplied files only. If the affected file is unknown, set file_path and line fields to null; do not guess.
+- Use the exact field names in the schema. Do not use check_name, file_path, line_number, or vulnerable_code.
+- Use the exact file path from the supplied files only. If the affected file is unknown, set affectedFile and line fields to null; do not guess.
 - evidence must quote a real, redacted source fragment or state a verifiable observed condition. Never use "missing validation" or "not observed" as proof of a confirmed vulnerability.
 - A finding with indirect/negative evidence must be potential or needs_manual_verification, low confidence unless the supplied code proves otherwise.
 - Omit CWE/OWASP rather than guessing. Do not use a category merely because the issue sounds similar.
@@ -155,7 +152,7 @@ STRICT OUTPUT RULES:
 export function buildSectionPrompt(
   section: SectionDefinition,
   files: RoutedFile[],
-  context?: { projectContext?: string; precheckCandidates?: string }
+  context?: { projectContext?: string; precheckCandidates?: string; scanStage?: string }
 ): string {
   const fileContents = files
     .map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`)
@@ -165,6 +162,10 @@ export function buildSectionPrompt(
 You specialize in: Next.js, React, Node.js, Supabase, GitHub OAuth, Paddle/Stripe payments, AI-generated/vibe-coded applications, OWASP Top 10, and CWE.
 
 Your task is to perform a two-pass security audit of the provided files, focusing on "${section.name}".
+
+CURRENT SECURITY PASS:
+${context?.scanStage ?? 'single-pass audit'}
+Analyze only the supplied files for this pass. The final report will merge evidence across other focused passes.
 
 PASS 1 — DISCOVERY (understand the app before judging):
 - Identify the framework, API routes, auth system, database/storage layer.

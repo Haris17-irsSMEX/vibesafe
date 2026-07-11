@@ -11,6 +11,19 @@ import { isAdminEmail } from '@/lib/auth/admin'
 // shorter local watchdog against a still-running orchestrator.
 export const maxDuration = 300
 
+function getSafeAiFailureMessage(error: unknown): string {
+  const marker = error instanceof Error ? error.message : ''
+  if (marker.includes('AI_PROVIDER_auth')) return 'AI provider authentication failed. Please check configuration.'
+  if (marker.includes('AI_PROVIDER_rate_limit')) return 'AI provider rate limit reached. Please retry shortly.'
+  if (marker.includes('AI_PROVIDER_provider_unavailable')) return 'AI provider is temporarily unavailable. Please retry.'
+  if (marker.includes('AI_PROVIDER_payload_too_large')) return 'This repository is large, so CtrlCode is analyzing it in multiple security-focused passes.'
+  if (marker.includes('AI_PROVIDER_timeout')) return 'AI analysis timed out. Please retry.'
+  if (marker.includes('AI_PROVIDER_empty_response')) return 'AI provider returned an empty response. Please retry.'
+  if (marker.includes('AI_PROVIDER_invalid_json')) return 'AI provider returned an invalid response. Please retry.'
+  if (marker.includes('AI_PROVIDER_unsupported_structured_response')) return 'AI provider returned an unsupported structured response. Please retry.'
+  return 'AI analysis failed. Please retry.'
+}
+
 export async function POST(request: Request) {
   let stage = 'route_start'
   let currentScanId: string | null = null
@@ -99,11 +112,11 @@ export async function POST(request: Request) {
     })
 
   } catch (err) {
-    const isTimeout = err instanceof Error && err.message === 'TIMEOUT'
-    const finalStage = isTimeout ? 'run_ai_timeout' : stage
-    const safeError = isTimeout 
-      ? 'AI scan timed out before completion. Please retry.' 
-      : 'An unexpected error occurred during AI analysis.'
+    const marker = err instanceof Error ? err.message : ''
+    const isTimeout = marker === 'TIMEOUT' || marker.includes('AI_PROVIDER_timeout')
+    const isProviderFailure = marker.startsWith('AI_PROVIDER_')
+    const finalStage = isTimeout || isProviderFailure ? 'call_deepseek' : stage
+    const safeError = getSafeAiFailureMessage(err)
 
     if (isTimeout) console.warn('[POST /api/scans/run-ai] timeout trigger', { scanId: currentScanId, stage: finalStage })
     console.error(`[POST /api/scans/run-ai] Unhandled error at stage ${finalStage}:`, err instanceof Error ? err.message : 'Unknown error')
@@ -114,6 +127,7 @@ export async function POST(request: Request) {
         await updateScanStatus(currentScanId, 'failed', {
           error_stage: finalStage,
           error_message: safeError,
+          completed_at: new Date().toISOString(),
           security_score: null
         })
       } catch (dbErr) {

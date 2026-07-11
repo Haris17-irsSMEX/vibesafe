@@ -123,10 +123,10 @@ export function runDeterministicPrechecks(files: PrecheckFile[]): ScanFinding[] 
 
 export function formatPrecheckCandidates(candidates: ScanFinding[]): string {
   if (!candidates.length) return 'No deterministic evidence candidates were produced.'
-  return candidates.map((item) => [
+  return candidates.slice(0, 12).map((item) => [
     `- ${item.check_name}`,
     `  file: ${item.file_path ?? 'unknown'}${item.line_number ? `:${item.line_number}` : ''}`,
-    `  evidence: ${item.evidence ?? item.evidence_snippet ?? 'not available'}`,
+    `  evidence: ${(item.evidence ?? item.evidence_snippet ?? 'not available').slice(0, 260)}`,
     '  disposition: candidate only; confirm, downgrade, or discard based on the provided source.',
   ].join('\n')).join('\n')
 }

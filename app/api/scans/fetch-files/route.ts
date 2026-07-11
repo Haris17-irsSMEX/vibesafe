@@ -37,6 +37,8 @@ import { rateLimitFileFetch } from '@/lib/rate-limit'
 import { getUserProfile } from '@/lib/db/users'
 import { isAdminEmail } from '@/lib/auth/admin'
 
+export const maxDuration = 300
+
 // UUID validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
