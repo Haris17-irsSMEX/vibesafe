@@ -60,6 +60,9 @@ export interface ReportInput {
     file_path?: string
     recommendation?: string
     why_it_matters?: string
+    finding_status?: 'confirmed' | 'potential' | 'needs_manual_verification'
+    confidence?: 'high' | 'medium' | 'low'
+    evidence?: string
   }>
   filesScannedCount: number
   scanEngine: string
@@ -172,24 +175,22 @@ function buildExecutiveSummary(
   totalFindings: number,
   readiness: ProductionReadiness,
   filesScannedCount: number,
+  findings: ReportInput['findings'],
   auditReport?: AuditReport | null
 ): string {
-  // Use AI summary if available and robust
-  if (auditReport && auditReport.executive_summary.length > 30) {
-    return auditReport.executive_summary
-  }
-
   const repoName = repoFullName.split('/').pop() ?? repoFullName
 
   if (totalFindings === 0) {
-    return `CtrlCode completed a comprehensive security audit of ${repoName} across ${filesScannedCount} source files and identified no vulnerabilities. The repository achieved a security score of ${securityScore}/100, indicating a clean and well-secured codebase. No immediate remediation is required.`
+    return `CtrlCode reviewed ${repoName} across ${filesScannedCount} scanned source files and recorded no evidence-backed security findings. This is not a guarantee that the repository is free of vulnerabilities; unscanned code, runtime configuration, and deployed infrastructure still require review.`
   }
 
   const parts: string[] = []
 
-  parts.push(
-    `CtrlCode completed a security audit of ${repoName} across ${filesScannedCount} source files, identifying ${totalFindings} security issue${totalFindings > 1 ? 's' : ''} and assigning a security score of ${securityScore}/100.`
-  )
+  const confirmed = findings.filter((finding) => finding.finding_status === 'confirmed').length
+  const potential = findings.filter((finding) => finding.finding_status === 'potential').length
+  const manual = findings.filter((finding) => finding.finding_status === 'needs_manual_verification').length
+  parts.push(`CtrlCode reviewed ${repoName} across ${filesScannedCount} scanned source files, recording ${totalFindings} evidence-based finding${totalFindings > 1 ? 's' : ''} and assigning a security score of ${securityScore}/100.`)
+  parts.push(`Disposition: ${confirmed} confirmed, ${potential} potential, and ${manual} requiring manual verification.`)
 
   const breakdown: string[] = []
   if (criticalCount > 0) breakdown.push(`${criticalCount} critical`)
@@ -217,17 +218,20 @@ function buildExecutiveSummary(
 function buildTopRisks(
   findings: ReportInput['findings']
 ): TopRisk[] {
-  const sorted = [...findings].sort((a, b) =>
-    severityOrder(a.severity) - severityOrder(b.severity)
-  )
+  const statusOrder = { confirmed: 0, potential: 1, needs_manual_verification: 2 }
+  const sorted = [...findings].sort((a, b) => {
+    const statusDifference = (statusOrder[a.finding_status ?? 'needs_manual_verification'] ?? 2) - (statusOrder[b.finding_status ?? 'needs_manual_verification'] ?? 2)
+    return statusDifference || severityOrder(a.severity) - severityOrder(b.severity)
+  })
 
   return sorted.slice(0, 3).map((f) => ({
     title: f.check_name || 'Security Issue',
     severity: f.severity?.toUpperCase() ?? 'MEDIUM',
-    explanation:
+    explanation: `${f.finding_status === 'confirmed' ? 'Confirmed: ' : f.finding_status === 'potential' ? 'Potential: ' : 'Manual verification: '}${
       f.why_it_matters ||
       f.description ||
-      'This issue may expose the application to security risk if left unresolved.',
+      'This issue requires investigation.'
+    }`,
     affected_area: f.file_path
       ? `${categoryLabel(f.category)} — ${f.file_path}`
       : categoryLabel(f.category),
@@ -249,26 +253,9 @@ function buildPositiveFindings(
     positives.push(...auditReport.what_is_done_right.slice(0, 3))
   }
 
-  const categoriesFound = new Set<string>(findings.map((f) => f.category))
-
-  if (criticalCount === 0) {
-    positives.push('No critical vulnerabilities were detected in this scan.')
-  }
-  if (highCount === 0) {
-    positives.push('No high severity security issues were found.')
-  }
-  if (!categoriesFound.has('secrets')) {
-    positives.push('No hardcoded secrets or exposed credentials were detected.')
-  }
-  if (!categoriesFound.has('payments')) {
-    positives.push('Payment and webhook security checks did not flag any issues.')
-  }
-  if (!categoriesFound.has('database')) {
-    positives.push('Database access control issues were not flagged in this scan.')
-  }
-  if (!categoriesFound.has('auth')) {
-    positives.push('No authentication or authorization vulnerabilities were detected.')
-  }
+  if (criticalCount === 0) positives.push('No confirmed critical findings were recorded in the scanned files.')
+  if (highCount === 0) positives.push('No confirmed high-severity findings were recorded in the scanned files.')
+  if (!positives.length && findings.length > 0) positives.push('No additional positive practices were asserted without repository evidence.')
 
   // Deduplicate and cap
   return Array.from(new Set(positives)).slice(0, 6)
@@ -307,7 +294,9 @@ function buildRemediationPlan(
 
   return sorted.slice(0, 10).map((f, idx) => ({
     priority: idx + 1,
-    action: f.recommendation || `Fix: ${f.check_name}`,
+    action: f.finding_status === 'needs_manual_verification'
+      ? `Verify: ${f.recommendation || f.check_name}`
+      : (f.recommendation || `Fix: ${f.check_name}`),
     reason: f.why_it_matters || f.description || 'Reduces security risk exposure.',
     estimated_effort: effortForSeverity(f.severity),
   }))
@@ -349,8 +338,14 @@ function buildTechnicalSummary(
     checklistStr = ` The AI audit verified ${checklist.length} checklist items (${passCount} passed, ${failCount} failed).`
   }
 
+  const statusCounts = {
+    confirmed: findings.filter((finding) => finding.finding_status === 'confirmed').length,
+    potential: findings.filter((finding) => finding.finding_status === 'potential').length,
+    manual: findings.filter((finding) => finding.finding_status === 'needs_manual_verification').length,
+  }
+
   if (totalFindings === 0) {
-    return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} source files across all security domains including authentication, database access, secrets management, payment handling, rate limiting, CORS, file uploads, and input validation.${checklistStr} No vulnerabilities were detected.`
+    return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} supplied source files across the applicable security domains.${checklistStr} No evidence-backed findings were recorded. This result does not validate unscanned files, runtime configuration, or third-party infrastructure.`
   }
 
   const cats = Array.from(new Set<string>(findings.map((f) => f.category))).map(categoryLabel)
@@ -358,7 +353,7 @@ function buildTechnicalSummary(
     ? cats.slice(0, 4).join(', ') + (cats.length > 4 ? `, and ${cats.length - 4} more areas` : '')
     : 'multiple security domains'
 
-  return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} source files.${checklistStr} Issues were identified in ${catStr}. Findings were classified by severity and mapped to CWE/OWASP categories where applicable. The analysis included checks for authentication bypasses, data exposure, missing server-side validation, dependency risks, and configuration issues common in AI-generated codebases.`
+  return `Static analysis using ${scanEngine} reviewed ${filesScannedCount} supplied source files.${checklistStr} Findings were identified in ${catStr}: ${statusCounts.confirmed} confirmed, ${statusCounts.potential} potential, and ${statusCounts.manual} requiring manual verification. Severity is calibrated using available evidence, confidence, exposure context, and affected security domain; CWE/OWASP mappings are included only where supported by the evidence.`
 }
 
 // ─── Estimated fix effort ─────────────────────────────────────────────────────
@@ -407,7 +402,7 @@ export function generateSecurityReport(input: ReportInput): SecurityReport {
   return {
     executive_summary: buildExecutiveSummary(
       repoFullName, securityScore, criticalCount, highCount,
-      mediumCount, lowCount, totalFindings, readiness, filesScannedCount, auditReport
+      mediumCount, lowCount, totalFindings, readiness, filesScannedCount, findings, auditReport
     ),
     security_verdict:  buildVerdict(readiness, criticalCount, highCount, securityScore, auditReport),
     production_readiness: readiness,

@@ -25,6 +25,9 @@ export type ScanStatus =
 /** Uppercase severity values as required by DeepSeek prompt schema */
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
 
+/** How strongly the repository evidence supports a finding. */
+export type FindingStatus = 'confirmed' | 'potential' | 'needs_manual_verification'
+
 /** Lowercase alias kept for backward compatibility */
 export type SeverityLevel = 'critical' | 'high' | 'medium' | 'low'
 
@@ -55,11 +58,14 @@ export interface ScanFinding {
   /** Security category matching FileRouter sections */
   category: string
 
-  /** Relative file path within the repository */
-  file_path: string
+  /** Relative file path within the repository. Omitted when the source cannot prove one. */
+  file_path?: string
 
   /** Line number in the file (1-indexed, optional) */
   line_number?: number
+
+  /** Last affected line when the evidence spans more than one line. */
+  line_end?: number
 
   /** CWE identifier, e.g. "CWE-798" (optional) */
   cwe_id?: string
@@ -84,6 +90,21 @@ export interface ScanFinding {
 
   /** AI confidence level (optional) */
   confidence?: 'high' | 'medium' | 'low'
+
+  /** Evidence-based disposition. This is separate from the finding lifecycle status. */
+  finding_status?: FindingStatus
+
+  /** Short, redacted evidence statement tied to the scanned repository. */
+  evidence?: string
+
+  /** Plausible consequence only when the code supports one. */
+  attack_scenario?: string
+
+  /** What a developer can do to prove or disprove a non-confirmed finding. */
+  verification_steps?: string[]
+
+  /** Calibrated explanation of why this could be a false positive. */
+  false_positive_risk?: string
 
   /** AI generated fix prompt (optional) */
   fix_prompt?: string

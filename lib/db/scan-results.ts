@@ -24,6 +24,7 @@ export interface ScanResultRecord {
   category: string
   file_path: string
   line_number: number | null
+  line_end: number | null
   vulnerable_code: string | null
   cwe_id: string | null
   description: string
@@ -31,6 +32,11 @@ export interface ScanResultRecord {
   recommendation: string
   evidence_snippet: string | null
   confidence: 'high' | 'medium' | 'low' | null
+  finding_status: 'confirmed' | 'potential' | 'needs_manual_verification' | null
+  evidence: string | null
+  attack_scenario: string | null
+  verification_steps: string[] | null
+  false_positive_risk: string | null
   fix_prompt: string | null
   fix_prompt_generated_at: string | null
   fix_prompt_model: string | null
@@ -143,6 +149,7 @@ export async function createScanResults(
       category: mapCategory(f.category),
       file_path: safeString(f.file_path),
       line_number: safeNumber(f.line_number),
+      line_end: safeNumber(f.line_end),
       cwe_id: f.cwe_id ? safeString(f.cwe_id) : ((f as ScanFinding & { cwe?: unknown }).cwe ? safeString((f as ScanFinding & { cwe?: unknown }).cwe) : null),
       cwe: (f as ScanFinding & { cwe?: unknown }).cwe ? safeString((f as ScanFinding & { cwe?: unknown }).cwe) : (f.cwe_id ? safeString(f.cwe_id) : null),
       owasp: f.owasp ? safeString(f.owasp) : null,
@@ -156,6 +163,11 @@ export async function createScanResults(
       evidence_snippet: f.evidence_snippet ? safeString(f.evidence_snippet).substring(0, 500) : null,
       vulnerable_code: f.vulnerable_code ? safeString(f.vulnerable_code) : null,
       confidence: f.confidence ? safeString(f.confidence).toLowerCase() : 'medium',
+      finding_status: f.finding_status ? safeString(f.finding_status) : 'needs_manual_verification',
+      evidence: f.evidence ? safeString(f.evidence).substring(0, 1_500) : null,
+      attack_scenario: f.attack_scenario ? safeString(f.attack_scenario).substring(0, 1_500) : null,
+      verification_steps: Array.isArray(f.verification_steps) ? f.verification_steps.slice(0, 5) : null,
+      false_positive_risk: f.false_positive_risk ? safeString(f.false_positive_risk).substring(0, 1_000) : null,
       fix_prompt: f.fix_prompt ? safeString(f.fix_prompt) : null,
       fix_prompt_generated_at: f.fix_prompt ? new Date().toISOString() : null,
       fix_prompt_model: f.fix_prompt ? 'deterministic-template-v1' : null,
@@ -342,4 +354,3 @@ export async function getScanResultByIdFree(
 
   return (data as unknown) as FreeScanResultRecord | null
 }
-

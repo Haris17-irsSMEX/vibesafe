@@ -97,6 +97,30 @@ export function ReadinessBadge({
   );
 }
 
+const findingStatusStyles: Record<string, { label: string; className: string }> = {
+  confirmed: {
+    label: "Confirmed",
+    className: "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
+  },
+  potential: {
+    label: "Potential risk",
+    className: "border-amber-500/20 bg-amber-500/10 text-amber-400",
+  },
+  needs_manual_verification: {
+    label: "Verify manually",
+    className: "border-cc-border-strong bg-cc-surface-raised text-cc-muted",
+  },
+};
+
+export function FindingStatusBadge({ status }: { status?: string | null }) {
+  const config = findingStatusStyles[status ?? ""] ?? findingStatusStyles.needs_manual_verification;
+  return (
+    <span className={cn("inline-flex rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em]", config.className)}>
+      {config.label}
+    </span>
+  );
+}
+
 const riskItems = [
   {
     key: "critical",

@@ -163,16 +163,29 @@ export async function updateScanStatus(
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const admin = getAdminClient()
+  const isSuccessfulTerminalStatus = toStatus === 'complete' || toStatus === 'completed'
+
+  // A successful terminal transition is authoritative. This prevents stale
+  // watchdog/API errors from surviving after the orchestrator finishes.
+  const completionFields = isSuccessfulTerminalStatus
+    ? {
+        completed_at: extra?.completed_at ?? new Date().toISOString(),
+        error_message: null,
+        error_stage: null,
+      }
+    : {}
 
   const { error } = await admin
     .from('scans')
-    .update({ status: toStatus, ...extra })
+    .update({ status: toStatus, ...extra, ...completionFields })
     .eq('id', scanId)
 
   if (error) {
     console.error('[updateScanStatus] DB error:', error.message)
     return { ok: false, error: error.message }
   }
+
+  console.info('[scan status transition]', { scanId, toStatus })
 
   return { ok: true }
 }

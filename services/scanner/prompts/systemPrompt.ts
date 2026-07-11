@@ -26,13 +26,18 @@ export const SYSTEM_PROMPT = `You are a senior application security engineer per
 "check_name": "short issue name",
 "category": "secrets | database | auth | payments | dependencies | rate_limiting | cors | file_upload | input_validation | headers | config | general",
 "description": "clear explanation",
-"file_path": "actual file path",
+"file_path": "actual file path or null",
 "line_number": null,
+"line_end": null,
+"finding_status": "confirmed | potential | needs_manual_verification",
+"evidence": "redacted source quote or observable source fact",
 "recommendation": "specific fix",
 "cwe": "CWE-XXX or null",
 "owasp": "OWASP category or null",
 "confidence": "high | medium | low",
-"evidence_snippet": "redacted evidence only"
+"evidence_snippet": "redacted evidence only",
+"verification_steps": ["how to prove or disprove this finding"],
+"false_positive_risk": "short calibrated explanation"
 }
 ]
 }
@@ -61,4 +66,7 @@ export const SYSTEM_PROMPT = `You are a senior application security engineer per
 - Do not invent file paths.
 - Do not invent line numbers.
 - If line number is uncertain, use null.
+- Do not call a pattern match a confirmed vulnerability unless the supplied source proves the insecure behavior.
+- If evidence is indirect or reachability is unknown, use potential or needs_manual_verification and low/medium confidence.
+- Prefer fewer evidence-backed findings over speculative coverage.
 - Actively inspect the code; do not default to empty findings.`

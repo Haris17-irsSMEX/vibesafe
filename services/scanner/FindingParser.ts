@@ -79,14 +79,14 @@ function extractArray(raw: string): string | null {
 function validateFinding(raw: unknown): ScanFinding | null {
   if (!isRecord(raw)) return null
 
-  const check_name = optionalString(raw.check_name)
+  const check_name = optionalString(raw.check_name) || optionalString(raw.title)
   let severityRaw = optionalString(raw.severity)?.toUpperCase()
   const category = optionalString(raw.category) || 'general'
-  const file_path = optionalString(raw.file_path)
-  const description = optionalString(raw.description)
+  const file_path = optionalString(raw.file_path) || optionalString(raw.affectedFile) || optionalString(raw.affected_file)
+  const description = optionalString(raw.description) || optionalString(raw.summary)
   const recommendation = optionalString(raw.recommendation)
 
-  if (!check_name || !file_path || !description || !recommendation) {
+  if (!check_name || !description || !recommendation) {
     return null
   }
 
@@ -95,13 +95,25 @@ function validateFinding(raw: unknown): ScanFinding | null {
   }
   const severity = severityRaw as Severity
 
-  const line_number = optionalNumber(raw.line_number)
+  const line_number = optionalNumber(raw.line_number) || optionalNumber(raw.lineStart) || optionalNumber(raw.line_start)
+  const line_end = optionalNumber(raw.line_end) || optionalNumber(raw.lineEnd)
   const cwe_id = optionalString(raw.cwe_id) || optionalString(raw.cwe)
   const owasp = optionalString(raw.owasp) || optionalString(raw.owasp_category)
   const evidence_snippet = optionalString(raw.evidence_snippet)
   const vulnerable_code = optionalString(raw.vulnerable_code)
   const why_it_matters = optionalString(raw.why_it_matters)
   const fix_prompt = optionalString(raw.fix_prompt)
+  const evidence = optionalString(raw.evidence)
+  const attack_scenario = optionalString(raw.attack_scenario) || optionalString(raw.attackScenario)
+  const false_positive_risk = optionalString(raw.false_positive_risk) || optionalString(raw.falsePositiveRisk)
+  const statusRaw = optionalString(raw.finding_status) || optionalString(raw.status)
+  const finding_status = statusRaw === 'confirmed' || statusRaw === 'potential' || statusRaw === 'needs_manual_verification'
+    ? statusRaw
+    : undefined
+  const verificationRaw = raw.verification_steps ?? raw.verificationSteps
+  const verification_steps = Array.isArray(verificationRaw)
+    ? verificationRaw.map(optionalString).filter((step): step is string => Boolean(step)).slice(0, 5)
+    : undefined
 
   let confidenceRaw = optionalString(raw.confidence)?.toLowerCase()
   if (confidenceRaw !== 'high' && confidenceRaw !== 'medium' && confidenceRaw !== 'low') {
@@ -113,19 +125,25 @@ function validateFinding(raw: unknown): ScanFinding | null {
     check_name,
     severity,
     category,
-    file_path,
     description,
     recommendation,
     confidence,
   }
 
+  if (file_path !== undefined) finding.file_path = file_path
   if (line_number !== undefined) finding.line_number = line_number
+  if (line_end !== undefined && (!line_number || line_end >= line_number)) finding.line_end = line_end
   if (cwe_id !== undefined) finding.cwe_id = cwe_id
   if (owasp !== undefined) finding.owasp = owasp
   if (evidence_snippet !== undefined) finding.evidence_snippet = evidence_snippet
   if (vulnerable_code !== undefined) finding.vulnerable_code = vulnerable_code
   if (why_it_matters !== undefined) finding.why_it_matters = why_it_matters
   if (fix_prompt !== undefined) finding.fix_prompt = fix_prompt
+  if (evidence !== undefined) finding.evidence = evidence
+  if (attack_scenario !== undefined) finding.attack_scenario = attack_scenario
+  if (false_positive_risk !== undefined) finding.false_positive_risk = false_positive_risk
+  if (finding_status !== undefined) finding.finding_status = finding_status
+  if (verification_steps?.length) finding.verification_steps = verification_steps
 
   return finding
 }
@@ -252,7 +270,7 @@ export function parseFindings(rawText: string): ParseResult {
   let findingsArray: unknown = parsed
   if (isRecord(parsed) && Array.isArray(parsed.findings)) {
     findingsArray = parsed.findings
-  } else if (isRecord(parsed) && optionalString(parsed.check_name)) {
+  } else if (isRecord(parsed) && (optionalString(parsed.check_name) || optionalString(parsed.title))) {
     findingsArray = [parsed]
   }
 
@@ -309,7 +327,7 @@ export function parseFullAuditResponse(rawText: string): FullParseResult {
     findingsArray = parsed.findings as unknown[]
   } else if (Array.isArray(parsed)) {
     findingsArray = parsed
-  } else if (isRecord(parsed) && optionalString(parsed.check_name)) {
+  } else if (isRecord(parsed) && (optionalString(parsed.check_name) || optionalString(parsed.title))) {
     findingsArray = [parsed]
   } else if (!parsed) {
     // Aggressive fallback to extract just the findings array if full JSON fails
@@ -365,7 +383,8 @@ export function parseFullAuditResponse(rawText: string): FullParseResult {
   return {
     findings,
     skippedCount,
-    parseError: false,
+    parseError: !parsed,
+    parseErrorMessage: !parsed ? 'Failed to parse AI response. The response was not valid JSON.' : undefined,
     checklist,
     report,
   }

@@ -6,7 +6,10 @@ import { rateLimitAIScan } from '@/lib/rate-limit'
 import { getUserProfile } from '@/lib/db/users'
 import { isAdminEmail } from '@/lib/auth/admin'
 
-export const maxDuration = 300 // Max Vercel timeout for Pro (if applicable)
+// Phase 1 adds project discovery, deterministic verification, and richer
+// reporting. Let the platform allow a full five minutes rather than racing a
+// shorter local watchdog against a still-running orchestrator.
+export const maxDuration = 300
 
 export async function POST(request: Request) {
   let stage = 'route_start'
@@ -53,6 +56,7 @@ export async function POST(request: Request) {
       )
     }
     currentScanId = scanId
+    console.info('[POST /api/scans/run-ai] scan requested', { scanId })
 
     // 3. Pre-flight check
     stage = 'load_scan'
@@ -72,19 +76,10 @@ export async function POST(request: Request) {
       error_message: null
     })
 
-    // PART 3 — Add full route timeout guard (35s)
     stage = 'call_deepseek'
-    const timeoutMs = 35000
-    const timeoutPromise = new Promise<{ ok: false, error: string, isTimeout: true }>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('TIMEOUT'))
-      }, timeoutMs)
-    })
-
-    const result = await Promise.race([
-      runAIScan(scanId, user.id),
-      timeoutPromise
-    ])
+    // Do not race this work with a short in-process timeout. Doing so can
+    // return an error while runAIScan continues and successfully completes.
+    const result = await runAIScan(scanId, user.id)
 
     // Wait, runAIScan returns { ok: true/false, ... }
     if (!result.ok) {
@@ -110,7 +105,8 @@ export async function POST(request: Request) {
       ? 'AI scan timed out before completion. Please retry.' 
       : 'An unexpected error occurred during AI analysis.'
 
-    console.error(`[POST /api/scans/run-ai] Unhandled error at stage ${finalStage}:`, err)
+    if (isTimeout) console.warn('[POST /api/scans/run-ai] timeout trigger', { scanId: currentScanId, stage: finalStage })
+    console.error(`[POST /api/scans/run-ai] Unhandled error at stage ${finalStage}:`, err instanceof Error ? err.message : 'Unknown error')
 
     if (currentScanId) {
       try {
@@ -118,7 +114,6 @@ export async function POST(request: Request) {
         await updateScanStatus(currentScanId, 'failed', {
           error_stage: finalStage,
           error_message: safeError,
-          completed_at: new Date().toISOString(),
           security_score: null
         })
       } catch (dbErr) {

@@ -17,7 +17,7 @@ import { SeverityBadge, type SeverityLevel } from "./SeverityBadge";
 import { LockedFindingCard } from "./LockedFindingCard";
 import { UpgradeCTA } from "./UpgradeCTA";
 import { CopyFixPromptButton } from "./copy-fix-prompt-button";
-import { MetadataChip } from "./result-ui";
+import { FindingStatusBadge, MetadataChip } from "./result-ui";
 import { cn } from "@/lib/utils";
 
 interface FindingsListProps {
@@ -69,6 +69,7 @@ function PaidFindingCard({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={severity} />
+              <FindingStatusBadge status={finding.finding_status} />
               <MetadataChip>{finding.category}</MetadataChip>
               {finding.cwe_id && (
                 <MetadataChip icon={<Hash className="h-3 w-3" />}>
@@ -156,24 +157,37 @@ export function FindingsList({
     );
   }
 
+  const paidGroups = [
+    { key: "confirmed", title: "Confirmed issues", description: "Evidence was located in the scanned source." },
+    { key: "potential", title: "Potential risks", description: "Evidence exists, but exploitability or reachability needs review." },
+    { key: "needs_manual_verification", title: "Needs manual verification", description: "The signal is useful, but the code alone does not prove a vulnerability." },
+  ] as const;
+
   return (
     <div className="space-y-4">
       {!isPaid && <UpgradeCTA context="overview" className="mb-7" />}
 
-      {sortedFindings.map((finding) =>
-        isPaid && isFullFinding(finding) ? (
-          <PaidFindingCard
-            key={finding.id}
-            finding={finding}
-            scanId={scanId}
-          />
-        ) : (
-          <LockedFindingCard
-            key={finding.id}
-            finding={finding as FreeScanResultRecord}
-          />
-        )
-      )}
+      {isPaid
+        ? paidGroups.map((group) => {
+            const groupFindings = sortedFindings.filter(
+              (finding) => isFullFinding(finding) && (finding.finding_status ?? "needs_manual_verification") === group.key
+            );
+            if (!groupFindings.length) return null;
+            return (
+              <section key={group.key} className="space-y-3" aria-labelledby={`${group.key}-findings`}>
+                <div>
+                  <h3 id={`${group.key}-findings`} className="text-sm font-semibold text-cc-text">{group.title}</h3>
+                  <p className="mt-1 text-xs text-cc-subtle">{group.description}</p>
+                </div>
+                {groupFindings.map((finding) => (
+                  <PaidFindingCard key={finding.id} finding={finding as ScanResultRecord} scanId={scanId} />
+                ))}
+              </section>
+            );
+          })
+        : sortedFindings.map((finding) => (
+            <LockedFindingCard key={finding.id} finding={finding as FreeScanResultRecord} />
+          ))}
     </div>
   );
 }

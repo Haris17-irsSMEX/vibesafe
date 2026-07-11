@@ -35,6 +35,7 @@ import { CopyFixPromptButton } from "@/components/results/copy-fix-prompt-button
 import { UpgradeCTA } from "@/components/results/UpgradeCTA";
 import {
   MetadataChip,
+  FindingStatusBadge,
   ResultSurface,
 } from "@/components/results/result-ui";
 import { ServerDashboardLayout } from "@/components/layout/server-dashboard-layout";
@@ -147,6 +148,9 @@ export default async function FindingDetailPage({
           <div className="p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <SeverityBadge severity={severity} />
+              {canViewFull && paidFinding && (
+                <FindingStatusBadge status={paidFinding.finding_status} />
+              )}
               <MetadataChip>{baseFinding.category}</MetadataChip>
               {baseFinding.cwe_id && (
                 <MetadataChip icon={<Hash className="h-3 w-3" />}>
@@ -181,6 +185,9 @@ export default async function FindingDetailPage({
               </MetadataChip>
               {baseFinding.line_number && (
                 <MetadataChip mono>Line {baseFinding.line_number}</MetadataChip>
+              )}
+              {canViewFull && paidFinding?.confidence && (
+                <MetadataChip>{paidFinding.confidence} confidence</MetadataChip>
               )}
               <MetadataChip icon={<Calendar className="h-3.5 w-3.5" />}>
                 {formatSafeDateTime(baseFinding.created_at)}
@@ -251,6 +258,43 @@ export default async function FindingDetailPage({
                       {paidFinding.why_it_matters}
                     </p>
                   </div>
+                )}
+              </ResultSurface>
+            </section>
+
+            <section>
+              <AppSectionHeader
+                title="Evidence and verification"
+                description="How this finding was grounded, and what to check before treating a non-confirmed issue as exploitable."
+              />
+              <ResultSurface className="p-5 sm:p-6">
+                {paidFinding.evidence && (
+                  <div>
+                    <h2 className="text-sm font-semibold text-cc-text">Observed evidence</h2>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-cc-muted">{paidFinding.evidence}</p>
+                  </div>
+                )}
+                {paidFinding.attack_scenario && (
+                  <div className={paidFinding.evidence ? "mt-6 border-t border-cc-border pt-6" : ""}>
+                    <h2 className="text-sm font-semibold text-cc-text">Attack scenario</h2>
+                    <p className="mt-2 text-sm leading-7 text-cc-muted">{paidFinding.attack_scenario}</p>
+                  </div>
+                )}
+                {paidFinding.verification_steps?.length ? (
+                  <div className={(paidFinding.evidence || paidFinding.attack_scenario) ? "mt-6 border-t border-cc-border pt-6" : ""}>
+                    <h2 className="text-sm font-semibold text-cc-text">Verification steps</h2>
+                    <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-7 text-cc-muted">
+                      {paidFinding.verification_steps.map((step, index) => <li key={`${step}-${index}`}>{step}</li>)}
+                    </ol>
+                  </div>
+                ) : null}
+                {paidFinding.false_positive_risk && (
+                  <p className={(paidFinding.evidence || paidFinding.attack_scenario || paidFinding.verification_steps?.length) ? "mt-6 border-t border-cc-border pt-6 text-xs leading-6 text-cc-subtle" : "text-xs leading-6 text-cc-subtle"}>
+                    False-positive risk: {paidFinding.false_positive_risk}
+                  </p>
+                )}
+                {!paidFinding.evidence && !paidFinding.attack_scenario && !paidFinding.verification_steps?.length && !paidFinding.false_positive_risk && (
+                  <p className="text-sm text-cc-muted">Additional verification context is not available for this legacy finding.</p>
                 )}
               </ResultSurface>
             </section>

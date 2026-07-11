@@ -123,7 +123,10 @@ export function generateFixPrompt(finding: ScanFinding): string {
   const safeCode = codeToShow ? redactSecrets(codeToShow) : 'N/A'
   const specificAdvice = getCategorySpecificAdvice(finding)
 
-  return `You are fixing a security vulnerability in this codebase.
+  const affectedFile = finding.file_path || 'Not confirmed — locate the affected implementation before changing code.'
+  const evidenceNote = finding.evidence || finding.evidence_snippet || 'No exact source excerpt was retained; verify the affected behavior before editing.'
+
+  return `You are addressing an evidence-based security finding in this codebase.
 
 Issue:
 ${finding.check_name}
@@ -132,7 +135,7 @@ Severity:
 ${finding.severity}
 
 Affected file:
-${finding.file_path}
+${affectedFile}
 
 Affected line:
 ${finding.line_number ?? 'unknown'}
@@ -143,23 +146,30 @@ ${safeCode}
 Problem:
 ${finding.description}
 
+Finding status and confidence:
+${finding.finding_status || 'needs_manual_verification'} / ${finding.confidence || 'low'}
+
+Observed evidence:
+${evidenceNote}
+
 Why it matters:
 ${finding.why_it_matters || 'This issue may expose the application to security risk if left unresolved.'}
 
 Fix instructions:
-1. Fix the issue in the affected file.
-2. Preserve existing business logic.
-3. Do not change unrelated files.
-4. Do not expose secrets.
-5. Do not weaken authentication or authorization.
-6. Keep TypeScript/build passing.
-7. Add or update tests if the project already has tests.
+1. First verify the evidence and trace reachability. Do not assume the finding is exploitable when its status is potential or needs_manual_verification.
+2. Fix the issue in the affected file only after confirming the affected implementation.
+3. Preserve existing business logic.
+4. Do not change unrelated files.
+5. Do not expose secrets.
+6. Do not weaken authentication or authorization.
+7. Keep TypeScript/build passing.
+8. Add or update focused tests if the project already has tests.
 ${specificAdvice ? `\nAdditional specific advice:\n${specificAdvice.trim()}\n` : ''}
 Acceptance criteria:
 * The vulnerability is removed.
 * Existing behavior still works.
 * No secrets are logged or exposed.
-* Build/lint/tests pass if available.
+* Run the applicable validation commands: npx tsc --noEmit, npm run lint, npm run build, and focused tests if available.
 
 After the fix, explain which files were changed and why.`
 }

@@ -7,9 +7,9 @@
 
 import { getScanById, updateScanStatus, failScan, updateScanReport, updateScanAuditData } from '@/lib/db/scans'
 import { getScanFilesByScanId, type ScanFileRecord } from '@/lib/db/scan-files'
-import { deleteScanResultsForScan } from '@/lib/db/scan-results'
+import { createScanResults, deleteScanResultsForScan } from '@/lib/db/scan-results'
 import { runSectionScan } from './DeepSeekScanner'
-import { parseFullAuditResponse, deduplicateFindings } from './FindingParser'
+import { parseFullAuditResponse } from './FindingParser'
 import { generateFixPrompt } from './FixPromptGenerator'
 import { extractCodeEvidence } from './CodeEvidenceExtractor'
 import { calculateAuditAwareScore } from '@/services/scoring/SecurityScorer'
@@ -19,6 +19,9 @@ import type { ScanFinding } from '@/lib/types'
 import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION, SINGLE_PASS_SYSTEM_PROMPT } from './prompts/SecurityAuditPrompt'
 import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
 import { generateSecurityReport } from './SecurityReportGenerator'
+import { buildProjectContext, formatProjectContext } from './ProjectContext'
+import { formatPrecheckCandidates, runDeterministicPrechecks } from './DeterministicPrechecks'
+import { verifyAndDeduplicateFindings } from './FindingVerification'
 
 interface OrchestratorResult {
   ok: boolean
@@ -97,9 +100,16 @@ export async function runAIScan(
       if (totalChars >= 60000) break
     }
 
+    stage = 'project_understanding'
+    const projectContext = buildProjectContext(limitedFiles)
+    const precheckCandidates = runDeterministicPrechecks(limitedFiles)
+
     stage = 'build_prompt'
     const def = SECTION_DEFINITIONS['general']
-    const sectionPrompt = buildSectionPrompt(def, limitedFiles)
+    const sectionPrompt = buildSectionPrompt(def, limitedFiles, {
+      projectContext: formatProjectContext(projectContext),
+      precheckCandidates: formatPrecheckCandidates(precheckCandidates),
+    })
 
     stage = 'call_deepseek'
     const apiResult = await runSectionScan('general', sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT)
@@ -117,7 +127,13 @@ export async function runAIScan(
       throw new Error('Failed to parse AI response')
     }
 
-    let uniqueFindings = deduplicateFindings(parseResult.findings).slice(0, 40)
+    stage = 'verify_findings'
+    const verification = verifyAndDeduplicateFindings(parseResult.findings, limitedFiles)
+    let uniqueFindings = verification.findings.slice(0, 40)
+
+    console.log(
+      `[ScanOrchestrator] Evidence verification: candidates=${precheckCandidates.length}, kept=${uniqueFindings.length}, removed=${verification.removed}, downgraded=${verification.downgraded}`
+    )
 
     stage = 'insert_scan_results'
     if (uniqueFindings.length > 0) {
@@ -136,48 +152,16 @@ export async function runAIScan(
 
         return {
           ...f,
-          fix_prompt: f.fix_prompt || generateFixPrompt(f),
-          fix_prompt_generated_at: f.fix_prompt_generated_at || new Date().toISOString(),
-          fix_prompt_model: f.fix_prompt_model || 'deterministic-template-v1'
+          // Normalize every prompt after evidence verification so it carries the
+          // same constraints, verification context, and validation commands.
+          fix_prompt: generateFixPrompt(f),
+          fix_prompt_generated_at: new Date().toISOString(),
+          fix_prompt_model: 'evidence-template-v2'
         }
       })
 
-      // PART 5 - Minimal insert shape
-      const minimalRows = uniqueFindings.map((r) => {
-        const severity = ['critical', 'high', 'medium', 'low'].includes((r.severity || '').toLowerCase()) ? (r.severity || '').toLowerCase() : 'medium'
-        const why_it_matters = (r as any).why_it_matters || (
-          ['critical', 'high'].includes(severity)
-            ? 'This issue can create serious security risk and should be fixed before production use.'
-            : 'This issue may expose the application to security risk if left unresolved.'
-        )
-
-        return {
-          scan_id: scanId,
-          user_id: userId,
-          severity: severity,
-          check_name: r.check_name || 'Security finding',
-          category: r.category || 'general',
-          description: r.description || 'Security issue detected.',
-          why_it_matters,
-          file_path: r.file_path || '',
-          recommendation: r.recommendation || 'Review and fix this issue using secure coding practices.',
-          status: 'open',
-          created_at: new Date().toISOString(),
-          
-          line_number: r.line_number ?? null,
-          vulnerable_code: r.vulnerable_code ?? null,
-          evidence_snippet: r.evidence_snippet ?? null,
-          fix_prompt: r.fix_prompt ?? null,
-          fix_prompt_generated_at: r.fix_prompt_generated_at ?? null,
-          fix_prompt_model: r.fix_prompt_model ?? null
-        }
-      })
-
-      const { error: insertErr } = await admin.from('scan_results').insert(minimalRows)
-      if (insertErr) {
-        console.error('[insert_scan_results] failed:', insertErr)
-        throw new Error('AI findings could not be saved.')
-      }
+      const insertResult = await createScanResults(scanId, userId, uniqueFindings)
+      if (!insertResult.ok) throw new Error(insertResult.error)
     }
 
     stage = 'update_scan_summary'
@@ -187,7 +171,7 @@ export async function runAIScan(
 
     // PART 6 - Mark complete correctly
     stage = 'mark_complete'
-    const updateRes = await updateScanStatus(scanId, 'complete', {
+    const updateRes = await updateScanStatus(scanId, 'completed', {
       completed_at: new Date().toISOString(),
       security_score: scoreResult.score,
       critical_count: scoreResult.criticalCount,
@@ -203,6 +187,8 @@ export async function runAIScan(
     if (!updateRes.ok) {
       throw new Error('Failed to update scan status')
     }
+
+    console.info('[ScanOrchestrator] completion update persisted', { scanId, status: 'completed' })
 
     if (userEmail) {
       await sendScanCompleteEmail({
@@ -238,6 +224,9 @@ export async function runAIScan(
           file_path:     f.file_path,
           recommendation: f.recommendation,
           why_it_matters: (f as any).why_it_matters,
+          finding_status: f.finding_status,
+          confidence: f.confidence,
+          evidence: f.evidence,
         })),
         filesScannedCount: limitedFiles.length,
         scanEngine:        'deepseek',
@@ -302,4 +291,3 @@ export async function runAIScan(
     throw err // Let route.ts catch it
   }
 }
-

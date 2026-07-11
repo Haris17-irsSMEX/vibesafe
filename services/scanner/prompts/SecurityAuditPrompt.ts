@@ -1,7 +1,7 @@
 import { SectionDefinition } from './sectionPrompts'
 import type { RoutedFile } from '../FileRouter'
 
-export const SECURITY_AUDIT_PROMPT_VERSION = "vibesafe-strict-audit-v2"
+export const SECURITY_AUDIT_PROMPT_VERSION = "ctrlcode-evidence-audit-v3"
 
 // ─── Shared strict audit rules ──────────────────────────────────────────────
 
@@ -20,6 +20,9 @@ STRICT AUDIT RULES — MANDATORY:
 - If uncertain about any check, mark PARTIAL — never guess PASS.
 - Do NOT invent files, line numbers, or vulnerabilities.
 - Do NOT report generic best practices unless there is code evidence.
+- A pattern alone is not proof of exploitability. If reachability, ownership, auth coverage, or deployment context is unknown, use "potential" or "needs_manual_verification".
+- Only use "confirmed" when the provided code directly proves the insecure behavior and the affected path is present in the supplied files.
+- Only use CRITICAL when the finding is confirmed, evidence is strong, and the code indicates a credible high-impact path such as public auth bypass, payment compromise, or sensitive data exposure.
 
 PRODUCTION READINESS CHECKS — include in your audit:
 - Broken or half-implemented auth middleware
@@ -50,15 +53,21 @@ REQUIRED OUTPUT FORMAT — Return a single JSON object with three top-level keys
       "check_name": "short issue name",
       "category": "secrets" | "database" | "auth" | "payments" | "dependencies" | "rate_limiting" | "cors" | "file_upload" | "input_validation" | "headers" | "config" | "general",
       "description": "clear explanation of the vulnerability",
+      "finding_status": "confirmed" | "potential" | "needs_manual_verification",
       "why_it_matters": "why this is risky in production",
-      "file_path": "actual file path from the provided files",
-      "line_number": 12,
+      "file_path": "actual file path from the provided files or null",
+      "line_number": 12 | null,
+      "line_end": 14 | null,
+      "evidence": "short, redacted quote or observable source fact",
       "vulnerable_code": "the exact vulnerable line or smallest relevant snippet",
       "evidence_snippet": "redacted evidence only — never include real secret values",
+      "attack_scenario": "concrete scenario only if supported by the code, otherwise null",
       "recommendation": "specific fix instruction",
       "cwe": "CWE-XXX or null",
       "owasp": "OWASP category or null",
       "confidence": "high" | "medium" | "low",
+      "false_positive_risk": "low | moderate | high with a short reason",
+      "verification_steps": ["specific step to prove or disprove the finding"],
       "fix_prompt": "copy-paste prompt for Cursor/Codex/Claude (see FIX_PROMPT RULES below)"
     }
   ],
@@ -118,6 +127,10 @@ REPORT RULES:
 FINDINGS RULES:
 - Only report real vulnerabilities with code evidence.
 - Do NOT invent files or line numbers. If line number is uncertain, use null.
+- Use the exact file path from the supplied files only. If the affected file is unknown, set file_path and line fields to null; do not guess.
+- evidence must quote a real, redacted source fragment or state a verifiable observed condition. Never use "missing validation" or "not observed" as proof of a confirmed vulnerability.
+- A finding with indirect/negative evidence must be potential or needs_manual_verification, low confidence unless the supplied code proves otherwise.
+- Omit CWE/OWASP rather than guessing. Do not use a category merely because the issue sounds similar.
 - If no real issue exists for a domain, do not create a fake finding — use the checklist to show it was checked.
 - If no real issues exist at all, return "findings": [] (but still provide checklist and report).
 
@@ -141,7 +154,8 @@ STRICT OUTPUT RULES:
 
 export function buildSectionPrompt(
   section: SectionDefinition,
-  files: RoutedFile[]
+  files: RoutedFile[],
+  context?: { projectContext?: string; precheckCandidates?: string }
 ): string {
   const fileContents = files
     .map((f) => `--- FILE: ${f.path} ---\n${f.content}\n`)
@@ -163,6 +177,12 @@ Check these specific areas for ${section.name}:
 ${section.checks.map(c => `- ${c}`).join('\n')}
 
 ${STRICT_AUDIT_RULES}
+
+PROJECT CONTEXT (deterministically observed; do not treat absence as proof):
+${context?.projectContext ?? 'Not available.'}
+
+DETERMINISTIC EVIDENCE CANDIDATES (untrusted hints; confirm, downgrade, or discard them):
+${context?.precheckCandidates ?? 'None.'}
 
 ${OUTPUT_SCHEMA}
 
@@ -200,4 +220,6 @@ Check ALL security domains:
 ${STRICT_AUDIT_RULES}
 
 ${OUTPUT_SCHEMA}
+
+Evidence contract: each finding must include finding_status, confidence, and a real redacted evidence statement. Do not call a finding confirmed unless the supplied source directly proves it. Prefer fewer, evidence-backed findings over speculative coverage.
 `

@@ -189,10 +189,21 @@ export function ScanStatusClient({
   const [scanError, setScanError] = useState<string | null>(null)
   const [scanSuccess, setScanSuccess] = useState<string | null>(null)
   const [isStuck, setIsStuck] = useState(false)
+  const isTerminal = status === 'complete' || status === 'completed'
+  const isHardErrorStatus = ['failed', 'error', 'timed_out'].includes(status)
+
+  useEffect(() => {
+    // Server status wins over stale client request state. This also makes old
+    // completed scans safe to render even if their row still has an error text.
+    if (isTerminal) {
+      setScanError(null)
+      setIsStuck(false)
+    }
+  }, [isTerminal])
 
   useEffect(() => {
     if (status === 'scanning' || isScanning) {
-      const timer = setTimeout(() => setIsStuck(true), 120000) // 2 minutes
+      const timer = setTimeout(() => setIsStuck(true), 300000) // 5 minutes
       return () => clearTimeout(timer)
     } else {
       setIsStuck(false)
@@ -304,7 +315,6 @@ export function ScanStatusClient({
   // Derived state
   const canFetchFiles = status === 'pending' || (status === 'failed' && !readyForAI)
   const canReset = status === 'scanning' || (status === 'failed' && readyForAI)
-  const isTerminal = status === 'complete' || status === 'completed'
   const isAiPhase = status === 'scanning' || (status === 'failed' && readyForAI)
 
   return (
@@ -371,7 +381,7 @@ export function ScanStatusClient({
         </div>
       )}
 
-      {scanError && (
+      {scanError && isHardErrorStatus && (
         <div role="alert" className="mb-6 flex flex-col gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" />
@@ -463,7 +473,7 @@ export function ScanStatusClient({
                         <span className="block mt-1 text-red-400 font-medium">AI scan could not be completed. Please retry.</span>
                       )}
                       {(status === 'scanning' || isScanning) && isStuck && (
-                        <span className="block mt-1 text-amber-400 font-medium">Scan appears stuck. Please retry AI Scan.</span>
+                        <span className="block mt-1 text-amber-400 font-medium">Scan is taking longer than expected. You can keep this page open or check results later.</span>
                       )}
                     </p>
                     {readyForAI && (
@@ -608,13 +618,13 @@ export function ScanStatusClient({
                     <span className="text-sm text-zinc-400">Scan Engine</span>
                     <span className="text-xs text-white">{scanEngine || 'N/A'}</span>
                   </div>
-                  {errorStage && (
+                  {!isTerminal && errorStage && (
                     <div className="flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition-colors">
                       <span className="text-sm text-zinc-400">Error Stage</span>
                       <span className="text-xs text-red-400">{errorStage}</span>
                     </div>
                   )}
-                  {errorMessage && (
+                  {!isTerminal && errorMessage && (
                     <div className="px-5 py-3.5 hover:bg-white/5 transition-colors border-t border-white/5">
                       <span className="text-sm text-zinc-400 block mb-2">Error Message</span>
                       <code className="block rounded bg-black/50 border border-white/10 px-2 py-1.5 font-mono text-[10px] text-red-400 whitespace-pre-wrap">
