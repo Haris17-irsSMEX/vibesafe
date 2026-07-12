@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "eval:scanner": "node eval/run-scanner.js",
+    "eval:scanner:ai": "node eval/run-scanner.js --ai"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

@@ -115,6 +115,16 @@ export function runDeterministicPrechecks(files: PrecheckFile[]): ScanFinding[] 
         why_it_matters: 'Unvalidated input can lead to unsafe state changes or unexpected downstream behavior.',
         recommendation: 'Confirm validation is not performed by a shared helper. Validate the request shape and authorize the action server-side.',
       }))
+
+      if (/admin/i.test(path) && !/(isAdmin|requireAdmin|admin\.role|role\s*===\s*['"]admin['"]|hasRole\(['"]admin)/i.test(content)) {
+        add(candidate({
+          check_name: 'Admin role authorization not observed', severity: 'HIGH', category: 'auth', file_path: path,
+          description: 'This admin-named API route does not contain an obvious server-side admin or role authorization signal.',
+          evidence: `No common admin role check was found in ${path}.`,
+          why_it_matters: 'An authenticated non-admin could reach privileged functionality if route-level role authorization is missing.',
+          recommendation: 'Confirm shared middleware does not already enforce roles. Add a server-side admin authorization check before performing privileged actions.',
+        }))
+      }
     }
   }
 
