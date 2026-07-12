@@ -52,6 +52,7 @@ const FETCH_ERROR_MESSAGES: Record<string, string> = {
 }
 
 export async function POST(request: NextRequest) {
+  const requestStartedAt = Date.now()
   // ── 1. Verify Supabase session ─────────────────────────────────────────────
   const supabase = createClient()
   const {
@@ -218,6 +219,13 @@ export async function POST(request: NextRequest) {
 
     // Update status → 'scanning' (files collected, ready for AI)
     await updateScanStatus(scanId, 'scanning', { error_message: null })
+
+    console.info('[fetch-files] stage timing', {
+      scanId,
+      stage: 'file_fetch_and_persist',
+      durationMs: Date.now() - requestStartedAt,
+      filesStored: storeResult.count,
+    })
 
     return NextResponse.json({
       success: true,

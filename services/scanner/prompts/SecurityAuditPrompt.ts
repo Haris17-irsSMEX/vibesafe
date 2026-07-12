@@ -1,7 +1,7 @@
 import { SectionDefinition } from './sectionPrompts'
 import type { RoutedFile } from '../FileRouter'
 
-export const SECURITY_AUDIT_PROMPT_VERSION = "ctrlcode-evidence-audit-v3"
+export const SECURITY_AUDIT_PROMPT_VERSION = "ctrlcode-evidence-audit-v4"
 
 // ─── Shared strict audit rules ──────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ PRODUCTION READINESS CHECKS — include in your audit:
 - API routes that can timeout and leave scan/payment/user state stuck
 `
 
-// ─── Checklist and report output schema ──────────────────────────────────────
+// ─── Core detection output schema ────────────────────────────────────────────
 
 const OUTPUT_SCHEMA = `
 REQUIRED OUTPUT FORMAT — Return one compact JSON object. The only required top-level key is "findings".
@@ -75,18 +75,11 @@ REQUIRED OUTPUT FORMAT — Return one compact JSON object. The only required top
       "evidence": "short evidence string explaining the verdict",
       "file_path": "file path or null"
     }
-  ],
-  "report": {
-    "security_posture": "critical" | "needs_work" | "acceptable" | "strong",
-    "executive_summary": "2-3 sentence professional summary of overall security posture",
-    "quick_wins": ["easy fix 1 that can be done in minutes", "easy fix 2"],
-    "what_is_done_right": ["good security practice found in the code"],
-    "priority_plan": ["fix critical X first", "then address high Y", "then harden Z"]
-  }
+  ]
 }
 
 CHECKLIST RULES:
-- Keep the response bounded: return at most 12 checklist items total, one concise item per applicable domain. Use "na" for domains that do not apply.
+- Keep the response bounded: return at most 8 checklist items total, one concise item per applicable domain. Use "na" for domains that do not apply.
 - Use these sections with the following IDs:
   1.x Secrets & Environment
   2.x Database & Supabase RLS
@@ -108,17 +101,6 @@ CHECKLIST RULES:
 - Only use "pass" when you can point to actual code that proves it.
 - If the relevant files were not provided or you cannot verify, use "partial" — never "pass".
 
-REPORT RULES:
-- Keep every string concise. Use at most 3 quick wins, 3 positive observations, and 5 priority-plan items.
-- security_posture must reflect the overall audit honestly:
-  - "critical": Critical vulnerabilities found or multiple high-severity issues
-  - "needs_work": High issues or many medium issues present
-  - "acceptable": Only low/medium issues, most checklist items pass
-  - "strong": No significant issues, checklist overwhelmingly passes
-- quick_wins: List 2-5 easy fixes that take under 30 minutes each
-- what_is_done_right: List genuine good security practices found in the code
-- priority_plan: Ordered list of what to fix first (most critical → least)
-
 FINDINGS RULES:
 - Return at most 12 findings. Prefer fewer evidence-backed findings over broad, speculative coverage.
 - Only report real vulnerabilities with code evidence.
@@ -129,7 +111,7 @@ FINDINGS RULES:
 - A finding with indirect/negative evidence must be potential or needs_manual_verification, low confidence unless the supplied code proves otherwise.
 - Omit CWE/OWASP rather than guessing. Do not use a category merely because the issue sounds similar.
 - If no real issue exists for a domain, do not create a fake finding — use the checklist to show it was checked.
-- If no real issues exist at all, return "findings": [] (but still provide checklist and report).
+- If no real issues exist at all, return "findings": [] (but still provide checklist).
 
 FIX_PROMPT RULES:
 The fix_prompt field must be a ready-to-use, copy-paste prompt for an AI coding agent (Cursor, Codex, Claude, Lovable, Bolt, Replit Agent).
@@ -147,6 +129,7 @@ STRICT OUTPUT RULES:
 - No markdown formatting, code blocks, or conversational text before or after the JSON.
 - No comments in the JSON.
 - No trailing commas.
+- Do not generate an executive summary, top risks, remediation roadmap, or any other Security Officer Report content in this security-detection pass. CtrlCode generates that separately from saved findings.
 `
 
 export function buildSectionPrompt(

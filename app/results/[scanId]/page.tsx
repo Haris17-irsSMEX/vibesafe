@@ -23,6 +23,7 @@ import {
 import { isAdminEmail } from "@/lib/auth/admin";
 import { FindingsList } from "@/components/results/FindingsList";
 import { SecurityOfficerReport } from "@/components/results/SecurityOfficerReport";
+import { GenerateSecurityReportButton } from "@/components/results/GenerateSecurityReportButton";
 import {
   MetadataChip,
   ReadinessBadge,
@@ -178,6 +179,10 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
   // SECURITY: paid-only report fields are removed before the client boundary.
   const reportScan = canViewFull ? scan : sanitizeReportForFreeUser(scan);
+  const reportStatus = scan.report_status ?? (scan.executive_summary ? "generated" : "not_generated");
+  const analysisWarnings = Array.isArray(scan.analysis_warnings)
+    ? scan.analysis_warnings.filter((warning): warning is string => typeof warning === "string" && Boolean(warning.trim()))
+    : [];
 
   return (
     <ServerDashboardLayout>
@@ -311,15 +316,33 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             <ResultSurface className="mb-10 px-5 py-10 text-center sm:px-6">
               <FileSearch className="mx-auto h-6 w-6 text-cc-subtle" />
               <h2 className="mt-4 text-base font-semibold text-cc-text">
-                Report summary unavailable
+                {reportStatus === "generating" ? "Security Officer Report is generating" : "Security Officer Report"}
               </h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-cc-muted">
-                This scan does not include structured Security Officer Report
-                metadata. Recorded findings remain available below.
+                {reportStatus === "generating"
+                  ? "Your evidence-backed findings are already available below. The report is being summarized from those saved results."
+                  : "Generate an executive summary, prioritized risks, and remediation roadmap from the saved evidence-backed findings. Findings remain available even if report generation fails."}
               </p>
+              {reportStatus === "failed" && scan.report_error && (
+                <p role="alert" className="mx-auto mt-3 max-w-md text-sm leading-6 text-amber-300">
+                  {scan.report_error}
+                </p>
+              )}
+              {reportStatus !== "generated" && (
+                <GenerateSecurityReportButton
+                  scanId={scanId}
+                  status={reportStatus === "failed" || reportStatus === "generating" ? reportStatus : "not_generated"}
+                />
+              )}
             </ResultSurface>
           )}
         </div>
+
+        {analysisWarnings.length > 0 && (
+          <div className="mb-10 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-sm leading-6 text-amber-200">
+            {analysisWarnings.join(" ")}
+          </div>
+        )}
 
         <div>
           <AppSectionHeader

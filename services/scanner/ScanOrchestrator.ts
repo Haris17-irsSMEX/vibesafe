@@ -5,8 +5,8 @@
  * Executes bounded, security-focused provider passes and merges them into one audit.
  */
 
-import { getScanById, updateScanStatus, failScan, updateScanReport, updateScanAuditData } from '@/lib/db/scans'
-import { getScanFilesByScanId, type ScanFileRecord } from '@/lib/db/scan-files'
+import { getScanById, updateScanStatus, failScan, resetScanReport, updateScanAuditData } from '@/lib/db/scans'
+import { getScanFilesByScanId } from '@/lib/db/scan-files'
 import { createScanResults, deleteScanResultsForScan } from '@/lib/db/scan-results'
 import { AI_PROVIDER_MODEL, runSectionScan, type ProviderFailureReason } from './DeepSeekScanner'
 import { parseFullAuditResponse } from './FindingParser'
@@ -18,7 +18,6 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 import type { AuditChecklistItem, AuditReport, ScanFinding } from '@/lib/types'
 import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION, SINGLE_PASS_SYSTEM_PROMPT } from './prompts/SecurityAuditPrompt'
 import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
-import { generateSecurityReport } from './SecurityReportGenerator'
 import { buildProjectContext, formatProjectContext } from './ProjectContext'
 import { formatPrecheckCandidates, runDeterministicPrechecks } from './DeterministicPrechecks'
 import { verifyAndDeduplicateFindings } from './FindingVerification'
@@ -65,6 +64,17 @@ export async function runAIScan(
 ): Promise<OrchestratorResult> {
   let userEmail: string | null = null
   let stage = 'start_orchestrator'
+  const scanStartedAt = Date.now()
+  let stageStartedAt = scanStartedAt
+  const markStage = (nextStage: string) => {
+    console.info('[ScanOrchestrator] stage timing', {
+      scanId,
+      stage,
+      durationMs: Date.now() - stageStartedAt,
+    })
+    stage = nextStage
+    stageStartedAt = Date.now()
+  }
 
   try {
     const admin = createSupabaseAdmin(
@@ -83,24 +93,25 @@ export async function runAIScan(
     const scan = await getScanById(scanId, userId)
     if (!scan) return { ok: false, error: 'Scan not found' }
 
-    stage = 'load_scan_files'
+    markStage('load_scan_files')
     const allFiles = await getScanFilesByScanId(scanId)
 
     if (allFiles.length === 0) {
       throw new Error('No files to scan')
     }
 
-    stage = 'delete_old_results'
+    markStage('delete_old_results')
     const deleteRes = await deleteScanResultsForScan(scanId)
     if (!deleteRes.ok) {
       throw new Error('Failed to prepare database')
     }
 
-    stage = 'project_understanding'
+    markStage('project_understanding')
     const projectContext = buildProjectContext(allFiles.map((file) => ({ path: file.file_path, content: file.content })))
+    markStage('deterministic_prechecks')
     const precheckCandidates = runDeterministicPrechecks(allFiles.map((file) => ({ path: file.file_path, content: file.content })))
 
-    stage = 'prepare_files'
+    markStage('prepare_files')
     const payloads = prepareAiPayloadChunks(allFiles, precheckCandidates.map((candidate) => candidate.file_path).filter(Boolean) as string[])
     if (!payloads.length) throw new Error('AI_PROVIDER_payload_too_large')
 
@@ -120,9 +131,9 @@ export async function runAIScan(
         scanStage: `${activePayload.zone} pass ${chunkIndex + 1} of ${payloads.length}`,
       })
 
-      stage = 'build_prompt'
+      markStage('build_prompt')
       let sectionPrompt = buildPrompt(activePayload)
-      stage = 'call_deepseek'
+      markStage('call_deepseek')
       let apiResult = await runSectionScan(activePayload.zone, sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT, {
         scanId, repoFullName: scan.repo_full_name, selectedFiles: activePayload.files.length,
         skippedFiles: activePayload.skippedFiles, truncatedFiles: activePayload.truncatedFiles,
@@ -154,7 +165,7 @@ export async function runAIScan(
         continue
       }
 
-      stage = 'parse_response'
+      markStage('parse_response')
       let chunkResult = parseFullAuditResponse(apiResult.rawText)
       if (chunkResult.parseError) {
         const repairResult = await runSectionScan(
@@ -213,7 +224,7 @@ export async function runAIScan(
     }
     const evidenceFiles = allFiles.map((file) => ({ path: file.file_path, content: file.content }))
 
-    stage = 'verify_findings'
+    markStage('verify_findings')
     const verification = verifyAndDeduplicateFindings(parseResult.findings, evidenceFiles)
     let uniqueFindings = verification.findings.slice(0, 40)
 
@@ -221,7 +232,7 @@ export async function runAIScan(
       `[ScanOrchestrator] Evidence verification: candidates=${precheckCandidates.length}, kept=${uniqueFindings.length}, removed=${verification.removed}, downgraded=${verification.downgraded}`
     )
 
-    stage = 'insert_scan_results'
+    markStage('generate_fix_prompts')
     if (uniqueFindings.length > 0) {
       uniqueFindings = uniqueFindings.map(f => {
         let line_number = f.line_number ?? null
@@ -246,17 +257,27 @@ export async function runAIScan(
         }
       })
 
+      markStage('save_findings')
       const insertResult = await createScanResults(scanId, userId, uniqueFindings)
       if (!insertResult.ok) throw new Error(insertResult.error)
     }
 
-    stage = 'update_scan_summary'
+    markStage('update_scan_summary')
     const scoreResult = (uniqueFindings.length > 0 || parseResult.checklist.length > 0 || parseResult.report)
       ? calculateAuditAwareScore(uniqueFindings, parseResult.checklist, parseResult.report) 
       : { score: 100, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, totalFindings: 0 }
 
-    // PART 6 - Mark complete correctly
-    stage = 'mark_complete'
+    // A report is deliberately deferred. A completed scan exposes verified
+    // findings immediately, even if a later report request fails.
+    const analysisWarnings = incompleteZones.length > 0
+      ? ['Some analysis passes could not be completed. Review findings with this limitation in mind.']
+      : []
+    markStage('reset_report')
+    const resetReportResult = await resetScanReport(scanId, analysisWarnings)
+    if (!resetReportResult.ok) throw new Error('Failed to reset report state')
+
+    // Mark complete correctly and clear any stale scan errors.
+    markStage('mark_complete')
     const updateRes = await updateScanStatus(scanId, 'completed', {
       completed_at: new Date().toISOString(),
       security_score: scoreResult.score,
@@ -291,58 +312,17 @@ export async function runAIScan(
       }).catch(() => {})
     }
 
-    // PART 7 — Generate security officer report (deterministic, never fails scan)
-    stage = 'generate_report'
-    try {
-      const report = generateSecurityReport({
-        repoFullName:      scan.repo_full_name,
-        securityScore:     scoreResult.score,
-        criticalCount:     scoreResult.criticalCount,
-        highCount:         scoreResult.highCount,
-        mediumCount:       scoreResult.mediumCount,
-        lowCount:          scoreResult.lowCount,
-        totalFindings:     scoreResult.totalFindings,
-        findings:          uniqueFindings.map(f => ({
-          severity:      f.severity || 'medium',
-          check_name:    f.check_name || '',
-          category:      f.category || 'general',
-          description:   f.description,
-          file_path:     f.file_path,
-          recommendation: f.recommendation,
-          why_it_matters: (f as any).why_it_matters,
-          finding_status: f.finding_status,
-          confidence: f.confidence,
-          evidence: f.evidence,
-        })),
-        filesScannedCount: allFiles.length,
-        scanEngine:        'deepseek',
-        checklist:         parseResult.checklist,
-        auditReport:       parseResult.report
-      })
-
-      if (incompleteZones.length > 0) {
-        const warning = 'Some analysis passes could not be completed. Review findings with this limitation in mind.'
-        report.security_verdict = `${report.security_verdict} ${warning}`
-        report.executive_summary = `${report.executive_summary} ${warning}`
-      }
-
-      await updateScanReport(scanId, report)
-      console.log(`[ScanOrchestrator] Security report generated for scan ${scanId}`)
-    } catch (reportErr) {
-      // Report generation failure MUST NOT fail the scan
-      console.warn(
-        `[ScanOrchestrator] Report generation failed for scan ${scanId} (non-fatal):`,
-        reportErr instanceof Error ? reportErr.message : 'Unknown error'
-      )
-    }
-
-    // PART 8 — Save Phase 8G Audit Data
-    stage = 'save_audit_data'
+    // Save audit metadata from the security passes. This is not the full
+    // Security Officer Report; that is generated on demand from saved data.
+    markStage('save_audit_data')
     try {
       if (parseResult.checklist.length > 0 || parseResult.report) {
         await updateScanAuditData(scanId, {
           audit_checklist: parseResult.checklist,
-          security_posture: parseResult.report?.security_posture || 'needs_work',
+          // Core detection no longer asks the provider for report posture.
+          // Keep the audit metadata neutral; final readiness is calculated
+          // later from the saved, verified findings.
+          security_posture: parseResult.report?.security_posture || 'acceptable',
           quick_wins: parseResult.report?.quick_wins || [],
           what_is_done_right: parseResult.report?.what_is_done_right || [],
           priority_plan: parseResult.report?.priority_plan || [],
@@ -356,7 +336,14 @@ export async function runAIScan(
       )
     }
 
-    return { 
+    console.info('[ScanOrchestrator] core scan timing', {
+      scanId,
+      durationMs: Date.now() - scanStartedAt,
+      findingsCount: uniqueFindings.length,
+      reportDeferred: true,
+    })
+
+    return {
       ok: true, 
       findingsCount: uniqueFindings.length,
       securityScore: scoreResult.score

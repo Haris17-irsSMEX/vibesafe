@@ -23,6 +23,9 @@ export type ScanStatus =
   | 'completed'
   | 'failed'
 
+/** Report generation is intentionally independent from the scan lifecycle. */
+export type ReportStatus = 'not_generated' | 'generating' | 'generated' | 'failed'
+
 /**
  * Valid status transitions — enforced before any DB write.
  */
@@ -74,6 +77,9 @@ export interface ScanRecord {
   technical_summary?: string | null
   estimated_fix_effort?: string | null
   report_generated_at?: string | null
+  report_status?: ReportStatus | null
+  report_error?: string | null
+  analysis_warnings?: string[] | null
   // Strict audit fields (nullable — populated after Phase 8G audit)
   audit_checklist?: unknown[] | null
   security_posture?: string | null
@@ -138,6 +144,23 @@ export async function getScanById(
 
   if (error) {
     console.error('[getScanById] DB error:', error.message)
+    return null
+  }
+
+  return data as ScanRecord | null
+}
+
+/** Server-only admin lookup. Callers must verify admin authorization first. */
+export async function getScanByIdForAdmin(scanId: string): Promise<ScanRecord | null> {
+  const admin = getAdminClient()
+  const { data, error } = await admin
+    .from('scans')
+    .select('*')
+    .eq('id', scanId)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[getScanByIdForAdmin] DB error:', error.message)
     return null
   }
 
@@ -357,11 +380,69 @@ export async function updateScanReport(
       technical_summary:    report.technical_summary,
       estimated_fix_effort: report.estimated_fix_effort,
       report_generated_at:  new Date().toISOString(),
+      report_status:        'generated',
+      report_error:         null,
     })
     .eq('id', scanId)
 
   if (error) {
     console.error('[updateScanReport] DB error:', error.message)
+    return { ok: false, error: error.message }
+  }
+
+  return { ok: true }
+}
+
+/**
+ * Reset generated report fields after a fresh scan and persist non-sensitive
+ * analysis limitations. Findings and scan lifecycle data remain untouched.
+ */
+export async function resetScanReport(
+  scanId: string,
+  analysisWarnings: string[] = []
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = getAdminClient()
+  const { error } = await admin
+    .from('scans')
+    .update({
+      executive_summary: null,
+      security_verdict: null,
+      production_readiness: null,
+      top_risks: null,
+      positive_findings: null,
+      remediation_plan: null,
+      business_impact: null,
+      technical_summary: null,
+      estimated_fix_effort: null,
+      report_generated_at: null,
+      report_status: 'not_generated',
+      report_error: null,
+      analysis_warnings: analysisWarnings,
+    })
+    .eq('id', scanId)
+
+  if (error) {
+    console.error('[resetScanReport] DB error:', error.message)
+    return { ok: false, error: error.message }
+  }
+
+  return { ok: true }
+}
+
+/** Update report-only progress without changing the completed scan lifecycle. */
+export async function updateScanReportStatus(
+  scanId: string,
+  status: ReportStatus,
+  reportError: string | null = null
+): Promise<{ ok: boolean; error?: string }> {
+  const admin = getAdminClient()
+  const { error } = await admin
+    .from('scans')
+    .update({ report_status: status, report_error: reportError?.slice(0, 500) ?? null })
+    .eq('id', scanId)
+
+  if (error) {
+    console.error('[updateScanReportStatus] DB error:', error.message)
     return { ok: false, error: error.message }
   }
 
