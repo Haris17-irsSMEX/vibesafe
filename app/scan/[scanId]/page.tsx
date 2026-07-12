@@ -74,6 +74,7 @@ export default async function ScanPage({
         isAdmin={isAdmin}
         scanEngine={scan.scan_engine}
         errorStage={scan.error_stage}
+        analysisWarnings={Array.isArray(scan.analysis_warnings) ? scan.analysis_warnings.filter((warning): warning is string => typeof warning === 'string') : []}
       />
     </ServerDashboardLayout>
   )

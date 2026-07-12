@@ -1,7 +1,6 @@
 /**
- * Security-first provider payload staging. File collection stays complete; only
- * AI requests are chunked so large repositories degrade into focused passes.
- * The returned chunks are stateless and can later be executed by a queue worker.
+ * Security-first AI scan planning. File collection and deterministic checks
+ * always cover the complete repository; this module only bounds DeepSeek work.
  */
 
 import type { ScanFileRecord } from '@/lib/db/scan-files'
@@ -9,8 +8,15 @@ import type { ScanFileRecord } from '@/lib/db/scan-files'
 export const AI_MAX_TOTAL_SOURCE_CHARS = readLimit('AI_MAX_TOTAL_SOURCE_CHARS', 32_000)
 export const AI_MAX_PER_FILE_CHARS = readLimit('AI_MAX_PER_FILE_CHARS', 5_000)
 export const AI_MAX_FILES = readLimit('AI_MAX_FILES', 16)
+export const AI_MAX_CONCURRENT_ZONE_SCANS = readLimit('AI_MAX_CONCURRENT_ZONE_SCANS', 2)
+
+const SMALL_MAX_FILES = readLimit('AI_SMALL_REPO_MAX_FILES', 18)
+const SMALL_MAX_SOURCE_CHARS = readLimit('AI_SMALL_REPO_MAX_SOURCE_CHARS', AI_MAX_TOTAL_SOURCE_CHARS)
+const MEDIUM_MAX_FILES = readLimit('AI_MEDIUM_REPO_MAX_FILES', 60)
+const MEDIUM_MAX_SOURCE_CHARS = readLimit('AI_MEDIUM_REPO_MAX_SOURCE_CHARS', 240_000)
 
 export type SecurityZone =
+  | 'consolidated_security_review'
   | 'project_overview'
   | 'auth_and_middleware'
   | 'api_and_server_actions'
@@ -22,12 +28,27 @@ export type SecurityZone =
   | 'integrations_and_background_work'
   | 'frontend_risky_flows'
 
+export type ScanPlanSize = 'small' | 'medium' | 'large'
+export type PayloadPriority = 'critical' | 'high' | 'normal' | 'low'
+
 export interface PreparedAiPayload {
   zone: SecurityZone
   files: Array<{ path: string; content: string; section: 'general' }>
   sourceChars: number
   skippedFiles: number
   truncatedFiles: number
+  priority: PayloadPriority
+}
+
+export interface ScanPlan {
+  size: ScanPlanSize
+  payloads: PreparedAiPayload[]
+  eligibleFiles: number
+  totalSourceChars: number
+  highRiskFiles: number
+  detectedZones: number
+  selectedZones: SecurityZone[]
+  skippedZones: Array<{ zone: SecurityZone; reason: string }>
 }
 
 function readLimit(name: string, fallback: number): number {
@@ -75,6 +96,17 @@ function priority(path: string, evidencePaths: Set<string>): number {
   return 250
 }
 
+function zonePriority(zone: SecurityZone): PayloadPriority {
+  if (zone === 'auth_and_middleware' || zone === 'api_and_server_actions' || zone === 'payments_and_webhooks' || zone === 'admin_and_permissions') return 'critical'
+  if (zone === 'database_and_data_access' || zone === 'uploads_and_file_handling' || zone === 'environment_and_configuration') return 'high'
+  if (zone === 'integrations_and_background_work' || zone === 'project_overview' || zone === 'consolidated_security_review') return 'normal'
+  return 'low'
+}
+
+function priorityWeight(priorityValue: PayloadPriority): number {
+  return { critical: 0, high: 1, normal: 2, low: 3 }[priorityValue]
+}
+
 function truncate(content: string, limit: number): { content: string; truncated: boolean } {
   if (content.length <= limit) return { content, truncated: false }
   const marker = '\n\n[TRUNCATED: remaining file content was omitted to keep this security pass within provider limits.]\n'
@@ -98,41 +130,135 @@ function makePayload(zone: SecurityZone, candidates: ScanFileRecord[], allCount:
     if (truncated) truncatedFiles++
   }
 
-  return { zone, files, sourceChars, skippedFiles: Math.max(0, allCount - files.length), truncatedFiles }
+  return { zone, files, sourceChars, skippedFiles: Math.max(0, allCount - files.length), truncatedFiles, priority: zonePriority(zone) }
 }
 
-export function prepareAiPayloadChunks(allFiles: ScanFileRecord[], evidencePaths: Iterable<string> = []): PreparedAiPayload[] {
+function sorted(files: ScanFileRecord[], evidencePaths: Set<string>): ScanFileRecord[] {
+  return [...files].sort((a, b) => priority(b.file_path, evidencePaths) - priority(a.file_path, evidencePaths))
+}
+
+function containsRiskyFrontend(files: ScanFileRecord[], evidencePaths: Set<string>): boolean {
+  return files.some((file) => evidencePaths.has(file.file_path) || /\b(fetch|axios|dangerouslySetInnerHTML|localStorage|window\.location)\b/.test(file.content))
+}
+
+function addPayloads(
+  payloads: PreparedAiPayload[],
+  skippedZones: ScanPlan['skippedZones'],
+  zone: SecurityZone,
+  candidates: ScanFileRecord[],
+  eligibleCount: number,
+  reasonWhenEmpty: string
+) {
+  if (!candidates.length) {
+    skippedZones.push({ zone, reason: reasonWhenEmpty })
+    return
+  }
+  let remaining = candidates
+  while (remaining.length) {
+    const payload = makePayload(zone, remaining, eligibleCount)
+    if (!payload.files.length) {
+      skippedZones.push({ zone, reason: 'No payload-safe files were available.' })
+      return
+    }
+    payloads.push(payload)
+    // Every provider-eligible file stays in a planned pass. Per-file content
+    // limits are a transport boundary, not a reason to drop a security area.
+    remaining = remaining.slice(payload.files.length)
+  }
+}
+
+/** Plan DeepSeek passes without reducing deterministic or evidence verification coverage. */
+export function planAiSecurityScan(allFiles: ScanFileRecord[], evidencePaths: Iterable<string> = []): ScanPlan {
   const evidenceSet = new Set(Array.from(evidencePaths))
   const eligible = allFiles.filter((file) => !isProviderIrrelevant(file.file_path, file.content))
-  const grouped = new Map<SecurityZone, ScanFileRecord[]>()
-
+  const totalSourceChars = eligible.reduce((total, file) => total + file.content.length, 0)
+  const groups = new Map<SecurityZone, ScanFileRecord[]>()
   for (const file of eligible) {
     const zone = zoneFor(file.file_path)
-    const current = grouped.get(zone) ?? []
-    current.push(file)
-    grouped.set(zone, current)
+    groups.set(zone, [...(groups.get(zone) ?? []), file])
   }
+  groups.forEach((files, zone) => groups.set(zone, sorted(files, evidenceSet)))
 
-  const orderedZones: SecurityZone[] = [
-    'project_overview', 'auth_and_middleware', 'api_and_server_actions', 'database_and_data_access',
+  const highRiskZones: SecurityZone[] = [
+    'auth_and_middleware', 'api_and_server_actions', 'database_and_data_access',
     'payments_and_webhooks', 'admin_and_permissions', 'uploads_and_file_handling',
-    'environment_and_configuration', 'integrations_and_background_work', 'frontend_risky_flows',
+    'environment_and_configuration', 'integrations_and_background_work',
   ]
-  const chunks: PreparedAiPayload[] = []
+  const highRiskFiles = highRiskZones.reduce((total, zone) => total + (groups.get(zone)?.length ?? 0), 0)
+  const detectedZones = groups.size
+  const needsLargePlan = eligible.length > MEDIUM_MAX_FILES
+    || totalSourceChars > MEDIUM_MAX_SOURCE_CHARS
+    || highRiskFiles > 32
+    || detectedZones > 8
+  const skippedZones: ScanPlan['skippedZones'] = []
+  const payloads: PreparedAiPayload[] = []
+  let size: ScanPlanSize
 
-  for (const zone of orderedZones) {
-    const zoneFiles = (grouped.get(zone) ?? []).sort((a, b) => priority(b.file_path, evidenceSet) - priority(a.file_path, evidenceSet))
-    while (zoneFiles.length) {
-      const payload = makePayload(zone, zoneFiles, eligible.length)
-      if (!payload.files.length) break
-      chunks.push(payload)
-      const sent = new Set(payload.files.map((file) => file.path))
-      const remaining = zoneFiles.filter((file) => !sent.has(file.file_path))
-      zoneFiles.splice(0, zoneFiles.length, ...remaining)
+  if (eligible.length <= SMALL_MAX_FILES && totalSourceChars <= SMALL_MAX_SOURCE_CHARS) {
+    size = 'small'
+    addPayloads(payloads, skippedZones, 'consolidated_security_review', sorted(eligible, evidenceSet), eligible.length, 'No provider-eligible source files were found.')
+  } else if (!needsLargePlan) {
+    size = 'medium'
+    const access = [
+      ...(groups.get('auth_and_middleware') ?? []),
+      ...(groups.get('api_and_server_actions') ?? []),
+      ...(groups.get('admin_and_permissions') ?? []),
+    ]
+    const dataAndIntegrations = [
+      ...(groups.get('database_and_data_access') ?? []),
+      ...(groups.get('payments_and_webhooks') ?? []),
+      ...(groups.get('environment_and_configuration') ?? []),
+      ...(groups.get('integrations_and_background_work') ?? []),
+      ...(groups.get('project_overview') ?? []),
+    ]
+    const frontend = groups.get('frontend_risky_flows') ?? []
+    const boundaries = [
+      ...(groups.get('uploads_and_file_handling') ?? []),
+      ...(containsRiskyFrontend(frontend, evidenceSet) ? frontend : []),
+    ]
+    addPayloads(payloads, skippedZones, 'auth_and_middleware', sorted(access, evidenceSet), eligible.length, 'No auth, API, or permission files were detected.')
+    addPayloads(payloads, skippedZones, 'database_and_data_access', sorted(dataAndIntegrations, evidenceSet), eligible.length, 'No data, payment, integration, or configuration files were detected.')
+    addPayloads(payloads, skippedZones, 'uploads_and_file_handling', sorted(boundaries, evidenceSet), eligible.length, 'No upload or risky frontend flow files were detected.')
+    if (frontend.length && !containsRiskyFrontend(frontend, evidenceSet)) {
+      skippedZones.push({ zone: 'frontend_risky_flows', reason: 'Only low-risk UI/static frontend files were detected.' })
+    }
+  } else {
+    size = 'large'
+    const orderedZones: SecurityZone[] = [
+      'auth_and_middleware', 'api_and_server_actions', 'payments_and_webhooks', 'admin_and_permissions',
+      'database_and_data_access', 'uploads_and_file_handling', 'environment_and_configuration',
+      'integrations_and_background_work', 'project_overview', 'frontend_risky_flows',
+    ]
+    for (const zone of orderedZones) {
+      const zoneFiles = groups.get(zone) ?? []
+      if (!zoneFiles.length) {
+        skippedZones.push({ zone, reason: 'No relevant files were detected.' })
+        continue
+      }
+      if (zone === 'frontend_risky_flows' && !containsRiskyFrontend(zoneFiles, evidenceSet)) {
+        skippedZones.push({ zone, reason: 'Only low-risk UI/static frontend files were detected.' })
+        continue
+      }
+      addPayloads(payloads, skippedZones, zone, zoneFiles, eligible.length, 'No payload-safe files were available.')
     }
   }
 
-  return chunks
+  payloads.sort((a, b) => priorityWeight(a.priority) - priorityWeight(b.priority))
+  return {
+    size,
+    payloads,
+    eligibleFiles: eligible.length,
+    totalSourceChars,
+    highRiskFiles,
+    detectedZones,
+    selectedZones: payloads.map((payload) => payload.zone),
+    skippedZones,
+  }
+}
+
+/** Backward-compatible alias for callers that only need staged payloads. */
+export function prepareAiPayloadChunks(allFiles: ScanFileRecord[], evidencePaths: Iterable<string> = []): PreparedAiPayload[] {
+  return planAiSecurityScan(allFiles, evidencePaths).payloads
 }
 
 export function compactAiPayload(payload: PreparedAiPayload): PreparedAiPayload {

@@ -303,6 +303,13 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           />
         </div>
 
+        {analysisWarnings.length > 0 && (
+          <div role="status" className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-sm leading-6 text-amber-100">
+            <span className="font-semibold text-amber-300">Partial coverage.</span>{" "}
+            {analysisWarnings.join(" ")}
+          </div>
+        )}
+
         <div className="mt-10">
           {scan.executive_summary ? (
             <SecurityOfficerReport
@@ -337,12 +344,6 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
             </ResultSurface>
           )}
         </div>
-
-        {analysisWarnings.length > 0 && (
-          <div className="mb-10 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3 text-sm leading-6 text-amber-200">
-            {analysisWarnings.join(" ")}
-          </div>
-        )}
 
         <div>
           <AppSectionHeader

@@ -265,7 +265,8 @@ export function isValidTransition(from: ScanStatus, to: ScanStatus): boolean {
 
 /**
  * Returns true only if:
- *   - scan.status === 'scanning'
+ *   - scan.status === 'scanning' (or a completed scan explicitly marked with
+ *     partial coverage, which may be rerun in full)
  *   - scan_files count > 0
  *
  * Does NOT run AI. Used as a pre-flight check before Phase 2C.
@@ -276,7 +277,12 @@ export async function isScanReadyForAI(
 ): Promise<boolean> {
   const scan = await getScanById(scanId, userId)
 
-  if (!scan || !(scan.status === 'scanning' || scan.status === 'failed')) {
+  if (!scan) return false
+  const hasPartialCoverage = Array.isArray(scan.analysis_warnings) && scan.analysis_warnings.length > 0
+  const canRun = scan.status === 'scanning'
+    || scan.status === 'failed'
+    || (hasPartialCoverage && (scan.status === 'complete' || scan.status === 'completed'))
+  if (!canRun) {
     return false
   }
 

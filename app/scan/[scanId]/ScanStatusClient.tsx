@@ -149,6 +149,7 @@ interface ScanStatusClientProps {
   isAdmin?: boolean
   scanEngine?: string | null
   errorStage?: string | null
+  analysisWarnings: string[]
 }
 
 export function ScanStatusClient({
@@ -170,6 +171,7 @@ export function ScanStatusClient({
   isAdmin,
   scanEngine,
   errorStage,
+  analysisWarnings,
 }: ScanStatusClientProps) {
   const router = useRouter()
   const config = STATUS_CONFIG[status]
@@ -191,6 +193,7 @@ export function ScanStatusClient({
   const [isStuck, setIsStuck] = useState(false)
   const isTerminal = status === 'complete' || status === 'completed'
   const isHardErrorStatus = ['failed', 'error', 'timed_out'].includes(status)
+  const hasPartialCoverage = isTerminal && analysisWarnings.length > 0
 
   useEffect(() => {
     // Server status wins over stale client request state. This also makes old
@@ -415,12 +418,14 @@ export function ScanStatusClient({
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-foreground">{config.label}</h2>
+                  <h2 className="text-xl font-bold text-foreground">{hasPartialCoverage ? 'Partial scan complete' : config.label}</h2>
                   <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider", config.badgeColor)}>
-                    {status}
+                    {hasPartialCoverage ? 'partial coverage' : status}
                   </span>
                 </div>
-                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{config.description}</p>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                  {hasPartialCoverage ? 'Existing findings are available, but some planned security analysis passes did not complete and are not marked clean.' : config.description}
+                </p>
               </div>
             </div>
           </GlowCard>
@@ -475,6 +480,9 @@ export function ScanStatusClient({
                       {status === 'failed' && (
                         <span className="block mt-1 text-red-400 font-medium">AI scan could not be completed. Please retry.</span>
                       )}
+                      {isScanning && (
+                        <span className="block mt-1 text-cc-muted">Planning security scan, running deterministic checks, then analyzing high-risk code paths and verifying findings.</span>
+                      )}
                       {(status === 'scanning' || isScanning) && isStuck && (
                         <span className="block mt-1 text-amber-400 font-medium">Scan is taking longer than expected. You can keep this page open or check results later.</span>
                       )}
@@ -497,7 +505,7 @@ export function ScanStatusClient({
                       className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-50 shadow-[0_0_15px_-3px_rgba(124,58,237,0.4)]"
                     >
                       {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cpu className="h-4 w-4" />}
-                      {isScanning ? 'Scanning…' : status === 'failed' || isStuck ? 'Retry AI Scan' : 'Run AI Scan'}
+                      {isScanning ? 'Analyzing security paths…' : status === 'failed' || isStuck ? 'Retry AI Scan' : 'Run AI Scan'}
                     </button>
                   )}
                   {canReset && (
@@ -518,16 +526,21 @@ export function ScanStatusClient({
 
           {/* ── Complete state ── */}
           {isTerminal && (
-            <GlassPanel className="p-6 border-emerald-500/20 bg-emerald-500/5 relative overflow-hidden">
+            <GlassPanel className={cn("p-6 relative overflow-hidden", hasPartialCoverage ? "border-amber-500/20 bg-amber-500/5" : "border-emerald-500/20 bg-emerald-500/5")}>
               <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full" />
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 border border-emerald-500/30">
-                    <CheckCircle className="h-5 w-5 text-emerald-400" />
+                  <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", hasPartialCoverage ? "bg-amber-500/20 border-amber-500/30" : "bg-emerald-500/20 border-emerald-500/30")}>
+                    {hasPartialCoverage ? <AlertTriangle className="h-5 w-5 text-amber-400" /> : <CheckCircle className="h-5 w-5 text-emerald-400" />}
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-emerald-400">Scan complete</h3>
-                    <p className="mt-1 text-sm text-zinc-400">Security analysis has finished successfully.</p>
+                    <h3 className={cn("text-base font-semibold", hasPartialCoverage ? "text-amber-300" : "text-emerald-400")}>
+                      {hasPartialCoverage ? 'Partial scan complete' : 'Scan complete'}
+                    </h3>
+                    <p className="mt-1 text-sm text-zinc-400">
+                      {hasPartialCoverage ? 'Existing findings are evidence-verified, but this is not a full-coverage result.' : 'Security analysis has finished successfully.'}
+                    </p>
+                    {hasPartialCoverage && <p className="mt-2 max-w-xl text-sm leading-6 text-amber-200">{analysisWarnings.join(' ')}</p>}
                     {isAdmin && scanEngine === 'fallback' && (
                       <p className="mt-2 text-xs font-medium text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded inline-block">
                         Admin Note: Fallback scanner used because AI provider failed.
@@ -535,13 +548,26 @@ export function ScanStatusClient({
                     )}
                   </div>
                 </div>
-                <Link
-                  href={`/results/${scanId}`}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-500 px-6 py-2.5 text-sm font-bold text-emerald-950 transition-all hover:bg-emerald-400 shadow-lg shadow-emerald-500/20"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  View Results
-                </Link>
+                <div className="flex shrink-0 flex-col gap-2 sm:w-52">
+                  <Link
+                    href={`/results/${scanId}`}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-6 py-2.5 text-sm font-bold text-emerald-950 transition-all hover:bg-emerald-400 shadow-lg shadow-emerald-500/20"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View Results
+                  </Link>
+                  {hasPartialCoverage && (
+                    <button
+                      type="button"
+                      onClick={handleRunAIScan}
+                      disabled={isScanning}
+                      className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isScanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                      Run full scan again
+                    </button>
+                  )}
+                </div>
               </div>
             </GlassPanel>
           )}

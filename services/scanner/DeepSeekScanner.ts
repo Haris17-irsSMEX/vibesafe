@@ -29,6 +29,8 @@ export interface ScanDiagnostics {
   truncatedFiles?: number
   sourceChars?: number
   promptChars?: number
+  /** Optional per-call cap for latency-sensitive core scan passes. */
+  timeoutMs?: number
 }
 
 export type ScanSectionResult =
@@ -40,10 +42,10 @@ function readLimit(name: string, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback
 }
 
-function createDeepSeekClient(): OpenAI {
+function createDeepSeekClient(timeoutMs = AI_PROVIDER_TIMEOUT_MS): OpenAI {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) throw new Error('missing_provider_key')
-  return new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com', timeout: AI_PROVIDER_TIMEOUT_MS, maxRetries: 0 })
+  return new OpenAI({ apiKey, baseURL: 'https://api.deepseek.com', timeout: timeoutMs, maxRetries: 0 })
 }
 
 function sleep(ms: number): Promise<void> {
@@ -93,6 +95,7 @@ function logProviderFailure(
     truncatedFiles: diagnostics.truncatedFiles,
     sourceChars: diagnostics.sourceChars,
     promptChars: diagnostics.promptChars,
+    providerTimeoutMs: diagnostics.timeoutMs ?? AI_PROVIDER_TIMEOUT_MS,
     providerStatus: details.providerStatus,
     providerCode: details.providerCode,
     safeProviderMessage: details.providerStatus ? `Provider HTTP ${details.providerStatus}` : `Provider failure: ${reason}`,
@@ -128,7 +131,7 @@ async function attemptScan(
 ): Promise<ScanSectionResult> {
   let client: OpenAI
   try {
-    client = createDeepSeekClient()
+    client = createDeepSeekClient(diagnostics.timeoutMs)
   } catch (error) {
     const details = classifyFailure(error)
     logProviderFailure(sectionName, attempt, details.reason, diagnostics, { providerStatus: details.status, providerCode: details.code })

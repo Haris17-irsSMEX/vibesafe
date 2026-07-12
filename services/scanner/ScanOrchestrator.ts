@@ -15,13 +15,20 @@ import { extractCodeEvidence } from './CodeEvidenceExtractor'
 import { calculateAuditAwareScore } from '@/services/scoring/SecurityScorer'
 import { sendScanCompleteEmail, sendScanFailedEmail } from '@/services/notifications/ResendMailer'
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
-import type { AuditChecklistItem, AuditReport, ScanFinding } from '@/lib/types'
+import type { AuditChecklistItem, AuditReport, FullParseResult, ScanFinding } from '@/lib/types'
 import { buildSectionPrompt, SECURITY_AUDIT_PROMPT_VERSION, SINGLE_PASS_SYSTEM_PROMPT } from './prompts/SecurityAuditPrompt'
 import { SECTION_DEFINITIONS } from './prompts/sectionPrompts'
 import { buildProjectContext, formatProjectContext } from './ProjectContext'
 import { formatPrecheckCandidates, runDeterministicPrechecks } from './DeterministicPrechecks'
 import { verifyAndDeduplicateFindings } from './FindingVerification'
-import { compactAiPayload, prepareAiPayloadChunks, type PreparedAiPayload } from './ScanPayload'
+import { AI_MAX_CONCURRENT_ZONE_SCANS, compactAiPayload, planAiSecurityScan, type PreparedAiPayload } from './ScanPayload'
+
+const AI_SCAN_PROVIDER_TIMEOUT_MS = readLimit('AI_SCAN_PROVIDER_TIMEOUT_MS', 45_000)
+
+function readLimit(name: string, fallback: number): number {
+  const value = Number(process.env[name])
+  return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback
+}
 
 interface OrchestratorResult {
   ok: boolean
@@ -32,6 +39,14 @@ interface OrchestratorResult {
 
 function providerError(reason: ProviderFailureReason): Error {
   return new Error(`AI_PROVIDER_${reason}`)
+}
+
+type ZoneOutcome =
+  | { ok: true; payload: PreparedAiPayload; result: FullParseResult; durationMs: number; attempts: number; responseChars: number }
+  | { ok: false; payload: PreparedAiPayload; reason: ProviderFailureReason | 'invalid_json'; durationMs: number; attempts?: number }
+
+function priorityWeight(priority: PreparedAiPayload['priority']): number {
+  return { critical: 0, high: 1, normal: 2, low: 3 }[priority]
 }
 
 function mergeChecklist<T extends { id: string; section: string; check: string }>(items: T[]): T[] {
@@ -112,8 +127,25 @@ export async function runAIScan(
     const precheckCandidates = runDeterministicPrechecks(allFiles.map((file) => ({ path: file.file_path, content: file.content })))
 
     markStage('prepare_files')
-    const payloads = prepareAiPayloadChunks(allFiles, precheckCandidates.map((candidate) => candidate.file_path).filter(Boolean) as string[])
-    if (!payloads.length) throw new Error('AI_PROVIDER_payload_too_large')
+    const scanPlan = planAiSecurityScan(allFiles, precheckCandidates.map((candidate) => candidate.file_path).filter(Boolean) as string[])
+    if (!scanPlan.payloads.length) throw new Error('AI_PROVIDER_payload_too_large')
+
+    console.info('[ScanOrchestrator] scan plan selected', {
+      scanId,
+      repoFullName: scan.repo_full_name,
+      plan: scanPlan.size,
+      filesCollected: allFiles.length,
+      eligibleFiles: scanPlan.eligibleFiles,
+      totalSourceChars: scanPlan.totalSourceChars,
+      highRiskFiles: scanPlan.highRiskFiles,
+      detectedZones: scanPlan.detectedZones,
+      zonesSelected: scanPlan.selectedZones,
+      aiCallsPlanned: scanPlan.payloads.length,
+      maxConcurrentCalls: AI_MAX_CONCURRENT_ZONE_SCANS,
+    })
+    for (const skipped of scanPlan.skippedZones) {
+      console.info('[ScanOrchestrator] zone skipped', { scanId, zone: skipped.zone, reason: skipped.reason })
+    }
 
     const mergedFindings: ScanFinding[] = []
     const mergedChecklist: AuditChecklistItem[] = []
@@ -121,89 +153,97 @@ export async function runAIScan(
     const incompleteZones: string[] = []
     let completedZoneCount = 0
 
-    for (let chunkIndex = 0; chunkIndex < payloads.length; chunkIndex++) {
-      let activePayload: PreparedAiPayload = payloads[chunkIndex]
-      const pathsInChunk = new Set(activePayload.files.map((file) => file.path))
-      const chunkCandidates = precheckCandidates.filter((candidate) => candidate.file_path && pathsInChunk.has(candidate.file_path))
-      const buildPrompt = (payload: PreparedAiPayload) => buildSectionPrompt(SECTION_DEFINITIONS.general, payload.files, {
-        projectContext: formatProjectContext(projectContext),
-        precheckCandidates: formatPrecheckCandidates(chunkCandidates),
-        scanStage: `${activePayload.zone} pass ${chunkIndex + 1} of ${payloads.length}`,
-      })
+    const executePayload = async (initialPayload: PreparedAiPayload, chunkIndex: number): Promise<ZoneOutcome> => {
+      const chunkStartedAt = Date.now()
+      let activePayload = initialPayload
+      const buildPrompt = (payload: PreparedAiPayload) => {
+        const pathsInChunk = new Set(payload.files.map((file) => file.path))
+        const chunkCandidates = precheckCandidates.filter((candidate) => candidate.file_path && pathsInChunk.has(candidate.file_path))
+        return buildSectionPrompt(SECTION_DEFINITIONS.general, payload.files, {
+          projectContext: formatProjectContext(projectContext),
+          precheckCandidates: formatPrecheckCandidates(chunkCandidates),
+          scanStage: `${payload.zone} pass ${chunkIndex + 1} of ${scanPlan.payloads.length}`,
+        })
+      }
 
-      markStage('build_prompt')
       let sectionPrompt = buildPrompt(activePayload)
-      markStage('call_deepseek')
-      let apiResult = await runSectionScan(activePayload.zone, sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT, {
+      const diagnostics = {
         scanId, repoFullName: scan.repo_full_name, selectedFiles: activePayload.files.length,
         skippedFiles: activePayload.skippedFiles, truncatedFiles: activePayload.truncatedFiles,
-        sourceChars: activePayload.sourceChars, promptChars: sectionPrompt.length,
-      })
-
+        sourceChars: activePayload.sourceChars, promptChars: sectionPrompt.length, timeoutMs: AI_SCAN_PROVIDER_TIMEOUT_MS,
+      }
+      let apiResult = await runSectionScan(activePayload.zone, sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT, diagnostics)
       if (!apiResult.ok && apiResult.reason === 'payload_too_large') {
         activePayload = compactAiPayload(activePayload)
         sectionPrompt = buildPrompt(activePayload)
-        apiResult = await runSectionScan(`${activePayload.zone}_compact`, sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT, {
-          scanId, repoFullName: scan.repo_full_name, selectedFiles: activePayload.files.length,
-          skippedFiles: activePayload.skippedFiles, truncatedFiles: activePayload.truncatedFiles,
-          sourceChars: activePayload.sourceChars, promptChars: sectionPrompt.length,
-        })
+        diagnostics.selectedFiles = activePayload.files.length
+        diagnostics.skippedFiles = activePayload.skippedFiles
+        diagnostics.truncatedFiles = activePayload.truncatedFiles
+        diagnostics.sourceChars = activePayload.sourceChars
+        diagnostics.promptChars = sectionPrompt.length
+        apiResult = await runSectionScan(`${activePayload.zone}_compact`, sectionPrompt, SINGLE_PASS_SYSTEM_PROMPT, diagnostics)
       }
-
       if (!apiResult.ok) {
-        console.warn('[ScanOrchestrator] provider chunk failed', {
-          scanId, repoFullName: scan.repo_full_name, model: AI_PROVIDER_MODEL, zone: activePayload.zone,
-          chunkIndex: chunkIndex + 1, chunkCount: payloads.length, reason: apiResult.reason,
-          attempts: apiResult.attempts, providerStatus: apiResult.providerStatus, providerCode: apiResult.providerCode,
-          selectedFiles: activePayload.files.length, skippedFiles: activePayload.skippedFiles,
-          truncatedFiles: activePayload.truncatedFiles, sourceChars: activePayload.sourceChars, promptChars: sectionPrompt.length,
-        })
-        if (completedZoneCount === 0 && ['auth', 'invalid_request', 'insufficient_balance'].includes(apiResult.reason)) {
-          throw providerError(apiResult.reason)
-        }
-        incompleteZones.push(`${activePayload.zone}: ${apiResult.reason}`)
-        continue
+        return { ok: false, payload: activePayload, reason: apiResult.reason, durationMs: Date.now() - chunkStartedAt, attempts: apiResult.attempts }
       }
 
-      markStage('parse_response')
       let chunkResult = parseFullAuditResponse(apiResult.rawText)
       if (chunkResult.parseError) {
         const repairResult = await runSectionScan(
           `${activePayload.zone}_json_repair`, sectionPrompt,
           `${SINGLE_PASS_SYSTEM_PROMPT}\nThe prior response could not be parsed. Return one compact, valid JSON object only. Do not omit required top-level keys.`,
-          { scanId, repoFullName: scan.repo_full_name, selectedFiles: activePayload.files.length, skippedFiles: activePayload.skippedFiles, truncatedFiles: activePayload.truncatedFiles, sourceChars: activePayload.sourceChars, promptChars: sectionPrompt.length }
+          { scanId, repoFullName: scan.repo_full_name, selectedFiles: activePayload.files.length, skippedFiles: activePayload.skippedFiles, truncatedFiles: activePayload.truncatedFiles, sourceChars: activePayload.sourceChars, promptChars: sectionPrompt.length, timeoutMs: AI_SCAN_PROVIDER_TIMEOUT_MS }
         )
-        if (!repairResult.ok) {
-          if (completedZoneCount === 0 && ['auth', 'invalid_request', 'insufficient_balance'].includes(repairResult.reason)) {
-            throw providerError(repairResult.reason)
-          }
-          incompleteZones.push(`${activePayload.zone}: ${repairResult.reason}`)
-          continue
-        }
+        if (!repairResult.ok) return { ok: false, payload: activePayload, reason: repairResult.reason, durationMs: Date.now() - chunkStartedAt, attempts: repairResult.attempts }
         chunkResult = parseFullAuditResponse(repairResult.rawText)
-        if (chunkResult.parseError) {
-          console.warn('[ScanOrchestrator] invalid provider JSON after repair', { scanId, repoFullName: scan.repo_full_name, model: AI_PROVIDER_MODEL, zone: activePayload.zone, chunkIndex: chunkIndex + 1 })
-          incompleteZones.push(`${activePayload.zone}: invalid_json`)
+        if (chunkResult.parseError) return { ok: false, payload: activePayload, reason: 'invalid_json', durationMs: Date.now() - chunkStartedAt, attempts: repairResult.attempts }
+        return { ok: true, payload: activePayload, result: chunkResult, durationMs: Date.now() - chunkStartedAt, attempts: repairResult.attempts, responseChars: repairResult.rawText.length }
+      }
+      return { ok: true, payload: activePayload, result: chunkResult, durationMs: Date.now() - chunkStartedAt, attempts: apiResult.attempts, responseChars: apiResult.rawText.length }
+    }
+
+    markStage('analyze_security_zones')
+    const plannedPayloads = [...scanPlan.payloads].sort((a, b) => priorityWeight(a.priority) - priorityWeight(b.priority))
+    let nextPayloadIndex = 0
+    while (nextPayloadIndex < plannedPayloads.length) {
+      const batch: Array<{ payload: PreparedAiPayload; index: number }> = []
+      while (batch.length < AI_MAX_CONCURRENT_ZONE_SCANS && nextPayloadIndex < plannedPayloads.length) {
+        const payload = plannedPayloads[nextPayloadIndex]
+        nextPayloadIndex++
+        batch.push({ payload, index: nextPayloadIndex - 1 })
+      }
+      if (!batch.length) continue
+
+      console.info('[ScanOrchestrator] AI batch started', { scanId, zones: batch.map(({ payload }) => payload.zone), concurrentCalls: batch.length })
+      const outcomes = await Promise.all(batch.map(({ payload, index }) => executePayload(payload, index)))
+      for (const outcome of outcomes) {
+        if (!outcome.ok) {
+          console.warn('[ScanOrchestrator] provider chunk failed', {
+            scanId, repoFullName: scan.repo_full_name, model: AI_PROVIDER_MODEL, zone: outcome.payload.zone,
+            reason: outcome.reason, attempts: outcome.attempts, durationMs: outcome.durationMs,
+            selectedFiles: outcome.payload.files.length, skippedFiles: outcome.payload.skippedFiles,
+            truncatedFiles: outcome.payload.truncatedFiles, sourceChars: outcome.payload.sourceChars,
+          })
+          incompleteZones.push(`${outcome.payload.zone}: ${outcome.reason}`)
           continue
         }
+        console.info('[ScanOrchestrator] security pass completed', {
+          scanId, model: AI_PROVIDER_MODEL, promptVersion: SECURITY_AUDIT_PROMPT_VERSION,
+          zone: outcome.payload.zone, selectedFiles: outcome.payload.files.length,
+          skippedFiles: outcome.payload.skippedFiles, truncatedFiles: outcome.payload.truncatedFiles,
+          sourceChars: outcome.payload.sourceChars, responseChars: outcome.responseChars,
+          findingsParsed: outcome.result.findings.length, providerAttempts: outcome.attempts, durationMs: outcome.durationMs,
+        })
+        mergedFindings.push(...outcome.result.findings)
+        mergedChecklist.push(...outcome.result.checklist)
+        if (outcome.result.report) auditReports.push(outcome.result.report)
+        completedZoneCount++
       }
-
-      console.info('[ScanOrchestrator] security pass completed', {
-        scanId, model: AI_PROVIDER_MODEL, promptVersion: SECURITY_AUDIT_PROMPT_VERSION,
-        zone: activePayload.zone, chunkIndex: chunkIndex + 1, chunkCount: payloads.length,
-        selectedFiles: activePayload.files.length, skippedFiles: activePayload.skippedFiles,
-        truncatedFiles: activePayload.truncatedFiles, sourceChars: activePayload.sourceChars,
-        promptChars: sectionPrompt.length, responseChars: apiResult.rawText.length,
-        findingsParsed: chunkResult.findings.length, jsonParseFailed: chunkResult.parseError, providerAttempts: apiResult.attempts,
-      })
-
-      mergedFindings.push(...chunkResult.findings)
-      mergedChecklist.push(...chunkResult.checklist)
-      if (chunkResult.report) auditReports.push(chunkResult.report)
-      completedZoneCount++
     }
 
     if (completedZoneCount === 0) {
+      const permanentFailure = incompleteZones.find((entry) => /: (auth|invalid_request|insufficient_balance)$/.test(entry))
+      if (permanentFailure) throw providerError(permanentFailure.split(': ')[1] as ProviderFailureReason)
       throw new Error('AI_PROVIDER_unsupported_structured_response')
     }
     if (incompleteZones.length > 0) {
@@ -269,9 +309,11 @@ export async function runAIScan(
 
     // A report is deliberately deferred. A completed scan exposes verified
     // findings immediately, even if a later report request fails.
-    const analysisWarnings = incompleteZones.length > 0
-      ? ['Some analysis passes could not be completed. Review findings with this limitation in mind.']
-      : []
+    const analysisWarnings = [
+      ...(incompleteZones.length > 0
+        ? ['Partial coverage: some planned security analysis passes did not complete. Existing findings are shown, but remaining areas are not marked clean.']
+        : []),
+    ]
     markStage('reset_report')
     const resetReportResult = await resetScanReport(scanId, analysisWarnings)
     if (!resetReportResult.ok) throw new Error('Failed to reset report state')
@@ -297,7 +339,7 @@ export async function runAIScan(
 
     console.info('[ScanOrchestrator] completion update persisted', { scanId, status: 'completed' })
 
-    if (userEmail) {
+    if (userEmail && incompleteZones.length === 0) {
       await sendScanCompleteEmail({
         userEmail,
         repoFullName: scan.repo_full_name,
@@ -310,6 +352,8 @@ export async function runAIScan(
         lowCount: scoreResult.lowCount,
         resultsUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/results/${scanId}`,
       }).catch(() => {})
+    } else if (userEmail) {
+      console.info('[ScanOrchestrator] completion email withheld for partial coverage', { scanId, incompleteZoneCount: incompleteZones.length })
     }
 
     // Save audit metadata from the security passes. This is not the full
