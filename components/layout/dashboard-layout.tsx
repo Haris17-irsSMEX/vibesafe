@@ -14,6 +14,7 @@ const routeDetails = [
   { match: (path: string) => path.startsWith("/scan/"), title: "Scan terminal", detail: "Security analysis" },
   { match: (path: string) => path.startsWith("/results/"), title: "Scan results", detail: "Findings and reports" },
   { match: (path: string) => path === "/results", title: "Results", detail: "Completed scans" },
+  { match: (path: string) => path.startsWith("/system-testing"), title: "System Testing", detail: "Public-page checks" },
   { match: (path: string) => path.startsWith("/settings"), title: "Settings", detail: "Account and billing" },
   { match: (path: string) => path.startsWith("/admin"), title: "Admin", detail: "Internal operations" },
 ];

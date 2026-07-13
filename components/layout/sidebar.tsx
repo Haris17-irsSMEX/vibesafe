@@ -10,6 +10,7 @@ import {
   LogOut,
   CreditCard,
   Shield,
+  Activity,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ export function Sidebar({
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, exact: true },
     { name: "Connect GitHub", href: "/dashboard/connect", icon: GitFork },
     { name: "Results", href: "/results", icon: FileSearch },
+    { name: "System Testing", href: "/system-testing", icon: Activity },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 

@@ -151,6 +151,22 @@ function getScanCreateLimiter(): Ratelimit | null {
   return scanCreateLimiter
 }
 
+let systemTestLimiter: Ratelimit | null = null
+
+function getSystemTestLimiter(): Ratelimit | null {
+  if (systemTestLimiter) return systemTestLimiter
+  const r = getRedis()
+  if (!r) return null
+
+  systemTestLimiter = new Ratelimit({
+    redis: r,
+    limiter: Ratelimit.slidingWindow(process.env.NODE_ENV === 'production' ? 5 : 1000, '1 h'),
+    analytics: true,
+    prefix: 'system-test',
+  })
+  return systemTestLimiter
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 interface RateLimitResult {
@@ -310,6 +326,27 @@ export async function rateLimitScanCreate(userId: string): Promise<RateLimitResu
     if (process.env.NODE_ENV === 'production') {
       return { success: false, remaining: 0 }
     }
+    return { success: true, remaining: 999 }
+  }
+}
+
+/** Limit the bounded, server-side browser runner independently of AI scan quotas. */
+export async function rateLimitSystemTest(userId: string): Promise<RateLimitResult> {
+  try {
+    const limiter = getSystemTestLimiter()
+    if (!limiter) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[RateLimit] Missing Redis config in production! Failing closed for system tests.')
+        return { success: false, remaining: 0 }
+      }
+      return { success: true, remaining: 999 }
+    }
+
+    const { success, remaining } = await limiter.limit(`system-test:${userId}`)
+    return { success, remaining }
+  } catch (err) {
+    console.error('[RateLimit] Error checking system test limit:', err)
+    if (process.env.NODE_ENV === 'production') return { success: false, remaining: 0 }
     return { success: true, remaining: 999 }
   }
 }
