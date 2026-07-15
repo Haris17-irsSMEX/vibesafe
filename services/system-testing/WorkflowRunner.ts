@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Page, Locator } from "playwright";
+import type { Page, Locator } from "playwright-core";
 import type {
   NewSystemTestFinding,
   SystemTestCategory,

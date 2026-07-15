@@ -17,6 +17,7 @@ import { parseSafeWorkflow } from "@/services/system-testing/WorkflowRunner";
 
 // This synchronous MVP is intentionally bounded. A future worker can reuse the
 // runner and persistence layer without changing the public route contract.
+export const runtime = "nodejs";
 export const maxDuration = 120;
 
 export async function POST(request: Request) {

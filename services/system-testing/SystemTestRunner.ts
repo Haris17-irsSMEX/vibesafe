@@ -1,7 +1,7 @@
 import "server-only";
 
 import { lookup } from "node:dns/promises";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Browser, Page } from "playwright-core";
 import type {
   NewSystemTestFinding,
   SystemTestCategory,
@@ -10,6 +10,7 @@ import type {
   WorkflowDefinition,
   WorkflowSummary,
 } from "@/lib/db/system-tests";
+import { BrowserLaunchUnavailableError, launchSystemTestBrowser } from "@/services/system-testing/BrowserLauncher";
 import { executeSafeWorkflow } from "@/services/system-testing/WorkflowRunner";
 
 export const SYSTEM_TEST_LIMITS = {
@@ -279,11 +280,20 @@ async function collectSafeButtons(page: Page, currentUrl: string, findings: NewS
 
 export async function runPublicSystemTest(input: { runId: string; targetUrl: string; origin: string; workflow?: WorkflowDefinition | null }): Promise<SystemTestExecution> {
   let browser: Browser;
+  let runnerMode = "unknown";
   try {
-    browser = await chromium.launch({ headless: true });
+    const launched = await launchSystemTestBrowser();
+    browser = launched.browser;
+    runnerMode = launched.mode;
   } catch (error) {
-    console.warn("[system-tests] browser launch unavailable", { reason: error instanceof Error ? error.message.slice(0, 200) : "unknown" });
-    throw new SystemTestRunnerUnavailableError("System testing runner is not available in this deployment environment yet.");
+    console.warn("[system-tests] browser launch unavailable", {
+      runId: input.runId,
+      environment: process.env.NODE_ENV,
+      runtime: process.env.NEXT_RUNTIME ?? "nodejs",
+      reason: error instanceof Error ? error.message.slice(0, 300) : "unknown",
+      launchMode: error instanceof BrowserLaunchUnavailableError ? error.mode : "unknown",
+    });
+    throw new SystemTestRunnerUnavailableError(error instanceof Error ? error.message : "System testing browser could not start in this deployment. Please contact support.");
   }
 
   const findings: NewSystemTestFinding[] = [];
@@ -305,6 +315,7 @@ export async function runPublicSystemTest(input: { runId: string; targetUrl: str
   let workflowSummary: WorkflowSummary | null = null;
 
   try {
+    console.info("[system-tests] runner mode active", { runId: input.runId, runnerMode });
     const context = await browser.newContext({ ignoreHTTPSErrors: false, serviceWorkers: "block" });
     const page = await context.newPage();
     page.setDefaultNavigationTimeout(SYSTEM_TEST_LIMITS.pageTimeoutMs);
