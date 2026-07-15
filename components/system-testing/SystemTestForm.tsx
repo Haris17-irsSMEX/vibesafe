@@ -29,6 +29,16 @@ const templates: WorkflowTemplate[] = [
   { id: "custom", label: "Custom workflow", name: "", clickText: "", expectedUrl: "", expectedText: "" },
 ];
 
+type SystemTestFormProps = {
+  canRunSystemTest: boolean;
+  guidedWorkflowEnabled: boolean;
+  usageLabel: string;
+  resetLabel: string;
+  upgradeUrl: string;
+  planLabel: string;
+  isAdmin: boolean;
+};
+
 function buildGuidedSteps(input: { startingUrl: string; clickText: string; expectedUrl: string; expectedText: string }): WorkflowStep[] {
   const steps: WorkflowStep[] = [{ type: "visit", url: input.startingUrl.trim() }];
   if (input.clickText.trim()) steps.push({ type: "click", text: input.clickText.trim() });
@@ -37,7 +47,15 @@ function buildGuidedSteps(input: { startingUrl: string; clickText: string; expec
   return steps;
 }
 
-export function SystemTestForm() {
+export function SystemTestForm({
+  canRunSystemTest,
+  guidedWorkflowEnabled,
+  usageLabel,
+  resetLabel,
+  upgradeUrl,
+  planLabel,
+  isAdmin,
+}: SystemTestFormProps) {
   const router = useRouter();
   const [mode, setMode] = useState<TestMode>("quick");
   const [targetUrl, setTargetUrl] = useState("");
@@ -66,7 +84,16 @@ export function SystemTestForm() {
     const normalizedTarget = targetUrl.trim();
     let workflow: { name: string; goal: string; steps: WorkflowStep[] } | undefined;
 
+    if (!canRunSystemTest) {
+      setError("Daily system test limit reached. Upgrade to run more tests.");
+      return;
+    }
+
     if (mode === "workflow") {
+      if (!guidedWorkflowEnabled) {
+        setError("Guided Workflow Testing is available on Starter and Builder plans.");
+        return;
+      }
       const name = workflowName.trim() || "Guided workflow";
       const goal = "Verify a safe public navigation flow.";
       const start = startingUrl.trim() || normalizedTarget;
@@ -132,15 +159,26 @@ export function SystemTestForm() {
       </label>
 
       <fieldset disabled={isRunning}>
-        <legend className="text-sm font-medium text-cc-text">Choose a test</legend>
+        <div className="flex flex-col gap-2 rounded-xl border border-cc-border bg-cc-bg-secondary p-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-cc-text">{planLabel} usage</p>
+            <p className="mt-1 text-xs leading-5 text-cc-muted">{isAdmin ? "Admin access: usage limits bypassed." : `${usageLabel}. Resets ${resetLabel}.`}</p>
+          </div>
+          {!canRunSystemTest && (
+            <a href={upgradeUrl} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-cc-text px-3 py-2 text-xs font-semibold text-cc-bg outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30">
+              Upgrade
+            </a>
+          )}
+        </div>
+        <legend className="mt-6 text-sm font-medium text-cc-text">Choose a test</legend>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <button type="button" onClick={() => setMode("quick")} className={`rounded-xl border p-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 ${mode === "quick" ? "border-cc-border-strong bg-cc-surface-raised" : "border-cc-border bg-cc-bg-secondary hover:bg-cc-surface"}`} aria-pressed={mode === "quick"}>
             <span className="flex items-center gap-2 text-sm font-semibold text-cc-text"><CheckCircle2 className="h-4 w-4 text-emerald-400" />Quick Site Check</span>
             <span className="mt-2 block text-xs leading-5 text-cc-muted">Best for broken pages, links, failed requests, browser errors, and safe navigation issues.</span>
           </button>
-          <button type="button" onClick={() => setMode("workflow")} className={`rounded-xl border p-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 ${mode === "workflow" ? "border-cc-border-strong bg-cc-surface-raised" : "border-cc-border bg-cc-bg-secondary hover:bg-cc-surface"}`} aria-pressed={mode === "workflow"}>
+          <button type="button" onClick={() => guidedWorkflowEnabled ? setMode("workflow") : setError("Guided Workflow Testing is available on Starter and Builder plans.")} className={`rounded-xl border p-4 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white/25 ${mode === "workflow" ? "border-cc-border-strong bg-cc-surface-raised" : "border-cc-border bg-cc-bg-secondary hover:bg-cc-surface"}`} aria-pressed={mode === "workflow"}>
             <span className="flex items-center gap-2 text-sm font-semibold text-cc-text"><GitBranch className="h-4 w-4 text-cc-muted" />Guided Workflow Test</span>
-            <span className="mt-2 block text-xs leading-5 text-cc-muted">Best for simple flows such as Homepage → Pricing → Login.</span>
+            <span className="mt-2 block text-xs leading-5 text-cc-muted">{guidedWorkflowEnabled ? "Best for simple flows such as Homepage → Pricing → Login." : "Included with Starter and Builder plans."}</span>
           </button>
         </div>
       </fieldset>
@@ -164,7 +202,7 @@ export function SystemTestForm() {
 
       <div className="flex items-start gap-3 rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-4 text-sm text-cc-muted"><Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" /><p>CtrlCode only performs safe public-page checks. It does not submit payments, delete data, log out users, submit destructive forms, or bypass authentication.</p></div>
       {error && <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 px-3.5 py-3 text-sm text-red-300">{error}</p>}
-      <button type="submit" disabled={isRunning || !targetUrl.trim()} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cc-text px-4 py-2.5 text-sm font-semibold text-cc-bg outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
+      <button type="submit" disabled={isRunning || !targetUrl.trim() || !canRunSystemTest} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-cc-text px-4 py-2.5 text-sm font-semibold text-cc-bg outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto">
         {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
         {isRunning ? "System test is running…" : mode === "quick" ? "Run Quick Site Check" : "Run Guided Workflow Test"}
         {!isRunning && <ArrowRight className="h-4 w-4" />}

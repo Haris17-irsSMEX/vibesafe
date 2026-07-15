@@ -14,6 +14,7 @@ import {
   SystemTestRunnerUnavailableError,
 } from "@/services/system-testing/SystemTestRunner";
 import { parseSafeWorkflow } from "@/services/system-testing/WorkflowRunner";
+import { getAccountUsageSummary, getUsageLimitState } from "@/lib/usage-limits";
 
 // This synchronous MVP is intentionally bounded. A future worker can reuse the
 // runner and persistence layer without changing the public route contract.
@@ -63,6 +64,42 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof SystemTestInputError || error instanceof Error ? error.message : "Enter a valid public http(s) URL.";
     return NextResponse.json({ success: false, error: message }, { status: 400 });
+  }
+
+  const usage = await getAccountUsageSummary(user.id, user.email);
+  const usageLimit = getUsageLimitState(usage, "system_test");
+  if (!usageLimit.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: usageLimit.message,
+        reason: usageLimit.reason,
+        plan: usageLimit.plan,
+        limit: usageLimit.limit,
+        used: usageLimit.used,
+        resetAt: usageLimit.resetAt,
+        upgradeUrl: usageLimit.upgradeUrl,
+      },
+      { status: 429 }
+    );
+  }
+
+  if (workflow) {
+    if (!usage.limits.guidedWorkflowTestingEnabled) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Guided Workflow Testing is available on Starter and Builder plans.",
+          reason: "upgrade_required",
+          plan: usage.plan,
+          limit: usage.systemTests.limit,
+          used: usage.systemTests.used,
+          resetAt: usage.window.resetAt,
+          upgradeUrl: "/pricing",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const created = await createSystemTestRun({

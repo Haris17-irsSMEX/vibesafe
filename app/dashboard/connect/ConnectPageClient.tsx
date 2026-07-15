@@ -79,6 +79,16 @@ interface ConnectPageClientProps {
     | null;
   successParam: string | null;
   errorParam: string | null;
+  scanUsage: {
+    used: number;
+    limit: number;
+    remaining: number;
+    allowed: boolean;
+    resetAt: string;
+    planLabel: string;
+    isAdmin: boolean;
+    upgradeUrl: string;
+  };
 }
 
 function WorkflowSteps({ connected }: { connected: boolean }) {
@@ -144,13 +154,13 @@ function WorkflowSteps({ connected }: { connected: boolean }) {
   );
 }
 
-function RepositoryCard({ repo }: { repo: SafeRepo }) {
+function RepositoryCard({ repo, scanUsage }: { repo: SafeRepo; scanUsage: ConnectPageClientProps["scanUsage"] }) {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
 
   async function handleStartScan() {
-    if (isScanning) return;
+    if (isScanning || !scanUsage.allowed) return;
     setIsScanning(true);
     setScanError(null);
 
@@ -245,6 +255,18 @@ function RepositoryCard({ repo }: { repo: SafeRepo }) {
         </p>
       </div>
 
+      {!scanUsage.allowed && (
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5"
+        >
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
+          <p className="text-xs leading-5 text-amber-100">
+            Daily scan limit reached. <a href={scanUsage.upgradeUrl} className="font-semibold text-cc-text underline decoration-white/20 underline-offset-4">Upgrade</a> to run more reviews.
+          </p>
+        </div>
+      )}
+
       {scanError && (
         <div
           role="alert"
@@ -258,7 +280,7 @@ function RepositoryCard({ repo }: { repo: SafeRepo }) {
       <button
         type="button"
         onClick={handleStartScan}
-        disabled={isScanning}
+        disabled={isScanning || !scanUsage.allowed}
         className="mt-5 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg bg-cc-text px-4 py-2.5 text-sm font-semibold text-cc-bg outline-none transition-colors hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-cc-surface disabled:pointer-events-none disabled:opacity-50"
       >
         {isScanning ? (
@@ -443,6 +465,7 @@ export function ConnectPageClient({
   repoError,
   successParam,
   errorParam,
+  scanUsage,
 }: ConnectPageClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -496,7 +519,7 @@ export function ConnectPageClient({
 
   return (
     <AppPageContainer size="wide">
-      <AppPageHeader
+        <AppPageHeader
         title="Connect GitHub"
         description="Connect a repository and start a production-readiness security review."
       />
@@ -609,6 +632,24 @@ export function ConnectPageClient({
           isPending={isPending}
           onDisconnect={handleDisconnect}
         />
+
+        <SurfaceCard className="mt-5 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-cc-text">{scanUsage.planLabel} scan usage</p>
+              <p className="mt-1 text-xs leading-5 text-cc-muted">
+                {scanUsage.isAdmin
+                  ? "Admin access: usage limits bypassed."
+                  : `${scanUsage.used} / ${scanUsage.limit} AI Security Scans used today. Resets at ${new Date(scanUsage.resetAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" })}.`}
+              </p>
+            </div>
+            {!scanUsage.allowed && (
+              <a href={scanUsage.upgradeUrl} className="inline-flex min-h-9 items-center justify-center rounded-lg bg-cc-text px-3 py-2 text-xs font-semibold text-cc-bg outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-white/30">
+                Upgrade
+              </a>
+            )}
+          </div>
+        </SurfaceCard>
       </div>
 
       <div className="mt-6">
@@ -638,7 +679,7 @@ export function ConnectPageClient({
           {filteredRepositories.length > 0 ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredRepositories.map((repo) => (
-                <RepositoryCard key={repo.id} repo={repo} />
+                <RepositoryCard key={repo.id} repo={repo} scanUsage={scanUsage} />
               ))}
             </div>
           ) : (

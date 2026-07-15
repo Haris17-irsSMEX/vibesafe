@@ -27,6 +27,7 @@ import {
   upsertUserProfile,
 } from '@/lib/db/users'
 import { getPlanLabel } from '@/lib/plan-label'
+import { getAccountUsageSummary } from '@/lib/usage-limits'
 
 interface SettingsPageProps {
   searchParams: {
@@ -57,10 +58,11 @@ export default async function SettingsPage({
     profile = await getUserProfile(user.id)
   }
 
-  const [totalScans, completedScans, githubConnection] = await Promise.all([
+  const [totalScans, completedScans, githubConnection, usageSummary] = await Promise.all([
     getUserScanCount(user.id),
     getUserCompletedScanCount(user.id),
     getGitHubLoginForUser(user.id),
+    getAccountUsageSummary(user.id, user.email),
   ])
 
   const plan = profile?.plan ?? 'free'
@@ -158,7 +160,7 @@ export default async function SettingsPage({
               <UsageCard
                 totalScans={totalScans}
                 completedScans={completedScans}
-                plan={plan}
+                usage={usageSummary}
               />
             </section>
           </div>

@@ -30,6 +30,7 @@ import {
 } from "@/lib/db/users";
 import { getRecentScansForUser } from "@/lib/db/scans";
 import { getPlanLabel } from "@/lib/plan-label";
+import { getAccountUsageSummary } from "@/lib/usage-limits";
 import { formatSafeDate } from "@/lib/date";
 import { scoreToColor, scoreToLabel } from "@/services/scoring/SecurityScorer";
 import { cn } from "@/lib/utils";
@@ -59,11 +60,12 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  const [profile, githubLogin, scanCount, recentScans] = await Promise.all([
+  const [profile, githubLogin, scanCount, recentScans, usage] = await Promise.all([
     getUserProfile(user.id),
     getGitHubLoginForUser(user.id),
     getUserScanCount(user.id),
     getRecentScansForUser(user.id, 5),
+    getAccountUsageSummary(user.id, user.email),
   ]);
 
   const plan = profile?.plan ?? "free";
@@ -205,6 +207,18 @@ export default async function DashboardPage() {
               label="Total scans"
               value={scanCount}
               detail="All scan attempts"
+              icon={<Activity className="h-4 w-4" />}
+            />
+            <StatMetricCard
+              label="Scans today"
+              value={usage.isAdmin ? "Admin" : `${usage.securityScans.used} / ${usage.securityScans.limit}`}
+              detail="UTC daily allowance"
+              icon={<FileSearch className="h-4 w-4" />}
+            />
+            <StatMetricCard
+              label="System tests today"
+              value={usage.isAdmin ? "Admin" : `${usage.systemTests.used} / ${usage.systemTests.limit}`}
+              detail="UTC daily allowance"
               icon={<Activity className="h-4 w-4" />}
             />
             <StatMetricCard

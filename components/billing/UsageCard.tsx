@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react'
 import { Activity, BarChart3, CheckCircle2, ShieldAlert } from 'lucide-react'
-import type { UserPlan } from '@/lib/db/users'
-import { getAiScanAllowanceLabel } from '@/lib/plan-limits'
+import type { AccountUsageSummary } from '@/lib/usage-limits'
 import { GlowCard } from '@/components/ui/glow-card'
 
 interface UsageCardProps {
   totalScans: number
   completedScans: number
-  plan: UserPlan
+  usage: AccountUsageSummary
 }
 
 function StatTile({
@@ -43,9 +42,15 @@ function StatTile({
   )
 }
 
-export function UsageCard({ totalScans, completedScans, plan }: UsageCardProps) {
+export function UsageCard({ totalScans, completedScans, usage }: UsageCardProps) {
   const completionRate =
     totalScans > 0 ? `${Math.round((completedScans / totalScans) * 100)}%` : 'Not available'
+  const scanUsage = usage.isAdmin
+    ? 'Admin bypass'
+    : `${usage.securityScans.used} / ${usage.securityScans.limit}`
+  const systemTestUsage = usage.isAdmin
+    ? 'Admin bypass'
+    : `${usage.systemTests.used} / ${usage.systemTests.limit}`
 
   return (
     <GlowCard className="overflow-hidden rounded-2xl border-cc-border bg-cc-surface">
@@ -89,9 +94,15 @@ export function UsageCard({ totalScans, completedScans, plan }: UsageCardProps) 
         />
         <StatTile
           label="Daily AI review allowance"
-          value={getAiScanAllowanceLabel(plan)}
-          detail="Allowance enforced during scan execution based on your active plan."
+          value={scanUsage}
+          detail={`Security scans used today. Resets at ${new Date(usage.window.resetAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short' })}.`}
           icon={<BarChart3 className="h-4 w-4" />}
+        />
+        <StatTile
+          label="Daily system test allowance"
+          value={systemTestUsage}
+          detail="System Testing runs used today on the same UTC reset window."
+          icon={<Activity className="h-4 w-4" />}
         />
       </div>
     </GlowCard>

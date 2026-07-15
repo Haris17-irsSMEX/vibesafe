@@ -5,11 +5,25 @@ import { ServerDashboardLayout } from "@/components/layout/server-dashboard-layo
 import { AppPageContainer, AppPageHeader } from "@/components/layout/app-page";
 import { SurfaceCard } from "@/components/dashboard/dashboard-ui";
 import { SystemTestForm } from "@/components/system-testing/SystemTestForm";
+import { getAccountUsageSummary } from "@/lib/usage-limits";
+
+function formatUtcReset(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  });
+}
 
 export default async function SystemTestingPage() {
   const supabase = createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect("/login");
+  const usage = await getAccountUsageSummary(user.id, user.email);
+  const usageLabel = usage.isAdmin
+    ? "Admin access"
+    : `${usage.systemTests.used} / ${usage.systemTests.limit} system tests used today`;
 
   return (
     <ServerDashboardLayout>
@@ -27,7 +41,15 @@ export default async function SystemTestingPage() {
             </p>
           </div>
           <div className="mt-6 border-t border-cc-border pt-6">
-            <SystemTestForm />
+            <SystemTestForm
+              canRunSystemTest={usage.isAdmin || usage.systemTests.allowed}
+              guidedWorkflowEnabled={usage.limits.guidedWorkflowTestingEnabled}
+              usageLabel={usageLabel}
+              resetLabel={formatUtcReset(usage.window.resetAt)}
+              upgradeUrl={usage.plan === "starter" ? "/checkout?plan=builder" : usage.plan === "builder" ? "/contact" : "/pricing"}
+              planLabel={usage.planLabel}
+              isAdmin={usage.isAdmin}
+            />
           </div>
         </SurfaceCard>
 

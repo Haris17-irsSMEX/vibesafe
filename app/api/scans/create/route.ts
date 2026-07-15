@@ -14,6 +14,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createScanForRepo } from '@/lib/db/scans'
 import { rateLimitScanCreate } from '@/lib/rate-limit'
+import { checkDailyUsageLimit } from '@/lib/usage-limits'
 
 interface CreateScanBody {
   repoId: number
@@ -55,6 +56,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: 'You must be signed in.' },
       { status: 401 }
+    )
+  }
+
+  const usageLimit = await checkDailyUsageLimit(user.id, user.email, 'security_scan')
+  if (!usageLimit.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: usageLimit.message,
+        reason: usageLimit.reason,
+        plan: usageLimit.plan,
+        limit: usageLimit.limit,
+        used: usageLimit.used,
+        resetAt: usageLimit.resetAt,
+        upgradeUrl: usageLimit.upgradeUrl,
+      },
+      { status: 429 }
     )
   }
 

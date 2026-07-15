@@ -10,6 +10,7 @@ import { getScanResultsForScan } from '@/lib/db/scan-results'
 import { countScanFilesForScan } from '@/lib/db/scan-files'
 import { isAdminEmail } from '@/lib/auth/admin'
 import { generateSavedFindingsReport } from '@/services/scanner/SavedFindingsReportGenerator'
+import { getAccountUsageSummary } from '@/lib/usage-limits'
 
 export const maxDuration = 180
 
@@ -43,6 +44,19 @@ export async function POST(_request: Request, { params }: RouteContext) {
   }
   if (!isCompleted(scan.status)) {
     return NextResponse.json({ success: false, error: 'Complete the AI Security Scan before generating a report.' }, { status: 409 })
+  }
+  const usage = await getAccountUsageSummary(user.id, user.email)
+  if (!usage.limits.securityReportsEnabled) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Security Officer Report generation is not available on your current plan.',
+        reason: 'upgrade_required',
+        plan: usage.plan,
+        upgradeUrl: '/pricing',
+      },
+      { status: 403 }
+    )
   }
 
   const effectiveStatus = scan.report_status ?? (scan.executive_summary ? 'generated' : 'not_generated')

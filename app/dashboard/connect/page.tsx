@@ -12,15 +12,23 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getConnectedRepositories } from '@/services/github/getConnectedRepositories'
 import { ConnectPageClient } from './ConnectPageClient'
+import { getAccountUsageSummary } from '@/lib/usage-limits'
 
 async function ConnectDataFetcher({
   successParam,
   errorParam,
+  userId,
+  email,
 }: {
   successParam: string | null
   errorParam: string | null
+  userId: string
+  email: string | null | undefined
 }) {
-  const data = await getConnectedRepositories()
+  const [data, usage] = await Promise.all([
+    getConnectedRepositories(),
+    getAccountUsageSummary(userId, email),
+  ])
 
   return (
     <ConnectPageClient
@@ -31,6 +39,16 @@ async function ConnectDataFetcher({
       repoError={data.error}
       successParam={successParam}
       errorParam={errorParam}
+      scanUsage={{
+        used: usage.securityScans.used,
+        limit: usage.securityScans.limit,
+        remaining: usage.isAdmin ? usage.securityScans.limit : usage.securityScans.remaining,
+        allowed: usage.isAdmin || usage.securityScans.allowed,
+        resetAt: usage.window.resetAt,
+        planLabel: usage.planLabel,
+        isAdmin: usage.isAdmin,
+        upgradeUrl: usage.plan === 'starter' ? '/checkout?plan=builder' : usage.plan === 'builder' ? '/contact' : '/pricing',
+      }}
     />
   )
 }
@@ -92,6 +110,8 @@ export default async function ConnectPage({
         <ConnectDataFetcher
           successParam={searchParams.success ?? null}
           errorParam={searchParams.error ?? null}
+          userId={user.id}
+          email={user.email}
         />
       </Suspense>
     </ServerDashboardLayout>
