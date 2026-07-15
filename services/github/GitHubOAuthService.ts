@@ -5,7 +5,7 @@
  * This is completely separate from Supabase Auth (user identity).
  *
  * Supabase Auth  → who is the user?
- * GitHub OAuth   → which repos can VibeSafe access?
+ * GitHub OAuth   → which repos can CtrlCode access?
  */
 
 const GITHUB_OAUTH_URL = 'https://github.com/login/oauth/authorize'

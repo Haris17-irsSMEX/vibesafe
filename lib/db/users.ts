@@ -11,7 +11,7 @@ import { createClient as createSupabaseAdmin } from '@supabase/supabase-js'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type UserPlan = 'free' | 'starter' | 'builder'
+export type UserPlan = 'free' | 'starter' | 'builder' | 'pro'
 
 export interface UserProfile {
   id: string
@@ -116,7 +116,7 @@ export async function updateUserPlan(
 
 /** Returns true if the given plan has paid access to premium findings */
 export function isPaidPlan(plan: UserPlan): boolean {
-  return plan === 'starter' || plan === 'builder'
+  return plan === 'starter' || plan === 'builder' || plan === 'pro'
 }
 
 // ─── Usage helpers ────────────────────────────────────────────────────────────

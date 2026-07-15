@@ -47,7 +47,7 @@ async function ConnectDataFetcher({
         resetAt: usage.window.resetAt,
         planLabel: usage.planLabel,
         isAdmin: usage.isAdmin,
-        upgradeUrl: usage.plan === 'starter' ? '/checkout?plan=builder' : usage.plan === 'builder' ? '/contact' : '/pricing',
+        upgradeUrl: usage.plan === 'starter' ? '/checkout?plan=builder' : usage.plan === 'builder' || usage.plan === 'pro' ? '/contact' : '/pricing',
       }}
     />
   )

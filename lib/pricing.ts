@@ -1,4 +1,5 @@
 import { getAiScanAllowanceLabel } from "@/lib/plan-limits";
+import type { UserPlan } from "@/lib/db/users";
 
 export type PricingPlanId = "free" | "starter" | "builder";
 export type PurchasablePlanId = Exclude<PricingPlanId, "free">;
@@ -110,4 +111,8 @@ export function isPurchasablePlan(value: unknown): value is PurchasablePlanId {
 
 export function getPricingPlan(plan: PricingPlanId): PricingPlan {
   return PRICING_PLAN_BY_ID[plan];
+}
+
+export function getPricingPlanForUserPlan(plan: UserPlan): PricingPlan {
+  return plan === "pro" ? PRICING_PLAN_BY_ID.builder : PRICING_PLAN_BY_ID[plan];
 }

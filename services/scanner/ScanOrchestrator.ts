@@ -350,7 +350,7 @@ export async function runAIScan(
         highCount: scoreResult.highCount,
         mediumCount: scoreResult.mediumCount,
         lowCount: scoreResult.lowCount,
-        resultsUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/results/${scanId}`,
+        resultsUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://ctrlcode.irssmex.com'}/results/${scanId}`,
       }).catch(() => {})
     } else if (userEmail) {
       console.info('[ScanOrchestrator] completion email withheld for partial coverage', { scanId, incompleteZoneCount: incompleteZones.length })
@@ -406,7 +406,7 @@ export async function runAIScan(
           repoFullName: (scanData as { repo_full_name?: string } | null)?.repo_full_name ?? 'your repository',
           scanId,
           safeReason: 'AI scan encountered an error',
-          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://vibesafe.io'}/dashboard`,
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://ctrlcode.irssmex.com'}/dashboard`,
         }).catch(() => {})
       } catch {}
     }

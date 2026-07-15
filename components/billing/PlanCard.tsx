@@ -15,7 +15,7 @@ import { useRouter } from 'next/navigation'
 import type { UserPlan } from '@/lib/db/users'
 import { formatSafeDate } from '@/lib/date'
 import { getPlanLabel } from '@/lib/plan-label'
-import { getPricingPlan } from '@/lib/pricing'
+import { getPricingPlanForUserPlan } from '@/lib/pricing'
 import { GlowCard } from '@/components/ui/glow-card'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +37,11 @@ const PLAN_DETAILS: Record<UserPlan, PlanDetails> = {
     iconClassName: 'border-white/12 bg-white/6 text-cc-text',
   },
   builder: {
+    icon: Crown,
+    badgeClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
+    iconClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
+  },
+  pro: {
     icon: Crown,
     badgeClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
     iconClassName: 'border-violet-500/20 bg-violet-500/10 text-violet-300',
@@ -77,7 +82,7 @@ export function PlanCard({
   const router = useRouter()
 
   const planVisual = PLAN_DETAILS[currentPlan]
-  const planInfo = getPricingPlan(currentPlan)
+  const planInfo = getPricingPlanForUserPlan(currentPlan)
   const PlanIcon = planVisual.icon
   const isPaid = currentPlan !== 'free'
 
@@ -268,7 +273,7 @@ export function PlanCard({
             </>
           )}
 
-          {currentPlan === 'builder' && paddleCustomerId && (
+          {(currentPlan === 'builder' || currentPlan === 'pro') && paddleCustomerId && (
             <ActionButton
               id="manage-billing-btn-builder"
               onClick={handleManageBilling}

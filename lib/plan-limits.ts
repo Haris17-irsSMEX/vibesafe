@@ -20,18 +20,21 @@ export const FILE_FETCH_LIMITS: Record<UserPlan, PlanLimit> = {
   free: { count: 5, windowLabel: 'hour' },
   starter: { count: 20, windowLabel: 'hour' },
   builder: { count: 50, windowLabel: 'hour' },
+  pro: { count: 50, windowLabel: 'hour' },
 }
 
 export const AI_SCAN_LIMITS: Record<UserPlan, PlanLimit> = {
   free: { count: 2, windowLabel: 'day' },
   starter: { count: 20, windowLabel: 'day' },
   builder: { count: 100, windowLabel: 'day' },
+  pro: { count: 100, windowLabel: 'day' },
 }
 
 export const SYSTEM_TEST_PRODUCT_LIMITS: Record<UserPlan, PlanLimit> = {
   free: { count: 1, windowLabel: 'day' },
   starter: { count: 10, windowLabel: 'day' },
   builder: { count: 50, windowLabel: 'day' },
+  pro: { count: 50, windowLabel: 'day' },
 }
 
 export const PLAN_ENTITLEMENTS: Record<EntitlementPlan, PlanEntitlements> = {
@@ -52,6 +55,14 @@ export const PLAN_ENTITLEMENTS: Record<EntitlementPlan, PlanEntitlements> = {
     maxWorkflowSteps: 12,
   },
   builder: {
+    securityScansPerDay: 100,
+    systemTestsPerDay: 50,
+    securityReportsEnabled: true,
+    guidedWorkflowTestingEnabled: true,
+    maxSystemTestPages: 10,
+    maxWorkflowSteps: 12,
+  },
+  pro: {
     securityScansPerDay: 100,
     systemTestsPerDay: 50,
     securityReportsEnabled: true,

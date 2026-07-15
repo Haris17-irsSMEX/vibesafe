@@ -50,12 +50,14 @@ const FILE_FETCH_LIMITS: Record<UserPlan, LimitConfig> = {
   free: { count: FILE_FETCH_LIMIT_CONFIG.free.count, window: '1 h' },
   starter: { count: FILE_FETCH_LIMIT_CONFIG.starter.count, window: '1 h' },
   builder: { count: FILE_FETCH_LIMIT_CONFIG.builder.count, window: '1 h' },
+  pro: { count: FILE_FETCH_LIMIT_CONFIG.pro.count, window: '1 h' },
 }
 
 const AI_SCAN_LIMITS: Record<UserPlan, LimitConfig> = {
   free: { count: AI_SCAN_LIMIT_CONFIG.free.count, window: '1 d' },
   starter: { count: AI_SCAN_LIMIT_CONFIG.starter.count, window: '1 d' },
   builder: { count: AI_SCAN_LIMIT_CONFIG.builder.count, window: '1 d' },
+  pro: { count: AI_SCAN_LIMIT_CONFIG.pro.count, window: '1 d' },
 }
 
 // ─── Limiters ─────────────────────────────────────────────────────────────────

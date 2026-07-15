@@ -1,7 +1,7 @@
-# VibeSafe: Codex Handoff Document
+# CtrlCode: Codex Handoff Document
 
 ## 1. Product Summary
-- **What the app does:** VibeSafe is an AI security and codebase audit SaaS for GitHub repositories. It connects to GitHub, scans repositories, and provides a security score, detailed file/line security findings, a Security Officer Report, and AI fix prompts tailored for Cursor/Codex.
+- **What the app does:** CtrlCode is an AI security and codebase audit SaaS for GitHub repositories. It connects to GitHub, scans repositories, and provides a security score, detailed file/line security findings, a Security Officer Report, and AI fix prompts tailored for Cursor/Codex.
 - **Target users:** Developers and teams needing automated security audits, initially targeting "vibe coders" but expanding to general production-readiness scanning.
 - **Core workflow:** Connect GitHub → Pick a repository → AI fetches files → DeepSeek model runs the security audit → Generates score, findings, and fix prompts → User views dashboard and copies fix prompts to fix issues.
 - **Current product positioning:** AI Security Officer for GitHub repos.

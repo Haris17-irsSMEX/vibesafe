@@ -69,16 +69,16 @@ function upgradeMessage(kind: UsageKind, plan: UserPlan): string {
   if (kind === "system_test") {
     if (plan === "free") return "Daily system test limit reached. Upgrade to Starter for 20 AI Security Scans/day and 10 System Tests/day.";
     if (plan === "starter") return "You've reached today's Starter limit. Upgrade to Builder for higher scan and test limits.";
-    return "You've reached today's Builder limit. Please try again tomorrow or contact support.";
+    return "You've reached today's plan limit. Please try again tomorrow or contact support.";
   }
   if (plan === "free") return "You've used today's free scans. Upgrade to Starter for 20 AI Security Scans/day and 10 System Tests/day.";
   if (plan === "starter") return "You've reached today's Starter limit. Upgrade to Builder for higher scan and test limits.";
-  return "You've reached today's Builder limit. Please try again tomorrow or contact support.";
+  return "You've reached today's plan limit. Please try again tomorrow or contact support.";
 }
 
 function upgradeUrl(plan: UserPlan): string {
   if (plan === "starter") return "/checkout?plan=builder";
-  if (plan === "builder") return "/contact";
+  if (plan === "builder" || plan === "pro") return "/contact";
   return "/pricing";
 }
 

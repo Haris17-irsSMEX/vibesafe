@@ -46,7 +46,7 @@ export default async function SystemTestingPage() {
               guidedWorkflowEnabled={usage.limits.guidedWorkflowTestingEnabled}
               usageLabel={usageLabel}
               resetLabel={formatUtcReset(usage.window.resetAt)}
-              upgradeUrl={usage.plan === "starter" ? "/checkout?plan=builder" : usage.plan === "builder" ? "/contact" : "/pricing"}
+              upgradeUrl={usage.plan === "starter" ? "/checkout?plan=builder" : usage.plan === "builder" || usage.plan === "pro" ? "/contact" : "/pricing"}
               planLabel={usage.planLabel}
               isAdmin={usage.isAdmin}
             />

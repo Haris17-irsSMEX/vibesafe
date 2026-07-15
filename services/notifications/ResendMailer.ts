@@ -57,7 +57,7 @@ function getResendClient(): Resend | null {
 }
 
 function getFromAddress(): string {
-  return process.env.RESEND_FROM_EMAIL ?? 'CtrlCode <noreply@vibesafe.io>'
+  return process.env.RESEND_FROM_EMAIL ?? 'CtrlCode <irssmex@gmail.com>'
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

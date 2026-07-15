@@ -1,9 +1,9 @@
 /**
  * services/scanner/prompts/sectionPrompts.ts
  *
- * Security audit section definitions for VibeSafe's DeepSeek scanner.
+ * Security audit section definitions for CtrlCode's DeepSeek scanner.
  *
- * Source: converted from the VibeSafe security audit brain/checklist.
+ * Source: converted from the CtrlCode security audit brain/checklist.
  * Each section is focused and compact — the full detail lives here once,
  * not duplicated into every API prompt.
  */
