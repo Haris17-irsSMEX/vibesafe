@@ -151,20 +151,33 @@ function getScanCreateLimiter(): Ratelimit | null {
   return scanCreateLimiter
 }
 
-let systemTestLimiter: Ratelimit | null = null
+type SystemTestRateLimitTier = 'normal' | 'admin' | 'development'
 
-function getSystemTestLimiter(): Ratelimit | null {
-  if (systemTestLimiter) return systemTestLimiter
+const systemTestLimiters: Partial<Record<SystemTestRateLimitTier, Ratelimit>> = {}
+
+function positiveEnvNumber(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 10_000) : fallback
+}
+
+function getSystemTestRateLimit(tier: SystemTestRateLimitTier): number {
+  if (tier === 'development') return positiveEnvNumber('SYSTEM_TEST_DEV_RATE_LIMIT_PER_HOUR', 100)
+  if (tier === 'admin') return positiveEnvNumber('SYSTEM_TEST_ADMIN_RATE_LIMIT_PER_HOUR', 100)
+  return positiveEnvNumber('SYSTEM_TEST_RATE_LIMIT_PER_HOUR', 5)
+}
+
+function getSystemTestLimiter(tier: SystemTestRateLimitTier): Ratelimit | null {
+  if (systemTestLimiters[tier]) return systemTestLimiters[tier]!
   const r = getRedis()
   if (!r) return null
 
-  systemTestLimiter = new Ratelimit({
+  systemTestLimiters[tier] = new Ratelimit({
     redis: r,
-    limiter: Ratelimit.slidingWindow(process.env.NODE_ENV === 'production' ? 5 : 1000, '1 h'),
+    limiter: Ratelimit.slidingWindow(getSystemTestRateLimit(tier), '1 h'),
     analytics: true,
-    prefix: 'system-test',
+    prefix: `system-test-${tier}`,
   })
-  return systemTestLimiter
+  return systemTestLimiters[tier]!
 }
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -172,6 +185,7 @@ function getSystemTestLimiter(): Ratelimit | null {
 interface RateLimitResult {
   success: boolean
   remaining: number
+  retryAfterSeconds?: number
 }
 
 /**
@@ -330,23 +344,48 @@ export async function rateLimitScanCreate(userId: string): Promise<RateLimitResu
   }
 }
 
-/** Limit the bounded, server-side browser runner independently of AI scan quotas. */
-export async function rateLimitSystemTest(userId: string): Promise<RateLimitResult> {
+/**
+ * Limit the bounded, server-side browser runner independently of AI scan quotas.
+ * Production users remain per-user limited; trusted server-side admin and local
+ * development work use independently configurable, higher limits.
+ */
+export async function rateLimitSystemTest(userId: string, isAdmin: boolean = false): Promise<RateLimitResult> {
+  const tier: SystemTestRateLimitTier = process.env.NODE_ENV !== 'production'
+    ? 'development'
+    : isAdmin
+      ? 'admin'
+      : 'normal'
+  const limit = getSystemTestRateLimit(tier)
+
   try {
-    const limiter = getSystemTestLimiter()
+    const limiter = getSystemTestLimiter(tier)
     if (!limiter) {
       if (process.env.NODE_ENV === 'production') {
         console.error('[RateLimit] Missing Redis config in production! Failing closed for system tests.')
         return { success: false, remaining: 0 }
       }
-      return { success: true, remaining: 999 }
+      console.info('[RateLimit] System test limiter bypassed in development without Redis.', { userId, isAdmin, environment: process.env.NODE_ENV, tier, limit })
+      return { success: true, remaining: limit }
     }
 
-    const { success, remaining } = await limiter.limit(`system-test:${userId}`)
-    return { success, remaining }
+    const result = await limiter.limit(`system-test:${userId}`)
+    const resetAt = Number(result.reset)
+    const retryAfterSeconds = !result.success && Number.isFinite(resetAt)
+      ? Math.max(1, Math.ceil((resetAt - Date.now()) / 1000))
+      : undefined
+    console.info('[RateLimit] System test evaluated.', {
+      userId,
+      isAdmin,
+      environment: process.env.NODE_ENV,
+      tier,
+      limit,
+      success: result.success,
+      remaining: result.remaining,
+    })
+    return { success: result.success, remaining: result.remaining, retryAfterSeconds }
   } catch (err) {
-    console.error('[RateLimit] Error checking system test limit:', err)
+    console.error('[RateLimit] Error checking system test limit:', err instanceof Error ? err.message : 'Unknown error')
     if (process.env.NODE_ENV === 'production') return { success: false, remaining: 0 }
-    return { success: true, remaining: 999 }
+    return { success: true, remaining: limit }
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimitSystemTest } from "@/lib/rate-limit";
+import { isAdminEmail } from "@/lib/auth/admin";
 import {
   createSystemTestRun,
   insertSystemTestFindings,
@@ -12,6 +13,7 @@ import {
   SystemTestInputError,
   SystemTestRunnerUnavailableError,
 } from "@/services/system-testing/SystemTestRunner";
+import { parseSafeWorkflow } from "@/services/system-testing/WorkflowRunner";
 
 // This synchronous MVP is intentionally bounded. A future worker can reuse the
 // runner and persistence layer without changing the public route contract.
@@ -28,17 +30,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "You must be signed in." }, { status: 401 });
   }
 
-  const rateLimit = await rateLimitSystemTest(user.id);
+  const isAdmin = isAdminEmail(user.email);
+  const rateLimit = await rateLimitSystemTest(user.id, isAdmin);
+  console.info("[system-tests] rate limit evaluated", {
+    userId: user.id,
+    isAdmin,
+    environment: process.env.NODE_ENV,
+    allowed: rateLimit.success,
+    remaining: rateLimit.remaining,
+  });
   if (!rateLimit.success) {
-    return NextResponse.json({ success: false, error: "System test limit reached. Please try again later." }, { status: 429 });
+    const retryAfterMinutes = rateLimit.retryAfterSeconds ? Math.max(1, Math.ceil(rateLimit.retryAfterSeconds / 60)) : null;
+    const error = retryAfterMinutes
+      ? `System test limit reached. Please try again in about ${retryAfterMinutes} minute${retryAfterMinutes === 1 ? "" : "s"}.`
+      : "System test limit reached. Please try again later.";
+    return NextResponse.json(
+      { success: false, error, retryAfterSeconds: rateLimit.retryAfterSeconds ?? null },
+      {
+        status: 429,
+        headers: rateLimit.retryAfterSeconds ? { "Retry-After": String(rateLimit.retryAfterSeconds) } : undefined,
+      }
+    );
   }
 
   let target: { targetUrl: string; origin: string };
+  let workflow: ReturnType<typeof parseSafeWorkflow>;
   try {
     const body = await request.json();
     target = await normalizePublicSystemTestUrl(body?.targetUrl);
+    workflow = parseSafeWorkflow(body?.workflow);
   } catch (error) {
-    const message = error instanceof SystemTestInputError ? error.message : "Enter a valid public http(s) URL.";
+    const message = error instanceof SystemTestInputError || error instanceof Error ? error.message : "Enter a valid public http(s) URL.";
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 
@@ -57,7 +79,7 @@ export async function POST(request: Request) {
     await updateSystemTestRun(runId, { status: "running", started_at: startedAt, error_message: null });
     console.info("[system-tests] run started", { runId, origin: target.origin });
 
-    const execution = await runPublicSystemTest({ runId, targetUrl: target.targetUrl, origin: target.origin });
+    const execution = await runPublicSystemTest({ runId, targetUrl: target.targetUrl, origin: target.origin, workflow });
     await insertSystemTestFindings(execution.findings);
     await updateSystemTestRun(runId, {
       status: "completed",

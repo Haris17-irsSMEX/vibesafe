@@ -12,7 +12,46 @@ export type SystemTestCategory =
   | "dead_button"
   | "runtime_error"
   | "accessibility_basic"
-  | "performance_basic";
+  | "performance_basic"
+  | "workflow_failure"
+  | "missing_element"
+  | "expectation_failed"
+  | "safety_skipped";
+
+export type WorkflowStep =
+  | { type: "visit"; url: string }
+  | { type: "click"; text: string }
+  | { type: "expectUrlContains"; value: string }
+  | { type: "expectText"; value: string };
+
+export type WorkflowDefinition = {
+  name: string;
+  goal: string | null;
+  steps: WorkflowStep[];
+};
+
+export type WorkflowStepResult = {
+  index: number;
+  type: WorkflowStep["type"];
+  status: "passed" | "failed" | "skipped";
+  detail: string;
+  urlBefore: string;
+  urlAfter: string;
+  pageTitle: string | null;
+  /** Additive fields; older saved workflow runs may not include them. */
+  input?: WorkflowStep;
+  expectedResult?: string | null;
+  actualResult?: string;
+  clickedText?: string | null;
+};
+
+export type WorkflowSummary = {
+  name: string;
+  goal: string | null;
+  status: "passed" | "failed" | "partial" | "skipped";
+  steps: WorkflowStepResult[];
+  counts: { passed: number; failed: number; skipped: number };
+};
 
 export type SystemTestSummary = {
   pagesChecked: number;
@@ -28,6 +67,7 @@ export type SystemTestSummary = {
   ignoredFrameworkConsoleNoise: number;
   ignoredDuplicateConsoleErrors: number;
   actionableConsoleErrors: number;
+  workflow?: WorkflowSummary | null;
   limits: { maxPages: number; maxDepth: number };
 };
 

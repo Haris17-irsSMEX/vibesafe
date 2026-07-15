@@ -7,7 +7,10 @@ import type {
   SystemTestCategory,
   SystemTestSeverity,
   SystemTestSummary,
+  WorkflowDefinition,
+  WorkflowSummary,
 } from "@/lib/db/system-tests";
+import { executeSafeWorkflow } from "@/services/system-testing/WorkflowRunner";
 
 export const SYSTEM_TEST_LIMITS = {
   maxPages: 10,
@@ -274,7 +277,7 @@ async function collectSafeButtons(page: Page, currentUrl: string, findings: NewS
   }
 }
 
-export async function runPublicSystemTest(input: { runId: string; targetUrl: string; origin: string }): Promise<SystemTestExecution> {
+export async function runPublicSystemTest(input: { runId: string; targetUrl: string; origin: string; workflow?: WorkflowDefinition | null }): Promise<SystemTestExecution> {
   let browser: Browser;
   try {
     browser = await chromium.launch({ headless: true });
@@ -299,6 +302,7 @@ export async function runPublicSystemTest(input: { runId: string; targetUrl: str
   };
   const savedConsoleKeys = new Set<string>();
   const pendingConsoleEvents: PendingConsoleEvent[] = [];
+  let workflowSummary: WorkflowSummary | null = null;
 
   try {
     const context = await browser.newContext({ ignoreHTTPSErrors: false, serviceWorkers: "block" });
@@ -489,6 +493,28 @@ export async function runPublicSystemTest(input: { runId: string; targetUrl: str
       }
     }
 
+    if (input.workflow) {
+      workflowSummary = await executeSafeWorkflow({
+        page,
+        origin: input.origin,
+        workflow: input.workflow,
+        addFinding: (finding) => addFinding(findings, input.runId, {
+          severity: finding.severity,
+          category: finding.category,
+          title: finding.title,
+          pageUrl: finding.page_url,
+          action: finding.action ?? undefined,
+          expectedResult: finding.expected_result ?? undefined,
+          actualResult: finding.actual_result,
+          evidence: finding.evidence,
+          reproductionSteps: finding.reproduction_steps,
+        }),
+      });
+      // Workflow clicks can emit browser events after the final crawl page.
+      const workflowBodyPresent = await page.locator("body").innerText({ timeout: 2_500 }).then((text) => Boolean(text.trim())).catch(() => false);
+      flushConsoleEvents({ documentStatus: null, pageLoaded: true, bodyPresent: workflowBodyPresent, errorOverlayVisible: false, navigationFailed: workflowSummary.status === "failed" && workflowSummary.counts.passed === 0 });
+    }
+
     await context.close();
   } finally {
     await browser.close();
@@ -513,6 +539,7 @@ export async function runPublicSystemTest(input: { runId: string; targetUrl: str
       ignoredFrameworkConsoleNoise: ignored.ignoredFrameworkConsoleNoise,
       ignoredDuplicateConsoleErrors: ignored.ignoredDuplicateConsoleErrors,
       actionableConsoleErrors: ignored.actionableConsoleErrors,
+      workflow: workflowSummary,
       limits: { maxPages: SYSTEM_TEST_LIMITS.maxPages, maxDepth: SYSTEM_TEST_LIMITS.maxDepth },
     },
   };
