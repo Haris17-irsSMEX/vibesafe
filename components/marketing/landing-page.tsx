@@ -29,7 +29,6 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { shortDescription } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 function GithubIcon({ className }: { className?: string }) {
@@ -396,6 +395,102 @@ function ScanVisual() {
   );
 }
 
+function SystemTestingVisual() {
+  const activity = [
+    { label: "Homepage loaded", tone: "safe" as const, icon: Check },
+    { label: "Sign-in page opened", tone: "safe" as const, icon: Check },
+    { label: "Console error detected", tone: "medium" as const, icon: AlertTriangle },
+    { label: "Failed API request", tone: "high" as const, icon: AlertTriangle },
+    { label: "Pricing navigation completed", tone: "safe" as const, icon: Check },
+  ];
+
+  return (
+    <DemoWindow title="System Testing · demo-app.example" label="Illustrative test run">
+      <div className="p-5 sm:p-7">
+        <div className="flex flex-col gap-4 border-b border-cc-border pb-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <RiskBadge tone="neutral">Example product view</RiskBadge>
+              <RiskBadge tone="medium">Needs attention</RiskBadge>
+            </div>
+            <p className="text-lg font-semibold text-cc-text">System Testing</p>
+            <p className="mt-1 text-xs text-cc-subtle">demo-app.example · safe browser check</p>
+          </div>
+          <RiskBadge tone="safe">Test complete</RiskBadge>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          {[
+            ["Pages checked", "6"],
+            ["Workflows", "2"],
+            ["Findings", "4"],
+            ["Status", "Review"],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-xl border border-cc-border bg-cc-surface p-3.5">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-cc-subtle">{label}</p>
+              <p className="mt-2 truncate text-lg font-semibold text-cc-text">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="rounded-xl border border-cc-border bg-cc-surface p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cc-subtle">
+              Browser activity
+            </p>
+            <div className="mt-4 space-y-2">
+              {activity.map(({ label, tone, icon: Icon }) => (
+                <div key={label} className="flex items-center gap-3 rounded-lg border border-cc-border bg-white/[0.025] px-3 py-2.5">
+                  <span
+                    className={cn(
+                      "flex h-6 w-6 shrink-0 items-center justify-center rounded-md border",
+                      tone === "safe" && "border-emerald-500/20 bg-emerald-500/10 text-emerald-300",
+                      tone === "medium" && "border-amber-500/20 bg-amber-500/10 text-amber-300",
+                      tone === "high" && "border-orange-500/20 bg-orange-500/10 text-orange-300"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-xs text-cc-muted">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-orange-500/20 bg-orange-500/[0.04] p-4">
+            <RiskBadge tone="high">High</RiskBadge>
+            <h3 className="mt-3 text-sm font-semibold text-cc-text">
+              Failed pricing API request
+            </h3>
+            <p className="mt-2 text-xs leading-5 text-cc-muted">
+              GET /api/pricing returned 500 during the pricing workflow.
+            </p>
+            <div className="mt-4 rounded-lg border border-cc-border bg-[#0d0d0d] p-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cc-subtle">
+                Evidence
+              </p>
+              <dl className="mt-3 space-y-2 text-[11px] text-cc-muted">
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-cc-subtle">Page</dt>
+                  <dd className="min-w-0 truncate">/pricing</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-cc-subtle">Request</dt>
+                  <dd className="min-w-0 truncate">GET /api/pricing</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-14 shrink-0 text-cc-subtle">Status</dt>
+                  <dd>500</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DemoWindow>
+  );
+}
+
 function ReportVisual() {
   return (
     <DemoWindow title="Security Officer Report">
@@ -504,8 +599,12 @@ const coverage = [
   { icon: Database, title: "Database, RLS, and data exposure" },
   { icon: Gauge, title: "Rate limits and abuse prevention" },
   { icon: Network, title: "Architecture weaknesses" },
-  { icon: ShieldCheck, title: "Production readiness" },
-  { icon: Activity, title: "Reliability risks" },
+  { icon: ShieldCheck, title: "Production readiness and reliability risks" },
+  {
+    icon: FileSearch,
+    title: "Live application testing",
+    description: "Browser behavior, failed requests, runtime errors, and safe workflow checks.",
+  },
   { icon: TerminalSquare, title: "AI-ready remediation prompts" },
 ];
 
@@ -518,15 +617,17 @@ export function LandingPage() {
         <div className="relative mx-auto max-w-7xl px-5 pb-20 pt-24 text-center sm:px-6 sm:pb-28 sm:pt-32 lg:pt-40">
           <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-cc-border-strong bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-cc-muted">
             <ShieldCheck className="h-3.5 w-3.5 text-cc-text" />
-            AI Security Officer for GitHub repos
+            AI Security Officer for code and live apps
           </div>
           <h1 className="mx-auto mt-8 max-w-5xl text-balance text-5xl font-semibold leading-[0.98] tracking-[-0.06em] text-cc-text sm:text-6xl lg:text-[5.5rem]">
             Review your code
             <span className="block text-cc-muted">before attackers do.</span>
           </h1>
           <p className="mx-auto mt-7 max-w-3xl text-balance text-base leading-7 text-cc-muted sm:text-lg">
-            {shortDescription} Copy focused remediation instructions into Cursor or
-            Codex, fix the issue, and rescan.
+            CtrlCode reviews your GitHub repository and tests your deployed application
+            to uncover security risks, broken workflows, runtime failures, and
+            production-readiness issues. Get prioritized findings and focused fix
+            prompts for Cursor or Codex.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/login" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-cc-text px-6 text-sm font-semibold text-cc-bg transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-auto">
@@ -552,15 +653,16 @@ export function LandingPage() {
           <SectionIntro
             eyebrow="From repository to remediation"
             title="One review loop. Every risk in context."
-            description="CtrlCode connects high-level security posture to the exact code that needs attention, then helps your coding agent act on it."
+            description="CtrlCode connects high-level security posture to the exact code and runtime evidence that need attention, then helps your coding agent act on it."
             centered
           />
-          <div className="mx-auto mt-14 grid max-w-5xl gap-px overflow-hidden rounded-2xl border border-cc-border bg-cc-border sm:grid-cols-4">
+          <div className="mx-auto mt-14 grid max-w-6xl gap-px overflow-hidden rounded-2xl border border-cc-border bg-cc-border sm:grid-cols-2 lg:grid-cols-5">
             {[
               [GithubIcon, "Connect GitHub"],
-              [ScanLine, "Run review"],
+              [ScanLine, "Review code"],
+              [Activity, "Test live app"],
               [FileSearch, "Inspect findings"],
-              [TerminalSquare, "Fix and rescan"],
+              [TerminalSquare, "Fix and verify"],
             ].map(([Icon, label], index) => {
               const StepIcon = Icon as typeof ScanLine;
               return (
@@ -579,31 +681,33 @@ export function LandingPage() {
 
       <ProductStorySection number="01" eyebrow="Connect GitHub safely" title="Review code without giving up control." description="Connect the repository you want to assess. CtrlCode uses read-only repository access to review code without writing, pushing, or modifying files." bullets={["Choose the repository and branch you want reviewed.", "Repository access stays focused on analysis.", "Your code is never modified by the review."]} visual={<ConnectionVisual />} />
       <ProductStorySection number="02" eyebrow="Production-readiness review" title="Check the boundaries attackers look for." description="CtrlCode reviews authentication boundaries, API routes, environment handling, rate limits, data exposure, dependencies, and architecture risks." visual={<ScanVisual />} reverse />
-      <ProductStorySection number="03" eyebrow="Security Officer Report" title="See what matters before reading every finding." description="Start with the executive summary, business impact, technical risks, production readiness, top risks, quick wins, and remediation roadmap." visual={<ReportVisual />} />
-      <ProductStorySection number="04" eyebrow="Exact finding context" title="Move from posture to the vulnerable line." description="Inspect the affected file, available line context, evidence, impact, and a practical recommendation—without losing the bigger picture." visual={<FindingVisual />} reverse />
-      <ProductStorySection number="05" eyebrow="Agent-ready remediation" title="Give Cursor or Codex a focused fix brief." description="Copy a structured prompt with the issue, constraints, and expected outcome so your coding agent can implement a safer change." visual={<FixPromptVisual />} />
+      <ProductStorySection number="03" eyebrow="Live System Testing" title="Test what the code does in the real application." description="Run a controlled browser-based test against your deployed or staging application. CtrlCode checks real page behavior, runtime errors, failed requests, navigation, and supported workflows without performing destructive actions." bullets={["Observe real pages in a controlled browser session.", "Capture runtime, console, network, and navigation failures.", "Keep testing safe, same-origin, and non-destructive."]} visual={<SystemTestingVisual />} />
+      <ProductStorySection number="04" eyebrow="Security Officer Report" title="See what matters before reading every finding." description="Start with the executive summary, business impact, technical risks, production readiness, top risks, quick wins, and remediation roadmap." visual={<ReportVisual />} reverse />
+      <ProductStorySection number="05" eyebrow="Exact finding context" title="Move from posture to the vulnerable line." description="Inspect the affected file, available line context, evidence, impact, and a practical recommendation—without losing the bigger picture." visual={<FindingVisual />} />
+      <ProductStorySection number="06" eyebrow="Agent-ready remediation" title="Give Cursor or Codex a focused fix brief." description="Copy a structured prompt with the issue, constraints, and expected outcome so your coding agent can implement a safer change." visual={<FixPromptVisual />} reverse />
 
       <section className="border-t border-cc-border bg-cc-secondary py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
           <SectionIntro eyebrow="Review coverage" title="A production-readiness lens across your codebase." description="CtrlCode helps identify and prioritize risks across the surfaces that commonly decide whether an application is ready to ship." />
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-cc-border bg-cc-border sm:grid-cols-2 lg:grid-cols-5">
-            {coverage.map(({ icon: Icon, title }) => (
+            {coverage.map(({ icon: Icon, title, description }) => (
               <div key={title} className="group min-h-40 bg-cc-bg p-5 transition-colors hover:bg-cc-surface">
                 <Icon className="h-5 w-5 text-cc-muted transition-colors group-hover:text-cc-text" />
                 <p className="mt-10 text-sm font-medium leading-5 text-cc-text">{title}</p>
+                {description ? <p className="mt-2 text-xs leading-5 text-cc-subtle">{description}</p> : null}
               </div>
             ))}
           </div>
           <p className="mt-5 text-xs leading-5 text-cc-subtle">
-            CtrlCode assists with code review and prioritization; it does not guarantee
-            that a repository is free from security issues.
+            CtrlCode assists with code review, system testing, and prioritization; it does
+            not guarantee that a repository or deployed application is free from issues.
           </p>
         </div>
       </section>
 
       <section className="border-t border-cc-border py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
-          <SectionIntro eyebrow="The fix loop" title="Review. Fix. Rescan." description="Use the report as a working loop with your coding agent—not a PDF that disappears into a folder." centered />
+          <SectionIntro eyebrow="The fix loop" title="Review. Fix. Rescan." description="Use each finding as a working loop with your coding agent: review the evidence, apply the focused fix, then rescan the repository or rerun the system test." centered />
           <div className="mx-auto mt-14 max-w-6xl rounded-2xl border border-cc-border-strong bg-cc-secondary p-4 sm:p-7">
             <div className="mb-5 flex items-center justify-between gap-4 border-b border-cc-border pb-5">
               <div>
@@ -614,11 +718,11 @@ export function LandingPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr] md:items-center">
               {[
-                [ScanLine, "Scan", "51 / 100"],
-                [Clipboard, "Report", "Prioritized"],
-                [TerminalSquare, "Copy prompt", "Agent ready"],
+                [ScanLine, "Review", "51 / 100"],
+                [Activity, "Test", "Browser check"],
+                [Clipboard, "Prioritize", "Evidence first"],
                 [Code2, "Fix", "In your editor"],
-                [RotateCcw, "Rescan", "82 / 100"],
+                [RotateCcw, "Verify", "82 / 100"],
               ].map(([Icon, title, detail], index) => {
                 const FlowIcon = Icon as typeof ScanLine;
                 return (
@@ -643,7 +747,7 @@ export function LandingPage() {
           <div className="relative">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cc-subtle">Ready for review</p>
             <h2 className="mt-5 text-balance text-4xl font-semibold tracking-[-0.05em] text-cc-text sm:text-5xl">Ship safer code with CtrlCode.</h2>
-            <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-7 text-cc-muted">Connect GitHub, run a review, and get a security officer report in minutes.</p>
+            <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-7 text-cc-muted">Connect GitHub, review your code, test your deployed application, and get focused findings in minutes.</p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
               <Link href="/login" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-cc-text px-6 text-sm font-semibold text-cc-bg hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
                 Start review <ArrowRight className="h-4 w-4" />
